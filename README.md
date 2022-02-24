@@ -1,2 +1,2 @@
-![](PatMat.jpg)
+![](PatMat.jpg) ![](Haplotype.png)
 # PatMat
