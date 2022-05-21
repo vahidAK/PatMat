@@ -12,7 +12,14 @@ To run this workflow you will need the following third-party tools:
 
 The workflow was developed using the above tools. However, you may use alternatives to each tool.  
 
-Finally you need to use our tool in this repository "**PatMat.py**" to detect chromosome-scale parent-of-origin resolved haplotypes.  
+Finally you need to use our tool in this repository "**PatMat.py**" to detect chromosome-scale parent-of-origin resolved haplotypes. You can clone the GitHub repository and use the PatMap.py. Before using PatMat.py you need to satisfy the following dependencies:  
+[bgzip](http://www.htslib.org/doc/bgzip.html)  
+[tabix](http://www.htslib.org/doc/tabix.html)  
+python>=3.7.4 and its following dependencies:  
+pytabix>=0.1  
+pysam>=0.16.0  
+tqdm>=4.54.1  
+
 Table of Contents
 =================
 
