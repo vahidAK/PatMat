@@ -24,13 +24,13 @@ tqdm>=4.54.1
 Table of Contents
 =================
 
-* **[Full Tutorial](https://github.com/vahidAK/PatMat/blob/master/README.md#full-tutorial)**
-  * [Basecalling from nanopore data](https://github.com/vahidAK/PatMat/blob/master/README.md#1--Basecalling-from-nanopore-data)
-  * [Mapping nanopore basecalled reads](https://github.com/vahidAK/PatMat/blob/master/README.md#2--Mapping-nanopore-basecalled-reads)
-  * [Methylation Calling from nanopore data](https://github.com/vahidAK/PatMat/blob/master/README.md#3--Methylation-Calling-from-nanopore-data)
-  * [Variant Calling from nanopore data](https://github.com/vahidAK/PatMat/blob/master/README.md#4--Variant-Calling-from-nanopore-data)
-  * [Phasing variants using Strand-sq data](https://github.com/vahidAK/PatMat/blob/master/README.md#5--Phasing-variants-using-Strand\-sq-data)
-  * [Parent-of-origin detection](https://github.com/vahidAK/PatMat/blob/master/README.md#6--Parent\-of\-origin-detection)
+* **[Full Tutorial](https://github.com/vahidAK/PatMat/blob/main/README.md#Full-Tutorial)**
+  * [Basecalling from nanopore data](https://github.com/vahidAK/PatMat/blob/main/README.md#1--Basecalling-from-nanopore-data)
+  * [Mapping nanopore basecalled reads](https://github.com/vahidAK/PatMat/blob/main/README.md#2--Mapping-nanopore-basecalled-reads)
+  * [Methylation Calling from nanopore data](https://github.com/vahidAK/PatMat/blob/main/README.md#3--Methylation-Calling-from-nanopore-data)
+  * [Variant Calling from nanopore data](https://github.com/vahidAK/PatMat/blob/main/README.md#4--Variant-Calling-from-nanopore-data)
+  * [Phasing variants using Strand-sq data](https://github.com/vahidAK/PatMat/blob/main/README.md#5--Phasing-variants-using-Strand\-sq-data)
+  * [Parent-of-origin detection](https://github.com/vahidAK/PatMat/blob/main/README.md#6--Parent\-of\-origin-detection)
   
 # Full Tutorial
 
