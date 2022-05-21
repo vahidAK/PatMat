@@ -1089,7 +1089,7 @@ def phase_parser(subparsers):
                       "File must have the following information the following column order: "
                       "chromosome\tstart\tend\tMethylatedAlleleOrigin "
                       "where origine is the methylated allele origine which must be either "
-                      "maternal or paternal.")
+                      "maternal or paternal. By default, we use version 1 list in repo's patmat directory.")
     sp_input.add_argument("--methylcallfile", "-mc",
                           action="store",
                           type=str,
