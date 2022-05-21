@@ -28,7 +28,7 @@ guppy_basecaller --input_path <Path to fast5 directory> \
 ```
 
 ## 2- Mapping nanopore basecalled reads
-Here we use minimap2 to align nanopore reads to reference genome. You may use other tools.
+Here we use [minimap2](https://github.com/lh3/minimap2) to align nanopore reads to reference genome. You may use other tools such as [Winnowmap](https://github.com/marbl/Winnowmap).
 ```
 minimap2 -ax map-ont --MD -L -t <# of threads> \
   /path/to/reference.ca \
