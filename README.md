@@ -1,5 +1,6 @@
-![](Haplotype.png)
 # PatMat:  
+![](docs/FlowChart.png)  
+
 This workflow enables simultanous chromosome-scale haplotyping and parent-of-origin detection using a combination of nanopore sequencing and Strand-seq.
 We will used nanopore-detected variants and their long-range phasing from Strand-seq to detect chromosome-scale haplotypes. We then use DNA methylation information at known imprinted regions to detect parent-of-origin.  
 
