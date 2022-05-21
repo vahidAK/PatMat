@@ -26,18 +26,19 @@ guppy_basecaller --input_path <Path to fast5 directory> \
   --device <GPU devices to be used (e,g. cuda:0 cuda:1)> \
   --trim_strategy dna
 ```
+After basecalling you need to merge all the fastq files to a single file.
 
 ## 2- Mapping nanopore basecalled reads
 Here we use [minimap2](https://github.com/lh3/minimap2) to align nanopore reads to reference genome. You may use other tools such as [Winnowmap](https://github.com/marbl/Winnowmap).
 ```
 minimap2 -ax map-ont --MD -L -t <# of threads> \
-  /path/to/reference.ca \
-  /path/to/reads.fastq > /path/to/output.sam 
+  /path/to/reference.fa \
+  /path/to/reads.fastq > /path/to/aligned_reads.sam 
 ```
 After alignment was complete you need to sort and index alignment file.
 ```
-samtools sort -@ <# of threads> /path/to/output.sam  -o /path/to/output.bam 
-samtools index -@ <# of threads> /path/to/output.bam
+samtools sort -@ <# of threads> /path/to/aligned_reads.sam  -o /path/to/aligned_reads.bam 
+samtools index -@ <# of threads> /path/to/aligned_reads.bam
 ```
 
 ## 3- Methylation Calling from nanopore data  
@@ -48,7 +49,7 @@ Here we use [nanopolish](https://github.com/jts/nanopolish) for methylation call
 NOTE: Fastqs must be merged to a single file
 
 ```
-nanopolish index -d /path/to/fast5s_directory/.fastq
+nanopolish index -d /path/to/reads.fastq
 ```
 
 ### 3-2 Methylation calling for CpG from each read:
@@ -56,8 +57,8 @@ nanopolish index -d /path/to/fast5s_directory/.fastq
 ```
 nanopolish call-methylation \
   -t <number_of_threads> -q cpg \
-  -r /path/to/fastq_fromstep-1/fastq.fastq \
-  -b /path/to/sorted_and_indexed/bam.bam \
+  -r /path/to/reads.fastq \
+  -b /path/to/aligned_reads.bam \
   -g /path/to/reference.fa > /path/to/MethylationCall.tsv
 ```
 
@@ -70,8 +71,8 @@ Here use [Clair3](https://github.com/HKU-BAL/Clair3) to call variants. However, 
 tools such as [deepvariant](https://github.com/google/deepvariant).
 
 ```
-run_clair3.sh --bam_fn=/path/to/sorted_indexed.bam \
-  --ref_fn=/path/to/reference_genome.fa \
+run_clair3.sh --bam_fn=/path/to/aligned_reads.bam \
+  --ref_fn=/path/to/reference.fa \
   --output=/path/to/output/directory \
   --threads=<# of threads> --platform=ont \
   --model_path=/path/to/model/ont_guppy5_r941_sup_g5014
