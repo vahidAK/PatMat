@@ -1,6 +1,18 @@
 ![](Haplotype.png)
-# PatMat:
-  
+# PatMat:  
+This workflow enables simultanous chromosome-scale haplotyping and parent-of-origin detection using a combination of nanopore sequencing and Strand-seq.
+We will used nanopore-detected variants and their long-range phasing from Strand-seq to detect chromosome-scale haplotypes. We then use DNA methylation information at known imprinted regions to detect parent-of-origin.
+
+To run this workflow you will need the following third-party tools:
+**Guppy**: For basecalling nanopore reads.
+**[Minimap2](https://github.com/lh3/minimap2)**: To align nanopore reads to the reference genome. 
+**[Nanopolish](https://github.com/jts/nanopolish)**: To call DNA methylation from nanopore data.
+**[NanoMethPhase](https://github.com/vahidAK/NanoMethPhase)**: To process methylation call results from nanopolish.
+**[Clair3](https://github.com/HKU-BAL/Clair3)**: To call variants from aligned nanopore reads.
+
+The workflow was developed using the above tools. However, you may use alternatives to each tool.
+
+Finally you need to use our tool in this repository "**PatMat.py**" to detect chromosome-scale parent-of-origin resolved haplotypes.
 Table of Contents
 =================
 
@@ -14,8 +26,6 @@ Table of Contents
   
 # Full Tutorial
 
-This workflow enables simultanous chromosome-scale haplotyping and parent-of-origin detection using a combination of nanopore sequencing and Strand-seq.
-We will used nanopore-dected variants and their long-range phasing from Strand-seq to detect chromosome-scale haplotypes. We then use DNA methylation information at known imprinted regions to detect parent-of-origin.
 
 ## 1- Basecalling from nanopore data
 We use Oxford Nanopore Technologies' basecaller, guppy, for translating raw signals to DNA sequence.
@@ -64,7 +74,11 @@ nanopolish call-methylation \
 
 For the full tutorial please refer to
 [Nanopolish](https://github.com/jts/nanopolish) page on GitHub.
-
+### 3-3 Pre-processing methylation call file
+We then need to pre-process methylation call file from nanopolish using [NanoMethPhase](https://github.com/vahidAK/NanoMethPhase) methyl_call_processor module.
+```
+nanomethphase methyl_call_processor -mc MethylationCall.tsv -t 20 | sort -k1,1 -k2,2n -k3,3n | bgzip > MethylationCall.bed.gz && tabix -p bed MethylationCall.bed.gz
+```
 ## 4- Variant Calling from nanopore data
 
 Here use [Clair3](https://github.com/HKU-BAL/Clair3) to call variants. However, you may call variants with other
@@ -87,8 +101,4 @@ gunzip -c /path/to/output/directory/merge_output.vcf.gz | awk '$1 ~ /^#/ || $7==
 
 ## 5- Parent-of-origin detection
 
-### 5-1 First you need to process methylation call file using [NanoMethPhase](https://github.com/vahidAK/NanoMethPhase) methyl_call_processor module.
 
-```
-nanomethphase methyl_call_processor -mc MethylationCall.tsv -t 20 | sort -k1,1 -k2,2n -k3,3n | bgzip > MethylationCall.bed.gz && tabix -p bed MethylationCall.bed.gz
-```
