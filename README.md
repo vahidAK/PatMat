@@ -51,12 +51,12 @@ Here we use [minimap2](https://github.com/lh3/minimap2) to align nanopore reads 
 ```
 minimap2 -ax map-ont --MD -L -t <# of threads> \
   /path/to/reference.fa \
-  /path/to/reads.fastq > /path/to/aligned_reads.sam 
+  /path/to/Nanopore_reads.fastq > /path/to/Nanopore_aligned_reads.sam 
 ```
 After alignment was complete you need to sort and index alignment file.
 ```
-samtools sort -@ <# of threads> /path/to/aligned_reads.sam  -o /path/to/aligned_reads.bam 
-samtools index -@ <# of threads> /path/to/aligned_reads.bam
+samtools sort -@ <# of threads> /path/to/Nanopore_aligned_reads.sam  -o /path/to//Nanopore_aligned_reads.bam 
+samtools index -@ <# of threads> /path/to/Nanopore_aligned_reads.bam
 ```
 
 ## 3- Methylation Calling from nanopore data  
@@ -67,7 +67,7 @@ Here we use [nanopolish](https://github.com/jts/nanopolish) for methylation call
 NOTE: Fastqs must be merged to a single file
 
 ```
-nanopolish index -d /path/to/reads.fastq
+nanopolish index -d /path/to/Nanopore_reads.fastq
 ```
 
 ### 3-2 Methylation calling for CpG from each read:
@@ -75,13 +75,11 @@ nanopolish index -d /path/to/reads.fastq
 ```
 nanopolish call-methylation \
   -t <number_of_threads> -q cpg \
-  -r /path/to/reads.fastq \
-  -b /path/to/aligned_reads.bam \
+  -r /path/to/Nanopore_reads.fastq \
+  -b /path/to/Nanopore_aligned_reads.bam \
   -g /path/to/reference.fa > /path/to/MethylationCall.tsv
 ```
 
-For the full tutorial please refer to
-[Nanopolish](https://github.com/jts/nanopolish) page on GitHub.
 ### 3-3 Pre-processing methylation call file
 We then need to pre-process methylation call file from nanopolish using [NanoMethPhase](https://github.com/vahidAK/NanoMethPhase) methyl_call_processor module.
 ```
@@ -93,7 +91,7 @@ Here use [Clair3](https://github.com/HKU-BAL/Clair3) to call variants. However, 
 tools such as [deepvariant](https://github.com/google/deepvariant).
 
 ```
-run_clair3.sh --bam_fn=/path/to/aligned_reads.bam \
+run_clair3.sh --bam_fn=/path/to/Nanopore_aligned_reads.bam \
   --ref_fn=/path/to/reference.fa \
   --output=/path/to/output/directory \
   --threads=<# of threads> --platform=ont \
@@ -110,8 +108,8 @@ gunzip -c /path/to/output/directory/merge_output.vcf.gz | awk '$1 ~ /^#/ || $7==
 ## 6- Parent-of-origin detection
 Finally, parent-of-origin chromosome-scale haplotypes can be built using PatMat.py:  
 ```
-PatMat.py phase -v /path/to/Clair3_variants.vcf \
- -pv /path/to/StrandSeq_phased_variants.vcf \
+PatMat.py phase -v /path/to/Passed_Clair3_Variants.vcf \
+ -sv /path/to/StrandSeq_phased_variants.vcf \
  -mc /path/to/NanoMethPhase_MethylationCall.bed.gz \
  -b /path/to/Nanopore_aligned_reads.bam \
  -o <Output pass and prefix> \
@@ -122,7 +120,7 @@ Here is the full list of options:
 ```
 python patmat/PatMat.py phase -h
 
-usage: nanomethphase phase --bam BAM --output OUTPUT --vcf VCF --phased_vcf
+usage: nanomethphase phase --bam BAM --output OUTPUT --vcf VCF --strand_vcf
                            PHASED_VCF [--known_dmr KNOWN_DMR]
                            [--methylcallfile METHYLCALLFILE] [-h]
                            [--whatshap_vcf WHATSHAP_VCF]
@@ -148,13 +146,9 @@ required arguments:
                         The path to directory and prefix to save files. e.g
                         path/to/directory/prefix
   --vcf VCF, -v VCF     The path to the vcf file.
-  --phased_vcf PHASED_VCF, -pv PHASED_VCF
-                        The path to the chromosome-scale phased vcf file. If
-                        it is your second try and you have per read info file
-                        from the first try there is no need to give vcf file,
-                        instead give the path to the per read info file using
-                        --per_read option which will be significantly faster.
-
+  --strand_vcf PHASED_VCF, -sv STRAND_VCF
+                        The path to the chromosome-scale strand-seq phased vcf file.
+ 
 required arguments if PofO needs to be determined.:
   --known_dmr KNOWN_DMR, -kd KNOWN_DMR
                         The path to the input file for known imprinted
