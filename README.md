@@ -31,10 +31,10 @@ nanopolish index -d /path/to/fast5s_directory/.fastq
 
 ```
 nanopolish call-methylation \
--t <number_of_threads> -q cpg \
--r /path/to/fastq_fromstep-1/fastq.fastq \
--b /path/to/sorted_and_indexed/bam.bam \
--g /path/to/reference.fa > /path/to/MethylationCall.tsv
+  -t <number_of_threads> -q cpg \
+  -r /path/to/fastq_fromstep-1/fastq.fastq \
+  -b /path/to/sorted_and_indexed/bam.bam \
+  -g /path/to/reference.fa > /path/to/MethylationCall.tsv
 ```
 
 For the full tutorial please refer to
@@ -46,7 +46,11 @@ Here use [Clair3](https://github.com/HKU-BAL/Clair3) to call variants. However, 
 tools such as [deepvariant](https://github.com/google/deepvariant).
 
 ```
-run_clair3.sh --bam_fn=/path/to/sorted_indexed.bam --ref_fn=/path/to/reference_genome.fa --output=/path/to/output/directory --threads=<# of threads> --platform=ont --model_path=/path/to/model/ont_guppy5_r941_sup_g5014
+run_clair3.sh --bam_fn=/path/to/sorted_indexed.bam \
+  --ref_fn=/path/to/reference_genome.fa \
+  --output=/path/to/output/directory \
+  --threads=<# of threads> --platform=ont \
+  --model_path=/path/to/model/ont_guppy5_r941_sup_g5014
 ```
 After variant calling the results will be in merge_output.vcf.gz file in the output directory. You then need to extract high uality variants:  
 ```
