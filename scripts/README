@@ -1,0 +1,15 @@
+These scripts are a combination of the standard InvertypeR method (doi.org/10.1186/s12864-021-07892-9) and the inversion-aware phasing method 
+... for StrandPhaseR (doi.org/10.1101/2021.12.20.472354), adapted for the PofO + chromosome-length haplotypes task.
+	
+To run the scripts, adjust the header of the file "master.sh" (not "master_WCCW_composite.sh" etc.), and then run "bash master.sh" in a directory 
+... containing the good-quality Strand-seq libraries for an individual
+
+The scripts were run in the conda environment described in the "env.yml" file, with the addition of the following R packages (for some of these, 
+... the specific commit does matter):
+
+BiocManager
+rlang v1.02
+BSgenome.Hsapiens.UCSC.hg38
+InvertypeR (github.com/vincent-hanlon/InvertypeR; commit a5fac3b6b8264db28de1a997ad0bc062badea883)
+BreakpointR (github.com/daewoooo/breakpointR; commit 58cce0b09d01040892b3f6abf0b11caeb403d3f5)
+StrandPhaseR (github.com/daewoooo/StrandPhaseR; commit bb19557235de3d82092abdc11b3334f615525b5b of the "devel" branch)
