@@ -107,7 +107,7 @@ gunzip -c /path/to/output/directory/merge_output.vcf.gz | awk '$1 ~ /^#/ || $7==
 ## 5- Phasing variants using Strand-sq data
   
 
-## 5- Parent-of-origin detection
+## 6- Parent-of-origin detection
 Finally, parent-of-origin chromosome-scale haplotypes can be built using PatMat.py:  
 ```
 PatMat.py phase -v /path/to/Clair3_variants.vcf \
