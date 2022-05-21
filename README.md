@@ -30,7 +30,11 @@ nanopolish index -d /path/to/fast5s_directory/.fastq
 ### 1-2 Methylation calling for CpG from each read:
 
 ```
-nanopolish call-methylation -t <number_of_threads> -q cpg -r /path/to/fastq_fromstep-1/fastq.fastq -b /path/to/sorted_and_indexed/bam.bam -g /path/to/reference.fa > /path/to/MethylationCall.tsv
+nanopolish call-methylation \
+-t <number_of_threads> -q cpg \
+-r /path/to/fastq_fromstep-1/fastq.fastq \
+-b /path/to/sorted_and_indexed/bam.bam \
+-g /path/to/reference.fa > /path/to/MethylationCall.tsv
 ```
 
 For the full tutorial please refer to
