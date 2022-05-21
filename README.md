@@ -84,7 +84,7 @@ For the full tutorial please refer to
 ### 3-3 Pre-processing methylation call file
 We then need to pre-process methylation call file from nanopolish using [NanoMethPhase](https://github.com/vahidAK/NanoMethPhase) methyl_call_processor module.
 ```
-nanomethphase methyl_call_processor -mc MethylationCall.tsv -t 20 | sort -k1,1 -k2,2n -k3,3n | bgzip > MethylationCall.bed.gz && tabix -p bed MethylationCall.bed.gz
+nanomethphase methyl_call_processor -mc MethylationCall.tsv -t 20 | sort -k1,1 -k2,2n -k3,3n | bgzip > NanoMethPhase_MethylationCall.bed.gz && tabix -p bed NanoMethPhase_MethylationCall.bed.gz
 ```
 ## 4- Variant Calling from nanopore data
 
@@ -107,5 +107,128 @@ gunzip -c /path/to/output/directory/merge_output.vcf.gz | awk '$1 ~ /^#/ || $7==
   
 
 ## 5- Parent-of-origin detection
+Finally, parent-of-origin chromosome-scale haplotypes can be built using PatMat.py:  
+```
+PatMat.py phase -v /path/to/Clair3_variants.vcf \
+ -pv /path/to/StrandSeq_phased_variants.vcf \
+ -mc /path/to/NanoMethPhase_MethylationCall.bed.gz \
+ -b /path/to/Nanopore_aligned_reads.bam \
+ -o <Output pass and prefix> \
+ -t <# of threads>
+```
 
+Here is the full list of options:  
+```
+python patmat/PatMat.py phase -h
 
+usage: nanomethphase phase --bam BAM --output OUTPUT --vcf VCF --phased_vcf
+                           PHASED_VCF [--known_dmr KNOWN_DMR]
+                           [--methylcallfile METHYLCALLFILE] [-h]
+                           [--whatshap_vcf WHATSHAP_VCF]
+                           [--whatshap_block WHATSHAP_BLOCK]
+                           [--black_list BLACK_LIST] [--per_read PER_READ]
+                           [--hapratio HAPRATIO]
+                           [--min_base_quality MIN_BASE_QUALITY]
+                           [--mapping_quality MAPPING_QUALITY]
+                           [--min_snv MIN_SNV]
+                           [--min_read_number MIN_READ_NUMBER]
+                           [--min_cg MIN_CG]
+                           [--meth_difference METH_DIFFERENCE]
+                           [--cpg_difference CPG_DIFFERENCE]
+                           [--methyl_coverage METHYL_COVERAGE]
+                           [--threads THREADS] [--chunk_size CHUNK_SIZE]
+                           [--include_supplementary]
+
+Phasing reads and Methylation
+
+required arguments:
+  --bam BAM, -b BAM     The path to the cordinate sorted bam file.
+  --output OUTPUT, -o OUTPUT
+                        The path to directory and prefix to save files. e.g
+                        path/to/directory/prefix
+  --vcf VCF, -v VCF     The path to the vcf file.
+  --phased_vcf PHASED_VCF, -pv PHASED_VCF
+                        The path to the chromosome-scale phased vcf file. If
+                        it is your second try and you have per read info file
+                        from the first try there is no need to give vcf file,
+                        instead give the path to the per read info file using
+                        --per_read option which will be significantly faster.
+
+required arguments if PofO needs to be determined.:
+  --known_dmr KNOWN_DMR, -kd KNOWN_DMR
+                        The path to the input file for known imprinted
+                        DMRs.File must have the following information the
+                        following column order: chromosome start end
+                        MethylatedAlleleOrigin where origine is the methylated
+                        allele origine which must be either maternal or
+                        paternal. By default, we use version 1 list in repo's
+                        patmat directory.
+  --methylcallfile METHYLCALLFILE, -mc METHYLCALLFILE
+                        If you want to phase methyl call file (methycall
+                        output format) to also calculate methylation frequency
+                        for each haplotype give the path to the bgziped
+                        methylation call file from methyl_call_processor
+                        Module.
+
+Optional arguments.:
+  -h, --help            show this help message and exit
+  --whatshap_vcf WHATSHAP_VCF, -wv WHATSHAP_VCF
+                        Path to the WhatsHap phased vcf file that is produced
+                        from phasing nanopore reads using WhatsHap. This can
+                        be useful when the chromosome-scale phased variants
+                        are very sparce. File must be sorted and indexed using
+                        tabix.
+  --whatshap_block WHATSHAP_BLOCK, -wb WHATSHAP_BLOCK
+                        Path to the WhatsHap block file file. This file can
+                        becreated using whatshap stats command. File must
+                        beconverted to a bed format with chromosome start end
+                        in the first three columns. If no block file is given
+                        then the assumption is that the last part after : sign
+                        in the 10th column is the phase set (PS) name and
+                        blocks will be calculated internaly.
+  --black_list BLACK_LIST, -bl BLACK_LIST
+                        List of regions to ignore ther strand-seq
+                        phasedcstatus three first columns must be chromosome
+                        start end. If black list is given the vcf file must be
+                        indexed using tabix.
+  --per_read PER_READ, -pr PER_READ
+                        If it is your second try and you have per read info
+                        file from the first try there is no need to give vcf
+                        file, instead give the path to the per read info file.
+                        This will be significantly faster.
+  --hapratio HAPRATIO, -hr HAPRATIO
+                        0-1 . Minimmum ratio of variants a read must have from
+                        a haplotype to assign it to that haplotype. Default is
+                        0.75.
+  --min_base_quality MIN_BASE_QUALITY, -mbq MIN_BASE_QUALITY
+                        Only include bases with phred score higher or equal
+                        than this option. Default is >=7.
+  --mapping_quality MAPPING_QUALITY, -mq MAPPING_QUALITY
+                        An integer value to specify thereshold for filtering
+                        reads based om mapping quality. Default is >=20
+  --min_snv MIN_SNV, -ms MIN_SNV
+                        minimum number of phased SNVs must a read have to be
+                        phased. Default= 1
+  --min_read_number MIN_READ_NUMBER, -mr MIN_READ_NUMBER
+                        minimum number of reads to support a variant to assign
+                        to each haplotype. Default= 2
+  --min_cg MIN_CG, -mcg MIN_CG
+                        Minimmum number of CpGs an iDMR must have to consider
+                        it for PofO assignment. Default is 11.
+  --meth_difference METH_DIFFERENCE, -md METH_DIFFERENCE
+                        Methylation difference cutoff for HP1-HP2 or HP2-HP1
+                        CpG methylation. Default is 0.35.
+  --cpg_difference CPG_DIFFERENCE, -cd CPG_DIFFERENCE
+                        Cut off for the fraction of CpGs between haplotypes
+                        must be differentially methylated at an iDMR to
+                        consider it for PofO assignment. Default is 0.1.
+  --methyl_coverage METHYL_COVERAGE, -mcov METHYL_COVERAGE
+                        Minimmum Coverage at each CpG site when calculating
+                        methylation frequency. Default is 1.
+  --threads THREADS, -t THREADS
+                        Number of parallel processes. Default is 4.
+  --chunk_size CHUNK_SIZE, -cs CHUNK_SIZE
+                        Chunk per process. Default is 100
+  --include_supplementary, -is
+                        Also include supplementary reads.
+```
