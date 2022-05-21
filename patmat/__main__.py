@@ -349,7 +349,7 @@ def vcf2dict(vcf, sites_to_ignore):
     return vcf_dict
 
 
-def strand_vcf2dict_phased(vcf_strand, vcf, sites_to_ignore):
+def phased_vcf2dict_phased(vcf_strand, vcf, sites_to_ignore):
     final_dict= defaultdict(set)
     vcf_dict= vcf2dict(vcf_strand, sites_to_ignore)
     with openfile(vcf) as vf:
@@ -625,11 +625,11 @@ def main_phase(args):
     if args.per_read is not None:
         per_read_file= os.path.abspath(args.per_read)
     else:
-        if args.strand_vcf is not None and args.whatshap_vcf is None:
+        if args.phased_vcf is not None and args.whatshap_vcf is None:
             warnings.warn("No WhatsHap phased vcf is given. Using strand-seq phased vcf only.")
-            vcf_strand = os.path.abspath(args.strand_vcf)
-            final_dict= strand_vcf2dict_phased(vcf_strand, vcf, sites_to_ignore)
-        # elif args.strand_vcf is None and args.whatshap_vcf is not None:
+            vcf_strand = os.path.abspath(args.phased_vcf)
+            final_dict= phased_vcf2dict_phased(vcf_strand, vcf, sites_to_ignore)
+        # elif args.phased_vcf is None and args.whatshap_vcf is not None:
         #     warnings.warn("No strand-seq phased vcf is given. Using WhatsHap phased vcf only.")
         #     vcf_whats= os.path.abspath(args.whatshap_vcf)
         #     if args.whatshap_block is None:
@@ -641,13 +641,13 @@ def main_phase(args):
         #             for line in wb:
         #                 line=line.rstrip().split('\t')
         #                 block_file.append((line[0],int(line[1]),int(line[2])))
-        elif args.strand_vcf is not None and args.whatshap_vcf is not None:
+        elif args.phased_vcf is not None and args.whatshap_vcf is not None:
             warnings.warn("Using both strand-seq phased and WhatsHap phased vcf.")
             vcf_whats= os.path.abspath(args.whatshap_vcf)
             if not os.path.isfile(MethylCallfile+".tbi"):
                 raise Exception("It seems that whatshap vcf "
                                 "is not index by tabix.")
-            vcf_strand = os.path.abspath(args.strand_vcf)
+            vcf_strand = os.path.abspath(args.phased_vcf)
             if args.whatshap_block is None:
                 block_file= get_block(vcf_whats)
             else:
@@ -1081,7 +1081,10 @@ def phase_parser(subparsers):
                       action="store",
                       type=str,
                       required= False,
-                      default= None,
+                      default= os.path.join(os.path.dirname(
+                                                    os.path.realpath(__file__)
+                                                        ),
+                                                 "Imprinted_DMR_List_V1.tsv"),
                       help="The path to the input file for known imprinted DMRs."
                       "File must have the following information the following column order: "
                       "chromosome\tstart\tend\tMethylatedAlleleOrigin "
