@@ -1,18 +1,18 @@
 ![](Haplotype.png)
 # PatMat:  
 This workflow enables simultanous chromosome-scale haplotyping and parent-of-origin detection using a combination of nanopore sequencing and Strand-seq.
-We will used nanopore-detected variants and their long-range phasing from Strand-seq to detect chromosome-scale haplotypes. We then use DNA methylation information at known imprinted regions to detect parent-of-origin.
+We will used nanopore-detected variants and their long-range phasing from Strand-seq to detect chromosome-scale haplotypes. We then use DNA methylation information at known imprinted regions to detect parent-of-origin.  
 
-To run this workflow you will need the following third-party tools:
-**Guppy**: For basecalling nanopore reads.
-**[Minimap2](https://github.com/lh3/minimap2)**: To align nanopore reads to the reference genome. 
-**[Nanopolish](https://github.com/jts/nanopolish)**: To call DNA methylation from nanopore data.
-**[NanoMethPhase](https://github.com/vahidAK/NanoMethPhase)**: To process methylation call results from nanopolish.
-**[Clair3](https://github.com/HKU-BAL/Clair3)**: To call variants from aligned nanopore reads.
+To run this workflow you will need the following third-party tools:  
+**Guppy**: For basecalling nanopore reads.  
+**[Minimap2](https://github.com/lh3/minimap2)**: To align nanopore reads to the reference genome.  
+**[Nanopolish](https://github.com/jts/nanopolish)**: To call DNA methylation from nanopore data.  
+**[NanoMethPhase](https://github.com/vahidAK/NanoMethPhase)**: To process methylation call results from nanopolish.  
+**[Clair3](https://github.com/HKU-BAL/Clair3)**: To call variants from aligned nanopore reads.  
 
-The workflow was developed using the above tools. However, you may use alternatives to each tool.
+The workflow was developed using the above tools. However, you may use alternatives to each tool.  
 
-Finally you need to use our tool in this repository "**PatMat.py**" to detect chromosome-scale parent-of-origin resolved haplotypes.
+Finally you need to use our tool in this repository "**PatMat.py**" to detect chromosome-scale parent-of-origin resolved haplotypes.  
 Table of Contents
 =================
 
