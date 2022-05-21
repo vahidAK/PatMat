@@ -1066,11 +1066,11 @@ def phase_parser(subparsers):
                       required=True,
                       default= None,
                       help="The path to the vcf file.")
-    sp_input.add_argument("--strand_vcf", "-sv",
+    sp_input.add_argument("--phased_vcf", "-pv",
                           action="store",
                           type=str,
                           required=True,
-                          help="The path to the Strand-seq phased vcf file. "
+                          help="The path to the chromosome-scale phased vcf file. "
                           "If it is your second try and you have per read "
                           "info file from the first try there is no need to "
                           "give vcf file, instead give the path to the per "
@@ -1107,7 +1107,9 @@ def phase_parser(subparsers):
                           type=str,
                           required=False,
                           default=None,
-                          help=("Path to the WhatsHap phased vcf file."
+                          help=("Path to the WhatsHap phased vcf file that is produced from "
+                                "phasing nanopore reads using WhatsHap. This can be useful "
+                                "when the chromosome-scale phased variants are very sparce. "
                                 "File must be sorted and indexed using tabix."))
     sp_input.add_argument("--whatshap_block", "-wb",
                           action="store",
