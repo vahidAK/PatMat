@@ -12,19 +12,12 @@ Table of Contents
   
 # Full Tutorial
 
-In order to get the phased methylome you also need the following third-party
-software:
+This workflow enables simultanous chromosome-scale haplotyping and parent-of-origin detection using a combination of nanopore sequencing and Strand-seq.
+We will used nanopore-dected variants and their long-range phasing from Strand-seq to detect chromosome-scale haplotypes. We then use DNA methylation information at known imprinted regions to detect parent-of-origin.
 
-[Nanopolish](https://github.com/jts/nanopolish) : To call CpG methylation.
 
-[Clair](https://github.com/HKU-BAL/Clair) or other variant callers: To call
-variants for your sample. Alternatively, you might already have variant calling
-data for example from Illumina sequencing.
-
-[WhatsHap](https://github.com/whatshap/whatshap): To phase single nucleotide
-variants.
-
-## 1- Methylation Calling from nanopore data
+## 1- Methylation Calling from nanopore data  
+Here we use [nanopolish](https://github.com/jts/nanopolish) for methylation calling however you may use [megalodon](https://github.com/nanoporetech/megalodon) or [DeepSignal](https://github.com/bioinfomaticsCSU/deepsignal). 
 
 ### 1-1 indexing fastq file and fast5 files:
 
@@ -45,30 +38,20 @@ For the full tutorial please refer to
 
 ## 2- Variant Calling from nanopore data
 
-We have used Clair to call variants. However, you may call variants with other
-tools or your variant data may come from Illumina or other methods.
-
-You can call variants for each chromosome using the following command and then
-concatenate all files:
+Here use [Clair3](https://github.com/HKU-BAL/Clair3) to call variants. However, you may call variants with other
+tools such as [deepvariant](https://github.com/google/deepvariant).
 
 ```
-for i in chr{1..22} chrX chrY; do callVarBam --chkpnt_fn <path_to_model_file> --ref_fn <reference_genome.fa> --bam_fn <sorted_indexed.bam> --ctgName $i --sampleName <your_sample_name> --call_fn $i".vcf" --threshold 0.2 --samtools <path_to_executable_samtools_software> --pypy <path_to_executable_pypy > --threads <number_of_threads>
+run_clair3.sh --bam_fn=/path/to/sorted_indexed.bam --ref_fn=/path/to/reference_genome.fa --output=/path/to/output/directory --threads=<# of threads> --platform=ont --model_path=/path/to/model/ont_guppy5_r941_sup_g5014
 ```
-
-For the full tutorial please refer to [Clair](https://github.com/HKU-BAL/Clair)
-page on GitHub.
-
-After variant calling, you can select only SNVs which will be used for phasing:
+After variant calling the results will be in merge_output.vcf.gz file in the output directory. You then need to extract high uality variants:  
 ```
-awk '$4 != "." && $5 != "." && length($4) == 1 && length($5) == 1 && $6 > <the_variant_calling_quality_threshold>' variants.vcf > HighQualitySNVs.vcf
-```
-
-If you are calling variants from low coverage nanopore data (<30x) using Clair, you can also use our other tool [SNVoter](https://github.com/vahidAK/SNVoter) to improve SNV detection.
+gunzip -c /path/to/output/directory/merge_output.vcf.gz | awk '$1 ~ /^#/ || $7=="PASS"' > /path/to/output/Passed_Clair3_Variants.vcf
+```  
 
 ## 3- Phasing variants using Strand-sq data
-
   
-**NOTE:** Currently, NanoMethPhase requires a single sample vcf file in which phase information of SNVs in 10th column indicated by "|" (e.g. 0|1 or 1|0). For more information about the input vcf file please read issue [#1](https://github.com/vahidAK/NanoMethPhase/issues/1).  
+
 ## 4- Parent-of-origin detection
 
 ### 4-1 First you need to process methylation call file using [NanoMethPhase](https://github.com/vahidAK/NanoMethPhase) methyl_call_processor module.
