@@ -26,10 +26,10 @@ Table of Contents
 
 **[Full Tutorial](https://github.com/vahidAK/PatMat/blob/main/README.md#Full-Tutorial)**
 * [Nanopore Data Analysis](https://github.com/vahidAK/PatMat/blob/main/README.md#1--Nanopore-Data-Analysis)
-  * [Basecalling from nanopore data](https://github.com/vahidAK/PatMat/blob/main/README.md##1\-1--Basecalling-from-nanopore-data)
-  * [Mapping nanopore basecalled reads](https://github.com/vahidAK/PatMat/blob/main/README.md##1\-2--Mapping-nanopore-basecalled-reads)
-  * [Methylation Calling from nanopore data](https://github.com/vahidAK/PatMat/blob/main/README.md##1\-3--Methylation-Calling-from-nanopore-data)
-  * [Variant Calling from nanopore data](https://github.com/vahidAK/PatMat/blob/main/README.md##1\-4--Variant-Calling-from-nanopore-data)
+  * [Basecalling from nanopore data](https://github.com/vahidAK/PatMat/blob/main/README.md#1\-1--Basecalling-from-nanopore-data)
+  * [Mapping nanopore basecalled reads](https://github.com/vahidAK/PatMat/blob/main/README.md#1\-2-Mapping-nanopore-basecalled-reads)
+  * [Methylation Calling from nanopore data](https://github.com/vahidAK/PatMat/blob/main/README.md#1\-3-Methylation-Calling-from-nanopore-data)
+  * [Variant Calling from nanopore data](https://github.com/vahidAK/PatMat/blob/main/README.md#1\-4-Variant-Calling-from-nanopore-data)
 * [Strand-seq Data Analysis](https://github.com/vahidAK/PatMat/blob/main/README.md#2--Strand\-seq-Data-Analysis)
 * [Parent-of-origin detection](https://github.com/vahidAK/PatMat/blob/main/README.md#3--Parent\-of\-origin-detection)
   
