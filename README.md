@@ -24,8 +24,8 @@ tqdm>=4.54.1
 Table of Contents
 =================
 
-* **[Full Tutorial](https://github.com/vahidAK/PatMat/blob/main/README.md#Full-Tutorial)**
-* [Nanopore Data Analysis](https://github.com/vahidAK/PatMat/blob/main/README.md##1--Nanopore-Data-Analysis)
+**[Full Tutorial](https://github.com/vahidAK/PatMat/blob/main/README.md#Full-Tutorial)**
+* [Nanopore Data Analysis](https://github.com/vahidAK/PatMat/blob/main/README.md#1--Nanopore-Data-Analysis)
   * [Basecalling from nanopore data](https://github.com/vahidAK/PatMat/blob/main/README.md###1-1--Basecalling-from-nanopore-data)
   * [Mapping nanopore basecalled reads](https://github.com/vahidAK/PatMat/blob/main/README.md###1-2--Mapping-nanopore-basecalled-reads)
   * [Methylation Calling from nanopore data](https://github.com/vahidAK/PatMat/blob/main/README.md###1-3--Methylation-Calling-from-nanopore-data)
