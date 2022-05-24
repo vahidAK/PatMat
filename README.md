@@ -25,17 +25,18 @@ Table of Contents
 =================
 
 * **[Full Tutorial](https://github.com/vahidAK/PatMat/blob/main/README.md#Full-Tutorial)**
-  * [Basecalling from nanopore data](https://github.com/vahidAK/PatMat/blob/main/README.md#1--Basecalling-from-nanopore-data)
-  * [Mapping nanopore basecalled reads](https://github.com/vahidAK/PatMat/blob/main/README.md#2--Mapping-nanopore-basecalled-reads)
-  * [Methylation Calling from nanopore data](https://github.com/vahidAK/PatMat/blob/main/README.md#3--Methylation-Calling-from-nanopore-data)
-  * [Variant Calling from nanopore data](https://github.com/vahidAK/PatMat/blob/main/README.md#4--Variant-Calling-from-nanopore-data)
-  * [Phasing variants using Strand-sq data](https://github.com/vahidAK/PatMat/blob/main/README.md#5--Phasing-variants-using-Strand\-sq-data)
-  * [Parent-of-origin detection](https://github.com/vahidAK/PatMat/blob/main/README.md#6--Parent\-of\-origin-detection)
+* [Nanopore Data Analysis](https://github.com/vahidAK/PatMat/blob/main/README.md##1--Nanopore-Data-Analysis)
+  * [Basecalling from nanopore data](https://github.com/vahidAK/PatMat/blob/main/README.md###1-1--Basecalling-from-nanopore-data)
+  * [Mapping nanopore basecalled reads](https://github.com/vahidAK/PatMat/blob/main/README.md###1-2--Mapping-nanopore-basecalled-reads)
+  * [Methylation Calling from nanopore data](https://github.com/vahidAK/PatMat/blob/main/README.md###1-3--Methylation-Calling-from-nanopore-data)
+  * [Variant Calling from nanopore data](https://github.com/vahidAK/PatMat/blob/main/README.md###1-4--Variant-Calling-from-nanopore-data)
+* [Strand-seq Data Analysis](https://github.com/vahidAK/PatMat/blob/main/README.md##2--Strand\-seq-Data-Analysis)
+  * [Parent-of-origin detection](https://github.com/vahidAK/PatMat/blob/main/README.md##3--Parent\-of\-origin-detection)
   
 # Full Tutorial
 
-
-## 1- Basecalling from nanopore data
+## 1- Nanopore Data Analysis
+### 1-1 Basecalling from nanopore data
 We use Oxford Nanopore Technologies' basecaller, guppy, for translating raw signals to DNA sequence.
 ```
 guppy_basecaller --input_path <Path to fast5 directory> \
@@ -46,7 +47,7 @@ guppy_basecaller --input_path <Path to fast5 directory> \
 ```
 After basecalling you need to merge all the fastq files to a single file.
 
-## 2- Mapping nanopore basecalled reads
+### 1-2 Mapping nanopore basecalled reads
 Here we use [minimap2](https://github.com/lh3/minimap2) to align nanopore reads to reference genome. You may use other tools such as [Winnowmap](https://github.com/marbl/Winnowmap).
 ```
 minimap2 -ax map-ont --MD -L -t <# of threads> \
@@ -59,10 +60,10 @@ samtools sort -@ <# of threads> /path/to/Nanopore_aligned_reads.sam  -o /path/to
 samtools index -@ <# of threads> /path/to/Nanopore_aligned_reads.bam
 ```
 
-## 3- Methylation Calling from nanopore data  
+### 1-3 Methylation Calling from nanopore data  
 Here we use [nanopolish](https://github.com/jts/nanopolish) for methylation calling however you may use [megalodon](https://github.com/nanoporetech/megalodon) or [DeepSignal](https://github.com/bioinfomaticsCSU/deepsignal). 
 
-### 3-1 indexing fastq file and fast5 files:
+#### 1-3-1 indexing fastq file and fast5 files:
 
 NOTE: Fastqs must be merged to a single file
 
@@ -70,7 +71,7 @@ NOTE: Fastqs must be merged to a single file
 nanopolish index -d /path/to/Nanopore_reads.fastq
 ```
 
-### 3-2 Methylation calling for CpG from each read:
+#### 1-3-2 Methylation calling for CpG from each read:
 
 ```
 nanopolish call-methylation \
@@ -80,12 +81,12 @@ nanopolish call-methylation \
   -g /path/to/reference.fa > /path/to/MethylationCall.tsv
 ```
 
-### 3-3 Pre-processing methylation call file
+#### 1-3-3 Pre-processing methylation call file
 We then need to pre-process methylation call file from nanopolish using [NanoMethPhase](https://github.com/vahidAK/NanoMethPhase) methyl_call_processor module.
 ```
 nanomethphase methyl_call_processor -mc MethylationCall.tsv -t 20 | sort -k1,1 -k2,2n -k3,3n | bgzip > NanoMethPhase_MethylationCall.bed.gz && tabix -p bed NanoMethPhase_MethylationCall.bed.gz
 ```
-## 4- Variant Calling from nanopore data
+### 1-4 Variant Calling from nanopore data
 
 Here use [Clair3](https://github.com/HKU-BAL/Clair3) to call variants. However, you may call variants with other
 tools such as [deepvariant](https://github.com/google/deepvariant).
@@ -102,10 +103,12 @@ After variant calling the results will be in merge_output.vcf.gz file in the out
 gunzip -c /path/to/output/directory/merge_output.vcf.gz | awk '$1 ~ /^#/ || $7=="PASS"' > /path/to/output/Passed_Clair3_Variants.vcf
 ```  
 
-## 5- Phasing variants using Strand-sq data
+## 2- Strand-seq Data Analysis
+### 2-1 
+### 2-2
   
 
-## 6- Parent-of-origin detection
+## 3- Parent-of-origin detection
 Finally, parent-of-origin chromosome-scale haplotypes can be built using PatMat.py:  
 ```
 PatMat.py phase -v /path/to/Passed_Clair3_Variants.vcf \
