@@ -2,9 +2,9 @@
 ![](docs/FlowChart.png)  
 
 This workflow enables simultanous chromosome-scale haplotyping and parent-of-origin detection using a combination of nanopore sequencing and Strand-seq.
-We will used nanopore-detected variants and their long-range phasing from Strand-seq to detect chromosome-scale haplotypes. We then use DNA methylation information at known imprinted regions to detect parent-of-origin.  
+We will use nanopore-detected variants and their long-range phasing from Strand-seq to detect chromosome-scale haplotypes. We then use DNA methylation information at known imprinted regions to detect parent-of-origin.  
 
-To run this workflow you will need the following third-party tools:  
+To run this workflow you will need the following third-party tools for processing nanopore data:  
 **Guppy**: For basecalling nanopore reads.  
 **[Minimap2](https://github.com/lh3/minimap2)**: To align nanopore reads to the reference genome.  
 **[Nanopolish](https://github.com/jts/nanopolish)**: To call DNA methylation from nanopore data.  
@@ -104,9 +104,11 @@ gunzip -c /path/to/output/directory/merge_output.vcf.gz | awk '$1 ~ /^#/ || $7==
 ```  
 
 ## 2- Strand-seq Data Analysis
-### 2-1 
-### 2-2
-  
+Roughly 20 million or more unique reads in good-quality Strand-seq libraries should be used for phasing. These must be aligned to the reference genome and poor-quality libraries must be identified and removed using [ASHLEYS QC](https://github.com/friendsofstrandseq/ashleys-qc) (Gros et al. 2021). Then, with a nanopore-derived VCF file of SNVs, the scripts in [scripts/Strand-seq/](https://github.com/vahidAK/PatMat/tree/main/scripts/Strand-seq) must be run in the directory containing the Strand-seq BAM files. This requires some installations (described in the /scripts/Strand-seq/ README) as well as altering the header of the master.sh file. The command is then simply
+...
+bash master.sh
+...
+This master script calls inversions (most of the runtime), which help refine phasing, and then it phases the SNVs using the standard Strand-seq R packages [BreakpointR](https://bioconductor.org/packages/release/bioc/html/breakpointR.html) and [StrandPhaseR](https://github.com/daewoooo/StrandPhaseR). The result is a phased VCF file of SNVs, which can be used with PatMat.py as described below.
 
 ## 3- Parent-of-origin detection
 Finally, parent-of-origin chromosome-scale haplotypes can be built using PatMat.py:  
