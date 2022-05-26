@@ -21,7 +21,7 @@ pytabix>=0.1
 pysam>=0.16.0  
 tqdm>=4.54.1  
 
-To runing strand-seq paert you need to satisfy dependencies described in the [scripts/Strand-seq/](https://github.com/vahidAK/PatMat/tree/main/scripts/Strand-seq) README.   
+To run the Strand-seq part you need to satisfy dependencies described in the [scripts/Strand-seq/](https://github.com/vahidAK/PatMat/tree/main/scripts/Strand-seq) README.   
 
 Table of Contents
 =================
