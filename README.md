@@ -12,9 +12,9 @@ To run this workflow you will need the following third-party tools for processin
 **[Nanopolish](https://github.com/jts/nanopolish)**: To call DNA methylation from nanopore data.  
 **[NanoMethPhase](https://github.com/vahidAK/NanoMethPhase)**: To process methylation call results from nanopolish.  
 **[Clair3](https://github.com/HKU-BAL/Clair3)**: To call variants from aligned nanopore reads.  
-
-The workflow was developed using the above tools. However, you may use alternatives to each tool.  
 Additional software tools are required to use Strand-seq described in the [scripts/Strand-seq/](https://github.com/vahidAK/PatMat/tree/main/scripts/Strand-seq) README.  
+
+The workflow was developed using the above tools. However, you may use alternatives to each tool.    
 
 Finally you need to use our tool in this repository "**PatMat.py**" to detect chromosome-scale parent-of-origin resolved haplotypes. You can clone the GitHub repository and use the PatMat.py. Before using PatMat.py you need to satisfy the following dependencies:  
 [bgzip](http://www.htslib.org/doc/bgzip.html)  
