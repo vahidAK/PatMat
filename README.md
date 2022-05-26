@@ -21,7 +21,7 @@ pytabix>=0.1
 pysam>=0.16.0  
 tqdm>=4.54.1  
 
-To runing strand-seq paert you need to satisfy dependencies described in the /scripts/Strand-seq/ README.   
+To runing strand-seq paert you need to satisfy dependencies described in the [scripts/Strand-seq/](https://github.com/vahidAK/PatMat/tree/main/scripts/Strand-seq) README.   
 
 Table of Contents
 =================
@@ -106,7 +106,7 @@ gunzip -c /path/to/output/directory/merge_output.vcf.gz | awk '$1 ~ /^#/ || $7==
 ```  
 
 ## 2- Strand-seq Data Analysis
-Typically, 30-100 good quality Strand-seq libraries with at least 20 million unique reads in total should be used for phasing. These must be aligned to the reference genome and poor-quality libraries must be identified and removed using [ASHLEYS QC](https://github.com/friendsofstrandseq/ashleys-qc) (Gros et al. 2021). Then, with a nanopore-derived VCF file of SNVs, the scripts in [scripts/Strand-seq/](https://github.com/vahidAK/PatMat/tree/main/scripts/Strand-seq) must be run in the directory containing the Strand-seq BAM files. This requires some installations (described in the /scripts/Strand-seq/ README) as well as altering the header of the master.sh file. The command is then simply:
+Typically, 30-100 good quality Strand-seq libraries with at least 20 million unique reads in total should be used for phasing. These must be aligned to the reference genome and poor-quality libraries must be identified and removed using [ASHLEYS QC](https://github.com/friendsofstrandseq/ashleys-qc) (Gros et al. 2021). Then, with a nanopore-derived VCF file of SNVs, the scripts in [scripts/Strand-seq/](https://github.com/vahidAK/PatMat/tree/main/scripts/Strand-seq) must be run in the directory containing the Strand-seq BAM files. This requires some installations (described in the [scripts/Strand-seq/](https://github.com/vahidAK/PatMat/tree/main/scripts/Strand-seq) README) as well as altering the header of the master.sh file. The command is then simply:
 ```
 bash master.sh
 ```
