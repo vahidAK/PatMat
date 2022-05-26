@@ -3,7 +3,7 @@
 
 This workflow enables simultanous chromosome-scale haplotyping and parent-of-origin detection using a combination of nanopore sequencing and Strand-seq.
 We will use nanopore-detected variants and their long-range phasing from Strand-seq to detect chromosome-scale haplotypes. We then use DNA methylation information at known imprinted regions to detect parent-of-origin.  
-
+Citation: [Parent-of-origin detection and chromosome-scale haplotyping using long-read DNA methylation sequencing and Strand-seq](https://doi.org/10.1101/2022.05.24.493320)  
 To run this workflow you will need the following third-party tools for processing nanopore data:  
 **Guppy**: For basecalling nanopore reads.  
 **[Minimap2](https://github.com/lh3/minimap2)**: To align nanopore reads to the reference genome.  
