@@ -1257,7 +1257,7 @@ def main():
     Docstring placeholder.
     """
     parser = argparse.ArgumentParser(
-        prog="PatMat",
+        prog="PatMat.py",
         description="PatMat")
     subparsers = parser.add_subparsers(title="Modules")
     phase_parser(subparsers)
