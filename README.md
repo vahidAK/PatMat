@@ -128,7 +128,7 @@ Here is the full list of options:
 ```
 python patmat/PatMat.py phase -h
 
-usage: nanomethphase phase --bam BAM --output OUTPUT --vcf VCF --strand_vcf
+usage: PatMat.py phase --bam BAM --output OUTPUT --vcf VCF --strand_vcf
                            PHASED_VCF [--known_dmr KNOWN_DMR]
                            [--methylcallfile METHYLCALLFILE] [-h]
                            [--whatshap_vcf WHATSHAP_VCF]
