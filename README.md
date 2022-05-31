@@ -196,8 +196,7 @@ Optional arguments.:
                         indexed using tabix.
   --per_read PER_READ, -pr PER_READ
                         If it is your second try and you have per read info
-                        file from the first try there is no need to give vcf
-                        file, instead give the path to the per read info file.
+                        file give the path to the per read info file.
                         This will be significantly faster.
   --hapratio HAPRATIO, -hr HAPRATIO
                         0-1 . Minimmum ratio of variants a read must have from
