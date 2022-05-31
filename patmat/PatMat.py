@@ -1166,8 +1166,7 @@ def phase_parser(subparsers):
                           required=False,
                           default= None,
                           help="If it is your second try and you have per "
-                          "read info file from the first try there is no need "
-                          "to give vcf file, instead give the path to the per "
+                          "read info file give the path to the per "
                           "read info file. This will be significantly faster.")
     sp_input.add_argument("--hapratio", "-hr",
                           action="store",
@@ -1258,9 +1257,8 @@ def main():
     Docstring placeholder.
     """
     parser = argparse.ArgumentParser(
-        prog="nanomethphase",
-        description="NanoMethPhase: For phasing Nanopore Reads and "
-                    "Methylation")
+        prog="PatMat",
+        description="PatMat")
     subparsers = parser.add_subparsers(title="Modules")
     phase_parser(subparsers)
     args = parser.parse_args()
