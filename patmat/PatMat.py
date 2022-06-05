@@ -670,10 +670,10 @@ def main_phase(args):
         elif args.strand_vcf is not None and args.whatshap_vcf is not None:
             warnings.warn("Using both strand-seq phased and WhatsHap phased vcf.")
             vcf_whats= os.path.abspath(args.whatshap_vcf)
-            if not os.path.isfile(MethylCallfile+".tbi"):
+            vcf_strand = os.path.abspath(args.strand_vcf)
+            if not os.path.isfile(vcf_whats+".tbi"):
                 raise Exception("It seems that whatshap vcf "
                                 "is not index by tabix.")
-            vcf_strand = os.path.abspath(args.strand_vcf)
             if args.whatshap_block is None:
                 block_file= get_block(vcf_whats)
             else:
