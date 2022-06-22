@@ -107,11 +107,48 @@ gunzip -c /path/to/output/directory/merge_output.vcf.gz | awk '$1 ~ /^#/ || $7==
 ```  
 
 ## 2- Strand-seq Data Analysis
-Typically, 30-100 good quality Strand-seq libraries with at least 20 million unique reads in total should be used for phasing. These must be aligned to the reference genome and poor-quality libraries must be identified and removed using [ASHLEYS QC](https://github.com/friendsofstrandseq/ashleys-qc) (Gros et al. 2021). Then, with a nanopore-derived VCF file of SNVs, the scripts in [scripts/Strand-seq/](https://github.com/vahidAK/PatMat/tree/main/scripts/Strand-seq) must be run in the directory containing the Strand-seq BAM files. This requires some installations (described in the [scripts/Strand-seq/](https://github.com/vahidAK/PatMat/tree/main/scripts/Strand-seq) README) as well as altering the header of the master.sh file. The command is then simply:
+### 2-1 Overview
+Typically, 30-100 good quality Strand-seq libraries with at least 20 million unique reads in total should be used for phasing. These must be aligned to the reference genome and poor-quality libraries must be identified and removed using [ASHLEYS QC](https://github.com/friendsofstrandseq/ashleys-qc) (Gros et al. 2021). Then, with a nanopore-derived VCF file of non-phased SNVs, the scripts in [scripts/Strand-seq/](https://github.com/vahidAK/PatMat/tree/main/scripts/Strand-seq) must be run in the directory containing the Strand-seq BAM files. This requires some installations (described below) as well as altering the header of the master.sh file. The command is then simply:
 ```
 bash master.sh
 ```
 This master script calls inversions using [InvertypeR](https://github.com/vincent-hanlon/InvertypeR) (most of the runtime), which help refine phasing, and then it phases the SNVs using the standard Strand-seq R packages [BreakpointR](https://bioconductor.org/packages/release/bioc/html/breakpointR.html) and [StrandPhaseR](https://github.com/daewoooo/StrandPhaseR). The result is a phased VCF file of SNVs ("samplename.phased.inv_aware.vcf"), which can be used with PatMat.py as described below.
+
+### 2-2 Installations and setup
+We ran the Strand-seq data analysis for this paper in the [conda](https://docs.conda.io/en/latest/miniconda.html) environment described by env.yml in [scripts/Strand-seq/](https://github.com/vahidAK/PatMat/tree/main/scripts/Strand-seq). This can be recreated:
+```
+conda env create --file env.yml -n dmr
+```
+Some R packages must also be installed into this environment (using `install.packages()` from base R and `BiocManager::install()`). For BreakpointR and StrandPhaseR especially, the particular commit installed matters.
+
+BiocManager
+rlang v1.02
+BSgenome.Hsapiens.UCSC.hg38
+InvertypeR (github.com/vincent-hanlon/InvertypeR; commit a5fac3b6b8264db28de1a997ad0bc062badea883)
+BreakpointR (github.com/daewoooo/breakpointR; commit 58cce0b09d01040892b3f6abf0b11caeb403d3f5)
+StrandPhaseR (github.com/daewoooo/StrandPhaseR; commit bb19557235de3d82092abdc11b3334f615525b5b of the "devel" branch)
+
+### 2-2-1 Library QC
+Separately, the Strand-seq library QC tool [ASHLEYS QC](https://github.com/friendsofstrandseq/ashleys-qc) should be used to select only good-quality libraries for analysis (installation instructions in the GitHub link). Typically, after activating the correct conda environment (`conda activate ashleys`), move to the directory containing aligned and indexed Strand-seq BAM files and run something like the following:
+```
+ashleys.py -j 12 features -f ./ -w 5000000 2000000 1000000 800000 600000 400000 200000 -o ./features.tsv
+ashleys.py predict -p ./features.tsv -o ./quality.txt -m scripts/tools/svc_default.pkl
+```
+Then examine quality.txt and either (i) use libraries with a score >0.5 or (ii) use libraries with a score >0.7 and have a domain expert manually inspect libraries with a score 0.5-0.7 to see whether they should be included in the analysis.
+
+### 2-3 Strand-seq phasing
+Running the Strand-seq phasing should now just require editing the header of master.sh (not master_WCCW_composite.sh or master_WWCC_composite.sh) with appropriate sample-specific files (Strand-seq BAM and nanopore-derived VCF) and running `bash master.sh` from the directory containing the good-quality BAM files, as mentioned above. However, the steps performed by master.sh are described below.
+
+### 2-3-1 Composite files for inversion calling
+Strand-seq libraries are typically low-coverage, and this makes it hard to discover and genotype small inversions. To address this, we combine data from many libraries into two composite files: one built from regions of libraries where all reads mapped with the same orientation (Watson-Watson or Crick-Crick regions), and one where reads mapped with both orientations (Watson-Crick). The latter file entails a phasing step to distinguish cases where (for an autosome) homolog 1 gave the forward reads and homolog 2 gave the reverse reads, rather than homolog 1 giving reverse reads and homolog 2 giving forward reads. Apart from identifying and phasing such regions, this process is effectively a problem of merging BAM files and reorienting reads in some cases. 
+
+InvertypeR, which genotypes inversions, takes as input a list of positions to examine. To obtain a list of putative inversions de novo, we run BreakpointR on the composite files three times with different bin sizes and extract the coordinates of short segments of the genome with unexpected read orientations (such as inversions might give). We combine this with a list of inversions from the literature.
+
+### 2-3-2 Inversion genotyping
+To genotype the inversions, we use the R package InvertypeR. This counts reads inside the putative inversions by orientation in each composite file. Using a simple Bayesian model of read counts, posterior probabilites for inversion genotypes are calculated (effectively a comparison of the actual read count pattern with expected read count patterns for the various genotype and error signals). InvertypeR also resizes inversions if the coordinates do not perfectly match the region with reversed read orientations. We take inversions with a posterior probability above 95% for either the heterozygous or homozygous genotype. Since InvertypeR is run separately (with different prior probabilities) for the putative inversions obtained from the literature or from BreakpointR (above), we then combine them by merging overlapping inversions subject to some constraints.
+
+### 2-3-3 Phasing
+All the above inversion calling is used to correct or refine SNV phasing inside inversions, a relatively small fraction of the genome. For some analyses, it may be optional, as long as variant of interest are not inside inversions and not too many iDMRs are inside inversions. We use StrandPhaseR to phase the nanopore-derived SNVs, and then we correct the phasing within inversions using the StrandPhaseR tool `correctInvertedRegionPhasing()`. For this process, first we identify WC regions (used for phasing) with BreakpointR, and then StrandPhaseR assigns alleles that appear in reads with opposite orientations to different homologs (assuming the reads are in the same WC region or chromosome in the same cell). It then combines the phase information from many cells to produce a consensus phased VCF. The inversion correction step then effectively switches the haplotypes of alleles inside homozygous inversions and re-phases alleles inside heterozygous inversions.
 
 ## 3- Parent-of-origin detection
 Finally, parent-of-origin chromosome-scale haplotypes can be built using PatMat.py:  
