@@ -121,12 +121,12 @@ conda env create --file env.yml -n dmr
 ```
 Some R packages must also be installed into this environment (using `install.packages()` from base R and `BiocManager::install()`). For BreakpointR and StrandPhaseR especially, the particular commit installed matters.
 
-BiocManager
-rlang v1.02
-BSgenome.Hsapiens.UCSC.hg38
-InvertypeR (github.com/vincent-hanlon/InvertypeR; commit a5fac3b6b8264db28de1a997ad0bc062badea883)
-BreakpointR (github.com/daewoooo/breakpointR; commit 58cce0b09d01040892b3f6abf0b11caeb403d3f5)
-StrandPhaseR (github.com/daewoooo/StrandPhaseR; commit bb19557235de3d82092abdc11b3334f615525b5b of the "devel" branch)
+* BiocManager
+* rlang v1.02
+* BSgenome.Hsapiens.UCSC.hg38
+* InvertypeR (github.com/vincent-hanlon/InvertypeR; commit a5fac3b6b8264db28de1a997ad0bc062badea883)
+* BreakpointR (github.com/daewoooo/breakpointR; commit 58cce0b09d01040892b3f6abf0b11caeb403d3f5)
+* StrandPhaseR (github.com/daewoooo/StrandPhaseR; commit bb19557235de3d82092abdc11b3334f615525b5b of the "devel" branch)
 
 ### 2-2-1 Library QC
 Separately, the Strand-seq library QC tool [ASHLEYS QC](https://github.com/friendsofstrandseq/ashleys-qc) should be used to select only good-quality libraries for analysis (installation instructions in the GitHub link). Typically, after activating the correct conda environment (`conda activate ashleys`), move to the directory containing aligned and indexed Strand-seq BAM files and run something like the following:
@@ -134,7 +134,7 @@ Separately, the Strand-seq library QC tool [ASHLEYS QC](https://github.com/frien
 ashleys.py -j 12 features -f ./ -w 5000000 2000000 1000000 800000 600000 400000 200000 -o ./features.tsv
 ashleys.py predict -p ./features.tsv -o ./quality.txt -m scripts/tools/svc_default.pkl
 ```
-Then examine quality.txt and either (i) use libraries with a score >0.5 or (ii) use libraries with a score >0.7 and have a domain expert manually inspect libraries with a score 0.5-0.7 to see whether they should be included in the analysis.
+Then examine quality.txt and either (i) use libraries with a score >0.5 or (ii) use libraries with a score >0.7 and have a domain expert manually inspect libraries with a score 0.5-0.7 to see whether they should be included in the analysis. For instructions on how to align FASTQ files, mark duplicates etc., and generate BAM files, see alignment.sh in Methods part 1 of this [book chapter](https://dx.doi.org/10.14288/1.0406302), also found [here](https://github.com/vincent-hanlon/MiMB-StrandPhaseR) (Otherwise, just using standard sequence alignment for short read data, keeping the single-cell libraries separate).
 
 ### 2-3 Strand-seq phasing
 Running the Strand-seq phasing should now just require editing the header of master.sh (not master_WCCW_composite.sh or master_WWCC_composite.sh) with appropriate sample-specific files (Strand-seq BAM and nanopore-derived VCF) and running `bash master.sh` from the directory containing the good-quality BAM files, as mentioned above. However, the steps performed by master.sh are described below.
@@ -148,7 +148,7 @@ InvertypeR, which genotypes inversions, takes as input a list of positions to ex
 To genotype the inversions, we use the R package InvertypeR. This counts reads inside the putative inversions by orientation in each composite file. Using a simple Bayesian model of read counts, posterior probabilites for inversion genotypes are calculated (effectively a comparison of the actual read count pattern with expected read count patterns for the various genotype and error signals). InvertypeR also resizes inversions if the coordinates do not perfectly match the region with reversed read orientations. We take inversions with a posterior probability above 95% for either the heterozygous or homozygous genotype. Since InvertypeR is run separately (with different prior probabilities) for the putative inversions obtained from the literature or from BreakpointR (above), we then combine them by merging overlapping inversions subject to some constraints.
 
 ### 2-3-3 Phasing
-All the above inversion calling is used to correct or refine SNV phasing inside inversions, a relatively small fraction of the genome. For some analyses, it may be optional, as long as variant of interest are not inside inversions and not too many iDMRs are inside inversions. We use StrandPhaseR to phase the nanopore-derived SNVs, and then we correct the phasing within inversions using the StrandPhaseR tool `correctInvertedRegionPhasing()`. For this process, first we identify WC regions (used for phasing) with BreakpointR, and then StrandPhaseR assigns alleles that appear in reads with opposite orientations to different homologs (assuming the reads are in the same WC region or chromosome in the same cell). It then combines the phase information from many cells to produce a consensus phased VCF. The inversion correction step then effectively switches the haplotypes of alleles inside homozygous inversions and re-phases alleles inside heterozygous inversions.
+All the above inversion calling is used to correct or refine SNV phasing inside inversions, a relatively small fraction of the genome. For some analyses, it may be optional, as long as variant of interest are not inside inversions and not too many iDMRs are inside inversions. We use StrandPhaseR to phase the nanopore-derived SNVs, and then we correct the phasing within inversions using the StrandPhaseR tool `correctInvertedRegionPhasing()`. For this process, first we identify WC regions (used for phasing) with BreakpointR, and then StrandPhaseR assigns alleles that appear in reads with opposite orientations to different homologs (assuming the reads are in the same WC region or chromosome in the same cell). It then combines the phase information from many cells to produce a consensus phased VCF. The inversion correction step then effectively switches the haplotypes of alleles inside homozygous inversions and re-phases alleles inside heterozygous inversions. A more complete step-by-step guide to using StrandPhaseR (excluding the inversion correction) can be found [here](https://dx.doi.org/10.14288/1.0406302).
 
 ## 3- Parent-of-origin detection
 Finally, parent-of-origin chromosome-scale haplotypes can be built using PatMat.py:  
