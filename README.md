@@ -23,7 +23,11 @@ python>=3.7.4 and its following dependencies:
 pytabix>=0.1  
 pysam>=0.16.0  
 tqdm>=4.54.1  
-
+  
+Update
+=================  
+June 25, 2022: We have changed the labels for HP1 or Mat and HP2 or Pat haplotypes in the results file. Previously, if alternative allele was HP1 or maternal allele the lable would be 0|1 and if alternative allele was HP2 or paternal allele the label would be 1|0. Now, if alternative allele is HP1 or maternal allele the lable would be 1|0 and if alternative allele was HP2 or paternal allele the label would be 0|1.  
+  
 Table of Contents
 =================
 
