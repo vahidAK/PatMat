@@ -838,7 +838,7 @@ def main_phase(args):
                         hp2s.add((line[0],line[1],line[3]))
                         re_assignment.write('\t'.join(line[0:-2]+
                                                       [':'.join(line[-2].split(":")).replace(":PS", "")+":PS"]+
-                                                      ["0|1:"+':'.join(line[-1].split(":")[1:])+":HP2|HP1"])+'\n')
+                                                      ["1|0:"+':'.join(line[-1].split(":")[1:])+":HP2|HP1"])+'\n')
                     elif ((hp2_count_alt > hp1_count_alt and
                            hp2_count_alt > hp2_count_ref and
                            hp2_count_alt >= min_read_reassignment) or
@@ -849,7 +849,7 @@ def main_phase(args):
                         hp2s.add((line[0],line[1],line[4]))
                         re_assignment.write('\t'.join(line[0:-2]+
                                                       [':'.join(line[-2].split(":")).replace(":PS", "")+":PS"]+
-                                                      ["1|0:"+':'.join(line[-1].split(":")[1:])+":HP1|HP2"])+'\n')
+                                                      ["0|1:"+':'.join(line[-1].split(":")[1:])+":HP1|HP2"])+'\n')
                     else:
                         re_assignment.write('\t'.join(line[0:-2]+
                                                       [':'.join(line[-2].split(":")).replace(":PS", "")]+
@@ -1270,4 +1270,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
