@@ -1,4 +1,4 @@
-Chromosome	Start	End	Methylated allele	Name	Reference
+Chromosome	Start	End	Methylated_allele	Name	Reference
 chr1	11501432	11501606	Maternal	PTCHD2	Hernandez
 chr1	21292978	21293090	Maternal	ECE1;LOC100506801	Hernandez
 chr1	32471178	32471396	Maternal	ZBTB8B	Joshi
