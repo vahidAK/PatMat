@@ -172,9 +172,8 @@ Here is the full list of options:
 python patmat/PatMat.py phase -h
 
 usage: PatMat.py phase --bam BAM --output OUTPUT --vcf VCF --strand_vcf
-                       STRAND_VCF [--known_dmr KNOWN_DMR]
-                       [--methylcallfile METHYLCALLFILE] [-h]
-                       [--whatshap_vcf WHATSHAP_VCF]
+                       STRAND_VCF [--methylcallfile METHYLCALLFILE] [-h]
+                       [--known_dmr KNOWN_DMR] [--whatshap_vcf WHATSHAP_VCF]
                        [--whatshap_block WHATSHAP_BLOCK]
                        [--black_list BLACK_LIST] [--per_read PER_READ]
                        [--hapratio HAPRATIO]
@@ -186,7 +185,8 @@ usage: PatMat.py phase --bam BAM --output OUTPUT --vcf VCF --strand_vcf
                        [--methyl_coverage METHYL_COVERAGE] [--threads THREADS]
                        [--chunk_size CHUNK_SIZE] [--include_supplementary]
 
-Phasing reads and Methylation
+Phasing reads and Methylation using strand-seq and nanopore to determin PofO
+of each homologous chromosome in a single sample.
 
 required arguments:
   --bam BAM, -b BAM     The path to the cordinate sorted bam file.
@@ -197,16 +197,6 @@ required arguments:
   --strand_vcf STRAND_VCF, -sv STRAND_VCF
                         The path to the chromosome-scale Strand-seq phased vcf
                         file.
-
-required arguments if PofO needs to be determined.:
-  --known_dmr KNOWN_DMR, -kd KNOWN_DMR
-                        The path to the input file for known imprinted
-                        DMRs.File must have the following information the
-                        following column order: chromosome start end
-                        MethylatedAlleleOrigin where origine is the methylated
-                        allele origine which must be either maternal or
-                        paternal. By default, we use version 1 list in repo's
-                        patmat directory.
   --methylcallfile METHYLCALLFILE, -mc METHYLCALLFILE
                         If you want to phase methyl call file (methycall
                         output format) to also calculate methylation frequency
@@ -216,6 +206,14 @@ required arguments if PofO needs to be determined.:
 
 Optional arguments.:
   -h, --help            show this help message and exit
+  --known_dmr KNOWN_DMR, -kd KNOWN_DMR
+                        The path to the input file for known imprinted
+                        DMRs.File must have the following information the
+                        following column order: chromosome start end
+                        MethylatedAlleleOrigin where origine is the methylated
+                        allele origine which must be either maternal or
+                        paternal. By default, we use version 1 list in repo's
+                        patmat directory.
   --whatshap_vcf WHATSHAP_VCF, -wv WHATSHAP_VCF
                         Path to the WhatsHap phased vcf file that is produced
                         from phasing nanopore reads using WhatsHap. This can
