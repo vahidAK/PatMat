@@ -172,22 +172,19 @@ Here is the full list of options:
 python patmat/PatMat.py phase -h
 
 usage: PatMat.py phase --bam BAM --output OUTPUT --vcf VCF --strand_vcf
-                           PHASED_VCF [--known_dmr KNOWN_DMR]
-                           [--methylcallfile METHYLCALLFILE] [-h]
-                           [--whatshap_vcf WHATSHAP_VCF]
-                           [--whatshap_block WHATSHAP_BLOCK]
-                           [--black_list BLACK_LIST] [--per_read PER_READ]
-                           [--hapratio HAPRATIO]
-                           [--min_base_quality MIN_BASE_QUALITY]
-                           [--mapping_quality MAPPING_QUALITY]
-                           [--min_snv MIN_SNV]
-                           [--min_read_number MIN_READ_NUMBER]
-                           [--min_cg MIN_CG]
-                           [--meth_difference METH_DIFFERENCE]
-                           [--cpg_difference CPG_DIFFERENCE]
-                           [--methyl_coverage METHYL_COVERAGE]
-                           [--threads THREADS] [--chunk_size CHUNK_SIZE]
-                           [--include_supplementary]
+                       STRAND_VCF [--known_dmr KNOWN_DMR]
+                       [--methylcallfile METHYLCALLFILE] [-h]
+                       [--whatshap_vcf WHATSHAP_VCF]
+                       [--whatshap_block WHATSHAP_BLOCK]
+                       [--black_list BLACK_LIST] [--per_read PER_READ]
+                       [--hapratio HAPRATIO]
+                       [--min_base_quality MIN_BASE_QUALITY]
+                       [--mapping_quality MAPPING_QUALITY] [--min_snv MIN_SNV]
+                       [--min_read_number MIN_READ_NUMBER] [--min_cg MIN_CG]
+                       [--meth_difference METH_DIFFERENCE]
+                       [--cpg_difference CPG_DIFFERENCE]
+                       [--methyl_coverage METHYL_COVERAGE] [--threads THREADS]
+                       [--chunk_size CHUNK_SIZE] [--include_supplementary]
 
 Phasing reads and Methylation
 
@@ -197,9 +194,10 @@ required arguments:
                         The path to directory and prefix to save files. e.g
                         path/to/directory/prefix
   --vcf VCF, -v VCF     The path to the vcf file.
-  --strand_vcf PHASED_VCF, -sv STRAND_VCF
-                        The path to the chromosome-scale strand-seq phased vcf file.
- 
+  --strand_vcf STRAND_VCF, -sv STRAND_VCF
+                        The path to the chromosome-scale Strand-seq phased vcf
+                        file.
+
 required arguments if PofO needs to be determined.:
   --known_dmr KNOWN_DMR, -kd KNOWN_DMR
                         The path to the input file for known imprinted
@@ -239,8 +237,8 @@ Optional arguments.:
                         indexed using tabix.
   --per_read PER_READ, -pr PER_READ
                         If it is your second try and you have per read info
-                        file give the path to the per read info file.
-                        This will be significantly faster.
+                        file give the path to the per read info file. This
+                        will be significantly faster.
   --hapratio HAPRATIO, -hr HAPRATIO
                         0-1 . Minimmum ratio of variants a read must have from
                         a haplotype to assign it to that haplotype. Default is
