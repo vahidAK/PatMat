@@ -28,7 +28,7 @@ Updates
 =================  
 **June 25, 2022:** We have changed the labeling for HP1/HP2 and Maternal/Paternal haplotypes. Previously, if alternative allele was HP1 or maternal allele the lable would be 0|1 and if alternative allele was HP2 or paternal allele the label would be 1|0. Now, if alternative allele is HP1 or maternal allele the lable will be 1|0 and if alternative allele is HP2 or paternal allele the label will be 0|1.  
   
-**June 25, 2022:** DMR list updated. Adjacent DMRs were merged. Moreover, we noticed some overlapping DMRs did not merged in away to show the longest possible merged DMR, so they were merged to a single DMR with longest length.  
+**Aug 30, 2022:** DMR list updated. Adjacent DMRs were merged. Moreover, we noticed some overlapping DMRs did not merged in away to show the longest possible merged DMR, so they were merged to a single DMR with longest length.  
 
 Table of Contents
 =================
