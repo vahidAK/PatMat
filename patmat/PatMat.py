@@ -622,6 +622,12 @@ def main_phase(args):
     out = os.path.abspath(args.output)
     MappingQuality = args.mapping_quality
     vcf= os.path.abspath(args.vcf)
+    known_dmr= os.path.abspath(args.known_dmr)
+    MethylCallfile = os.path.abspath(args.methylcallfile)
+    tb_methylcall = tabix.open(MethylCallfile)
+    if not os.path.isfile(MethylCallfile+".tbi"):
+        raise Exception("It seems processed methylation call file "
+                        "is not index by tabix.")
     sites_to_ignore= set()
     if args.black_list is not None:
         if not os.path.isfile(vcf+".tbi"):
@@ -636,18 +642,18 @@ def main_phase(args):
                 records= tb_vcf.query(line[0], int(line[1]), int(line[2])+1)
                 for record in records:
                     sites_to_ignore.add((record[0],record[1]))
-    if args.known_dmr is not None:
-        try:
-            known_dmr= os.path.abspath(args.known_dmr)
-            MethylCallfile = os.path.abspath(args.methylcallfile)
-            tb_methylcall = tabix.open(MethylCallfile)
-        except:
-            raise Exception("When PofO needs to be determined, "
-                            "known DMRs and NanoMethPhased processed methylationCall file"
-                            " must be specified")
-        if not os.path.isfile(MethylCallfile+".tbi"):
-            raise Exception("It seems processed methylation call file "
-                            "is not index by tabix.")
+    # if args.known_dmr is not None:
+    #     try:
+    #         known_dmr= os.path.abspath(args.known_dmr)
+    #         MethylCallfile = os.path.abspath(args.methylcallfile)
+    #         tb_methylcall = tabix.open(MethylCallfile)
+    #     except:
+    #         raise Exception("When PofO needs to be determined, "
+    #                         "known DMRs and NanoMethPhased processed methylationCall file"
+    #                         " must be specified")
+    #     if not os.path.isfile(MethylCallfile+".tbi"):
+    #         raise Exception("It seems processed methylation call file "
+    #                         "is not index by tabix.")
     if args.per_read is not None:
         per_read_file= os.path.abspath(args.per_read)
     else:
@@ -1071,9 +1077,10 @@ def phase_parser(subparsers):
     """
     sub_phase = subparsers.add_parser("phase",
                                       add_help=False,
-                                      help="Phasing reads and Methylation.",
-                                      description="Phasing reads and "
-                                      "Methylation")
+                                      description="Phasing reads and Methylation "
+                                      "using strand-seq and nanopore to determin "
+                                      "PofO of each homologous chromosome "
+                                      "in a single sample.")
     sp_input = sub_phase.add_argument_group("required arguments")
     sp_input.add_argument("--bam", "-b",
                           action="store",
@@ -1097,25 +1104,6 @@ def phase_parser(subparsers):
                           type=str,
                           required=True,
                           help="The path to the chromosome-scale Strand-seq phased vcf file. ")
-                           # "If it is your second try and you have per read "
-                           # "info file from the first try there is no need to "
-                           # "give vcf file, instead give the path to the per "
-                           # "read info file using --per_read option which will "
-                           # "be significantly faster.")
-    sp_input = sub_phase.add_argument_group("required arguments if PofO needs to be determined.")
-    sp_input.add_argument("--known_dmr", "-kd",
-                      action="store",
-                      type=str,
-                      required= False,
-                      default= os.path.join(os.path.dirname(
-                                                    os.path.realpath(__file__)
-                                                        ),
-                                                 "Imprinted_DMR_List_V1.tsv"),
-                      help="The path to the input file for known imprinted DMRs."
-                      "File must have the following information the following column order: "
-                      "chromosome\tstart\tend\tMethylatedAlleleOrigin "
-                      "where origine is the methylated allele origine which must be either "
-                      "maternal or paternal. By default, we use version 1 list in repo's patmat directory.")
     sp_input.add_argument("--methylcallfile", "-mc",
                           action="store",
                           type=str,
@@ -1131,6 +1119,19 @@ def phase_parser(subparsers):
     sp_input.add_argument("-h", "--help",
                           action="help",
                           help="show this help message and exit")
+    sp_input.add_argument("--known_dmr", "-kd",
+                      action="store",
+                      type=str,
+                      required= False,
+                      default= os.path.join(os.path.dirname(
+                                                    os.path.realpath(__file__)
+                                                        ),
+                                                 "Imprinted_DMR_List_V1.tsv"),
+                      help="The path to the input file for known imprinted DMRs."
+                      "File must have the following information the following column order: "
+                      "chromosome\tstart\tend\tMethylatedAlleleOrigin "
+                      "where origine is the methylated allele origine which must be either "
+                      "maternal or paternal. By default, we use version 1 list in repo's patmat directory.")
     sp_input.add_argument("--whatshap_vcf", "-wv",
                           action="store",
                           type=str,
