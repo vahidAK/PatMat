@@ -185,8 +185,8 @@ usage: PatMat.py phase --bam BAM --output OUTPUT --vcf VCF --strand_vcf
                        [--methyl_coverage METHYL_COVERAGE] [--threads THREADS]
                        [--chunk_size CHUNK_SIZE] [--include_supplementary]
 
-Phasing reads and Methylation using strand-seq and nanopore to determin PofO
-of each homologous chromosome in a single sample.
+PatMat.py v1.0. Phasing reads and Methylation using strand-seq and nanopore to
+determine PofO of each homologous chromosome in a single sample.
 
 required arguments:
   --bam BAM, -b BAM     The path to the cordinate sorted bam file.
