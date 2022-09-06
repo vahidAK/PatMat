@@ -1077,7 +1077,7 @@ def phase_parser(subparsers):
     """
     sub_phase = subparsers.add_parser("phase",
                                       add_help=False,
-                                      description="Phasing reads and Methylation "
+                                      description="PatMat.py v1.0.\nPhasing reads and Methylation "
                                       "using strand-seq and nanopore to determin "
                                       "PofO of each homologous chromosome "
                                       "in a single sample.")
