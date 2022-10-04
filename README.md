@@ -75,7 +75,7 @@ Here we use [nanopolish](https://github.com/jts/nanopolish) for methylation call
 NOTE: Fastqs must be merged to a single file
 
 ```
-nanopolish index -d /path/to/Nanopore_reads.fastq
+nanopolish index -d /path/to/Fast5_files reads.fastq
 ```
 
 #### 1-3-2 Methylation calling for CpG from each read:
