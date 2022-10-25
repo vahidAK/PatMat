@@ -22,11 +22,7 @@ Finally you need to use our tool in this repository "**PatMat.py**" to detect ch
 python>=3.7.4 and its following dependencies:  
 pytabix>=0.1  
 pysam>=0.16.0  
-tqdm>=4.54.1  
-  
-Updates
-=================  
-**Sep 6, 2022:** First release of PatMat (PatMat.py v1.0).  
+tqdm>=4.54.1   
 
 Table of Contents
 =================
@@ -183,7 +179,7 @@ usage: PatMat.py phase --bam BAM --output OUTPUT --vcf VCF --strand_vcf
                        [--methyl_coverage METHYL_COVERAGE] [--threads THREADS]
                        [--chunk_size CHUNK_SIZE] [--include_supplementary]
 
-PatMat.py v1.0. Phasing reads and Methylation using strand-seq and nanopore to
+PatMat v1.1 Phasing reads and Methylation using strand-seq and nanopore to
 determine PofO of each homologous chromosome in a single sample.
 
 required arguments:
@@ -253,7 +249,7 @@ Optional arguments.:
                         to each haplotype. Default= 2
   --min_cg MIN_CG, -mcg MIN_CG
                         Minimmum number of CpGs an iDMR must have to consider
-                        it for PofO assignment. Default is 11.
+                        it for PofO assignment. Default is 12.
   --meth_difference METH_DIFFERENCE, -md METH_DIFFERENCE
                         Methylation difference cutoff for HP1-HP2 or HP2-HP1
                         CpG methylation. Default is 0.35.
