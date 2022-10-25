@@ -639,9 +639,13 @@ def main_phase(args):
         with openfile(black_list) as bl:
             for line in bl:
                 line= line.rstrip().split('\t')
-                records= tb_vcf.query(line[0], int(line[1]), int(line[2])+1)
-                for record in records:
-                    sites_to_ignore.add((record[0],record[1]))
+                try:
+                    records= tb_vcf.query(line[0], int(line[1]), int(line[2])+1)
+                except:
+                    records= "NA"
+                if records != "NA":
+                    for record in records:
+                        sites_to_ignore.add((record[0],record[1]))
     # if args.known_dmr is not None:
     #     try:
     #         known_dmr= os.path.abspath(args.known_dmr)
@@ -1132,7 +1136,8 @@ def phase_parser(subparsers):
                       "File must have the following information the following column order: "
                       "chromosome\tstart\tend\tMethylatedAlleleOrigin "
                       "where origine is the methylated allele origine which must be either "
-                      "maternal or paternal. By default, we use version 1 list in repo's patmat directory.")
+                      "maternal or paternal (First row must be header). "
+                      "By default, we use iDMR list in repo's patmat directory.")
     sp_input.add_argument("--whatshap_vcf", "-wv",
                           action="store",
                           type=str,
@@ -1150,7 +1155,7 @@ def phase_parser(subparsers):
                           help=("Path to the WhatsHap block file file. This file can be"
                                 "created using whatshap stats command. File must be" 
                                 "converted to a bed format with chromosome\tstart\tend in "
-                                "the first three columns. If no block file is given"
+                                "the first three columns (First row must be header). If no block file is given"
                                 " then the assumption is that the last part after : sign "
                                 "in the 10th column is the phase set (PS) name and blocks will be"
                                 " calculated internaly."))
