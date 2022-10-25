@@ -642,6 +642,8 @@ def main_phase(args):
                 try:
                     records= tb_vcf.query(line[0], int(line[1]), int(line[2])+1)
                 except:
+                    warnings.warn("{}:{}-{} region from black list does not exist in the "
+                          "vcf file. Skipping it.".format(line[0],line[1] , line[2]))
                     records= "NA"
                 if records != "NA":
                     for record in records:
