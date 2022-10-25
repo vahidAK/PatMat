@@ -206,8 +206,8 @@ Optional arguments.:
                         following column order: chromosome start end
                         MethylatedAlleleOrigin where origine is the methylated
                         allele origine which must be either maternal or
-                        paternal. By default, we use version 1 list in repo's
-                        patmat directory.
+                        paternal (First row must be header). By default, we
+                        use iDMR list in repo's patmat directory.
   --whatshap_vcf WHATSHAP_VCF, -wv WHATSHAP_VCF
                         Path to the WhatsHap phased vcf file that is produced
                         from phasing nanopore reads using WhatsHap. This can
@@ -218,10 +218,11 @@ Optional arguments.:
                         Path to the WhatsHap block file file. This file can
                         becreated using whatshap stats command. File must
                         beconverted to a bed format with chromosome start end
-                        in the first three columns. If no block file is given
-                        then the assumption is that the last part after : sign
-                        in the 10th column is the phase set (PS) name and
-                        blocks will be calculated internaly.
+                        in the first three columns (First row must be header).
+                        If no block file is given then the assumption is that
+                        the last part after : sign in the 10th column is the
+                        phase set (PS) name and blocks will be calculated
+                        internaly.
   --black_list BLACK_LIST, -bl BLACK_LIST
                         List of regions to ignore ther strand-seq
                         phasedcstatus three first columns must be chromosome
