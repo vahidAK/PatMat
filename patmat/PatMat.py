@@ -242,7 +242,7 @@ def PofO_dmr(known_dmr,
         dmr_chrom= line[0]
         if dmr_chrom not in chrom_list:
             continue
-        dmr_start= int(line[1])
+        dmr_start= int(line[1]) - 1
         dmr_end= int(line[2])
         origin= line[3].lower()
         try:
@@ -571,9 +571,9 @@ def per_read_snv(vcf_dict,
                 if unphased_count == '0':
                     unphased_snvs= ['NA']
                     
-                out_to_write= list(map(str,key)) + [','.join(hp1_snvs), 
-                                                    ','.join(hp2_snvs),
-                                                    ','.join(unphased_snvs)]
+                out_to_write= list(map(str,key)) + [','.join(sorted(hp1_snvs)), 
+                                                    ','.join(sorted(hp2_snvs)),
+                                                    ','.join(sorted(unphased_snvs))]
                 
                 perReadinfo.write('\t'.join(out_to_write)+'\n')
         else:
@@ -658,7 +658,7 @@ def main_phase(args):
         per_read_file= os.path.abspath(args.per_read)
     else:
         if args.strand_vcf is not None and args.whatshap_vcf is None:
-            warnings.warn("No WhatsHap phased vcf is given. Using strand-seq phased vcf only.")
+            warnings.warn("Using strand-seq phased vcf only with {}.".format(known_dmr.split('/')[-1]))
             vcf_strand = os.path.abspath(args.strand_vcf)
             final_dict= strand_vcf2dict_phased(vcf_strand, vcf, sites_to_ignore)
         # elif args.strand_vcf is None and args.whatshap_vcf is not None:
@@ -674,7 +674,7 @@ def main_phase(args):
         #                 line=line.rstrip().split('\t')
         #                 block_file.append((line[0],int(line[1]),int(line[2])))
         elif args.strand_vcf is not None and args.whatshap_vcf is not None:
-            warnings.warn("Using both strand-seq phased and WhatsHap phased vcf.")
+            warnings.warn("Using both strand-seq phased and WhatsHap phased vcf with {}.".format(known_dmr.split('/')[-1]))
             vcf_whats= os.path.abspath(args.whatshap_vcf)
             vcf_strand = os.path.abspath(args.strand_vcf)
             if not os.path.isfile(vcf_whats+".tbi"):
@@ -1077,7 +1077,7 @@ def phase_parser(subparsers):
     """
     sub_phase = subparsers.add_parser("phase",
                                       add_help=False,
-                                      description="PatMat.py v1.0. "
+                                      description="PatMat v1.1\n"
                                       "Phasing reads and Methylation "
                                       "using strand-seq and nanopore to determine "
                                       "PofO of each homologous chromosome "
@@ -1210,9 +1210,9 @@ def phase_parser(subparsers):
                           action="store",
                           type=int,
                           required=False,
-                          default= 11,
+                          default= 12,
                           help=("Minimmum number of CpGs an iDMR must have to "
-                                " consider it for PofO assignment. Default is 11."))
+                                " consider it for PofO assignment. Default is 12."))
     sp_input.add_argument("--meth_difference", "-md",
                           action="store",
                           type=float,
@@ -1260,7 +1260,7 @@ def main():
     """
     parser = argparse.ArgumentParser(
         prog="PatMat.py",
-        description="PatMat")
+        description="PatMat v1.1")
     subparsers = parser.add_subparsers(title="Modules")
     phase_parser(subparsers)
     args = parser.parse_args()
