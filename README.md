@@ -66,12 +66,17 @@ samtools index -@ <# of threads> /path/to/Nanopore_aligned_reads.bam
 ### 1-3 Methylation Calling from nanopore data  
 Here we use [nanopolish](https://github.com/jts/nanopolish) for methylation calling however you may use [megalodon](https://github.com/nanoporetech/megalodon) or [DeepSignal](https://github.com/bioinfomaticsCSU/deepsignal). 
 
-#### 1-3-1 indexing fastq file and fast5 files:
+#### 1-3-1 indexing fastq file using fast5 files:
 
 NOTE: Fastqs must be merged to a single file
 
 ```
 nanopolish index -d /path/to/Fast5_files reads.fastq
+```
+Nanopolish index proccess can be time consuming. [f5c](https://github.com/hasindu2008/f5c) which is an optimised and GPU accelerated version of nanopolish can be used for indexing fastq using fast5 files on multiple threads.
+
+```
+f5c index -t 60 --iop 100 -d /path/to/Fast5_files reads.fastq
 ```
 
 #### 1-3-2 Methylation calling for CpG from each read:
@@ -83,6 +88,7 @@ nanopolish call-methylation \
   -b /path/to/Nanopore_aligned_reads.bam \
   -g /path/to/reference.fa > /path/to/MethylationCall.tsv
 ```
+f5c can be also used for methylation calling. Just make sure the version of f5c that you are using outputs similar column as nanopolish to be compatible for NanoMethPhase.  
 
 #### 1-3-3 Pre-processing methylation call file
 We then need to pre-process methylation call file from nanopolish using [NanoMethPhase](https://github.com/vahidAK/NanoMethPhase) methyl_call_processor module.
