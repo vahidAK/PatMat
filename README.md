@@ -73,7 +73,8 @@ NOTE: Fastqs must be merged to a single file
 ```
 nanopolish index -d /path/to/Fast5_files reads.fastq
 ```
-Nanopolish index proccess can be time consuming. [f5c](https://github.com/hasindu2008/f5c) which is an optimised and GPU accelerated version of nanopolish can be used for indexing fastq using fast5 files on multiple threads.
+You can also specify sequencing summary file to accelerate indexing.  
+Nanopolish index proccess can be time consuming. [f5c](https://github.com/hasindu2008/f5c) which is an optimised and GPU accelerated version of nanopolish can be used for indexing fastq using fast5 files on multiple threads.  
 
 ```
 f5c index -t 60 --iop 100 -d /path/to/Fast5_files reads.fastq
@@ -86,10 +87,11 @@ nanopolish call-methylation \
   -t <number_of_threads> -q cpg \
   -r /path/to/Nanopore_reads.fastq \
   -b /path/to/Nanopore_aligned_reads.bam \
-  -g /path/to/reference.fa > /path/to/MethylationCall.tsv
+  -g /path/to/reference.fa > /path/to/MethylationCall.tsv \
+  -q cpg
 ```
-f5c can be also used for methylation calling. Just make sure the version of f5c that you are using outputs similar column as nanopolish to be compatible for NanoMethPhase.  
-
+f5c can be also used for methylation calling. Just make sure the version of f5c that you are using outputs similar columns (as follows) as nanopolish to be compatible for NanoMethPhase.  
+  
 #### 1-3-3 Pre-processing methylation call file
 We then need to pre-process methylation call file from nanopolish using [NanoMethPhase](https://github.com/vahidAK/NanoMethPhase) methyl_call_processor module.
 ```
