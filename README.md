@@ -63,8 +63,8 @@ samtools sort -@ <# of threads> /path/to/Nanopore_aligned_reads.sam  -o /path/to
 samtools index -@ <# of threads> /path/to/Nanopore_aligned_reads.bam
 ```
 
-### 1-3 Methylation Calling from nanopore data  
-Here we use [nanopolish](https://github.com/jts/nanopolish) for methylation calling however you may use [megalodon](https://github.com/nanoporetech/megalodon) or [DeepSignal](https://github.com/bioinfomaticsCSU/deepsignal). 
+### 1-3 Indexing and Methylation Calling from nanopore data  
+Here we use [nanopolish](https://github.com/jts/nanopolish) for methylation calling however you may use [f5c](https://github.com/hasindu2008/f5c), [megalodon](https://github.com/nanoporetech/megalodon) or [DeepSignal](https://github.com/bioinfomaticsCSU/deepsignal). 
 
 #### 1-3-1 indexing fastq file using fast5 files:
 
@@ -90,7 +90,11 @@ nanopolish call-methylation \
   -g /path/to/reference.fa > /path/to/MethylationCall.tsv \
   -q cpg
 ```
-f5c can be also used for methylation calling. Just make sure the version of f5c that you are using outputs similar columns (as follows) as nanopolish to be compatible for NanoMethPhase.  
+f5c (versions >=v0.7) can be also used for methylation calling. f5c versions >=v0.7 outputs similar columns as later nanopolish versions (as follows), therefore it is compatible with NanoMethPhase.  
+
+```
+chromosome	strand	start	end	read_name	log_lik_ratio	log_lik_methylated	log_lik_unmethylated	num_calling_strands	num_motifs	sequence
+```
   
 #### 1-3-3 Pre-processing methylation call file
 We then need to pre-process methylation call file from nanopolish using [NanoMethPhase](https://github.com/vahidAK/NanoMethPhase) methyl_call_processor module.
