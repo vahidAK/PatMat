@@ -74,7 +74,7 @@ NOTE: Fastqs must be merged to a single file
 nanopolish index -d /path/to/Fast5_files reads.fastq
 ```
 You can also specify sequencing summary file to accelerate indexing.  
-Nanopolish index proccess can be time consuming. [f5c](https://github.com/hasindu2008/f5c) which is an optimised and GPU accelerated version of nanopolish can be used for indexing fastq using fast5 files on multiple threads.  
+Nanopolish index proccess can be time consuming. [f5c](https://github.com/hasindu2008/f5c) which is an optimised and GPU accelerated version of nanopolish can be used for indexing fastq using fast5 files on multiple threads. The output of f5c index (for fast5) is [equivalent](https://hasindu2008.github.io/f5c/docs/commands) to that from nanopolish index.  
 
 ```
 f5c index -t <# of threads> --iop <# of I/O processes to read fast5 files> -d /path/to/Fast5_files reads.fastq
