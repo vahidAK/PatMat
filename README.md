@@ -77,7 +77,7 @@ You can also specify sequencing summary file to accelerate indexing.
 Nanopolish index proccess can be time consuming. [f5c](https://github.com/hasindu2008/f5c) which is an optimised and GPU accelerated version of nanopolish can be used for indexing fastq using fast5 files on multiple threads.  
 
 ```
-f5c index -t 60 --iop 100 -d /path/to/Fast5_files reads.fastq
+f5c index -t <# of threads> --iop <# of I/O processes to read fast5 files> -d /path/to/Fast5_files reads.fastq
 ```
 
 #### 1-3-2 Methylation calling for CpG from each read:
