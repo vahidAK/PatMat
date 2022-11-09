@@ -37,7 +37,7 @@ import pysam
 import tabix
 from tqdm import tqdm
 
-def get_snv_info(feed_list,
+def get_variant_info(feed_list,
                   alignment_file,
                   chrom,
                   include_supp):
@@ -191,30 +191,30 @@ def openfile(file):
     return opened_file
 
 
-def FrequencyCalculator(file_path):
-    """
-    Calculating methylation frequency for each phased methylation call
-    file.  The output methylation frequency file include fractional
-    methylation which can be used for differential methylation analysis
-    and detection of differentially methylated regions (DMR)
-    """
-    dict_mod = defaultdict(int)
-    dict_all = defaultdict(int)
-    with open(file_path) as input_file:
-        next(input_file)  # To exclude header
-        for line in input_file:
-            line = line.rstrip().split('\t')
-            if line[3] == '+':
-                key = tuple(line[0:4])
-            else:
-                key = tuple([line[0],
-                                str(int(line[1])+1),
-                                str(int(line[2])+1),
-                                line[3]])
-            dict_all[key] += 1
-            if float(line[5]) > 0:
-                dict_mod[key] += 1
-    return dict_mod, dict_all
+# def FrequencyCalculator(file_path):
+#     """
+#     Calculating methylation frequency for each phased methylation call
+#     file.  The output methylation frequency file include fractional
+#     methylation which can be used for differential methylation analysis
+#     and detection of differentially methylated regions (DMR)
+#     """
+#     dict_mod = defaultdict(int)
+#     dict_all = defaultdict(int)
+#     with open(file_path) as input_file:
+#         next(input_file)  # To exclude header
+#         for line in input_file:
+#             line = line.rstrip().split('\t')
+#             if line[3] == '+':
+#                 key = tuple(line[0:4])
+#             else:
+#                 key = tuple([line[0],
+#                                 str(int(line[1])+1),
+#                                 str(int(line[2])+1),
+#                                 line[3]])
+#             dict_all[key] += 1
+#             if float(line[5]) > 0:
+#                 dict_mod[key] += 1
+#     return dict_mod, dict_all
 
 def PofO_dmr(known_dmr, 
              chrom_list, 
@@ -308,48 +308,47 @@ def PofO_dmr(known_dmr,
             continue
         hp1_freq= hp1_freq/len(common_cg)
         hp2_freq= hp2_freq/len(common_cg)
-        if len(common_cg) < min_cg and abs(diff_cg_hp1 - diff_cg_hp2) / len(common_cg) < cpg_difference:# or abs(hp1_freq - hp2_freq) < 0.1:
+        if len(common_cg) < min_cg and abs(diff_cg_hp1 - diff_cg_hp2) / len(common_cg) < cpg_difference:
             out_meth.write('\t'.join(line)+'\t'+str(len(common_cg))+'\t'+str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+
                            '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + "Ignored:DidNotMeet_min_cg_And_cpg_difference" + '\t' +
                            "Ignored:DidNotMeet_min_cg_And_cpg_difference" +'\n')
+            continue
+        elif len(common_cg) < min_cg and diff_cg_hp1 == 0 and diff_cg_hp2 == 0:
+            out_meth.write('\t'.join(line)+'\t'+str(len(common_cg))+'\t'+str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+
+                           '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + "Ignored:DidNotMeet_min_cg_And_DifferentiallyMethylatedCpGsIsZeroInBothHaplotypes" + '\t' +
+                           "Ignored:DidNotMeet_min_cg_And_DifferentiallyMethylatedCpGsIsZeroInBothHaplotypes" +'\n')
             continue
         elif len(common_cg) < min_cg:
             out_meth.write('\t'.join(line)+'\t'+str(len(common_cg))+'\t'+str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+
                            '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + "Ignored:DidNotMeet_min_cg" + '\t' +
                            "Ignored:DidNotMeet_min_cg" +'\n')
             continue
-        elif abs(diff_cg_hp1 - diff_cg_hp2) / len(common_cg) < cpg_difference:# or abs(hp1_freq - hp2_freq) < 0.1:
+        elif abs(diff_cg_hp1 - diff_cg_hp2) / len(common_cg) < cpg_difference:
             out_meth.write('\t'.join(line)+'\t'+str(len(common_cg))+'\t'+str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+
                            '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + "Ignored:DidNotMeet_cpg_difference" + '\t' +
                            "Ignored:DidNotMeet_cpg_difference" +'\n')
             continue
+        elif diff_cg_hp1 == 0 and diff_cg_hp2 == 0: 
+            out_meth.write('\t'.join(line)+'\t'+str(len(common_cg))+'\t'+str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+ 
+                           '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + "Ignored:DifferentiallyMethylatedCpGsIsZeroInBothHaplotypes" + '\t' +
+                           "Ignored:DifferentiallyMethylatedCpGsIsZeroInBothHaplotypes" +'\n') 
+            continue
+
         num_cg_to_add_hp1= (diff_cg_hp1 * hp1_freq)/len(common_cg)
         num_cg_to_add_hp2= (diff_cg_hp2 * hp2_freq)/len(common_cg)
         out_meth.write('\t'.join(line)+'\t'+str(len(common_cg))+'\t'+str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+
                        '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + str(num_cg_to_add_hp1) + '\t' + 
                        str(num_cg_to_add_hp2)+'\n')  
-        if diff_cg_hp1 > diff_cg_hp2:# and hp1_freq > hp2_freq:
-            if origin == 'maternal':
-                chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP1'] += num_cg_to_add_hp1
-                chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP2'] += num_cg_to_add_hp2 #0
-                chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP2'] += num_cg_to_add_hp1
-                chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP1'] += num_cg_to_add_hp2 #0
-            if origin == 'paternal':
-                chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP1'] += num_cg_to_add_hp2 #0
-                chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP2'] += num_cg_to_add_hp1
-                chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP2'] += num_cg_to_add_hp2 #0
-                chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP1'] += num_cg_to_add_hp1
-        elif diff_cg_hp2 > diff_cg_hp1:# and hp2_freq > hp1_freq:
-            if origin == 'maternal':
-                chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP2'] += num_cg_to_add_hp2
-                chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP1'] += num_cg_to_add_hp1 #0
-                chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP1'] += num_cg_to_add_hp2
-                chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP2'] += num_cg_to_add_hp1 #0
-            if origin == 'paternal':
-                chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP2'] += num_cg_to_add_hp1 #0
-                chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP1'] += num_cg_to_add_hp2
-                chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP1'] += num_cg_to_add_hp1 #0
-                chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP2'] += num_cg_to_add_hp2
+        if origin == 'maternal':
+            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP1'] += num_cg_to_add_hp1
+            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP2'] += num_cg_to_add_hp2
+            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP2'] += num_cg_to_add_hp1
+            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP1'] += num_cg_to_add_hp2
+        if origin == 'paternal':
+            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP1'] += num_cg_to_add_hp2 
+            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP2'] += num_cg_to_add_hp1
+            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP2'] += num_cg_to_add_hp2 
+            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP1'] += num_cg_to_add_hp1
     dmr_file.close()
     out_meth.close()
     return chrom_hp_origin_count
@@ -508,12 +507,12 @@ def vcf2dict_phased(block_file,
     return final_dict
 
 
-def per_read_snv(vcf_dict,
-                 bam_file,
-                 chunk,
-                 threads,
-                 include_supplementary,
-                 perReadinfo):
+def per_read_variant(vcf_dict,
+                     bam_file,
+                     chunk,
+                     threads,
+                     include_supplementary,
+                     perReadinfo):
     chrom_list = sorted(list(vcf_dict.keys()))
     for chrom in chrom_list:
         per_read_hp = defaultdict(lambda: defaultdict(list))
@@ -533,7 +532,7 @@ def per_read_snv(vcf_dict,
                                   ) as pbar:
                 for vcf_info_list in feed_list:
                     p= mp.Pool(len(vcf_info_list))
-                    results= p.starmap(get_snv_info,
+                    results= p.starmap(get_variant_info,
                                        list(zip(vcf_info_list,
                                                 repeat(bam_file),
                                                 repeat(chrom),
@@ -580,7 +579,6 @@ def per_read_snv(vcf_dict,
             warnings.warn("{} does not have any mapped reads in alignment "
                           "file Or alignment is truncated or corrupt indexed. "
                           "Skipping it.".format(chrom))
-            # unprocessed_chrom.add(chrom)
         per_read_hp.clear()
 
 
@@ -711,12 +709,12 @@ def main_phase(args):
                           "Position:BaseQuality:AltAllele_HP1-SNVs\t"
                           "Position:BaseQuality:AltAllele_HP2-SNVs\t"
                           "Position:BaseQuality:AltAllele_UnPhasedHetSNVs\n")
-        per_read_snv(final_dict,
-                     bam_file,
-                     chunk,
-                     threads,
-                     args.include_supplementary,
-                     perReadinfo)
+        per_read_variant(final_dict,
+                         bam_file,
+                         chunk,
+                         threads,
+                         args.include_supplementary,
+                         perReadinfo)
         final_dict.clear()
         perReadinfo.close()
         per_read= openfile(out_per_read+"_HP2_PerReadInfo.tsv")
@@ -1083,7 +1081,7 @@ def phase_parser(subparsers):
     """
     sub_phase = subparsers.add_parser("phase",
                                       add_help=False,
-                                      description="PatMat v1.1\n"
+                                      description="PatMat v1.1.1\n"
                                       "Phasing reads and Methylation "
                                       "using strand-seq and nanopore to determine "
                                       "PofO of each homologous chromosome "
@@ -1267,7 +1265,7 @@ def main():
     """
     parser = argparse.ArgumentParser(
         prog="PatMat.py",
-        description="PatMat v1.1")
+        description="PatMat v1.1.1")
     subparsers = parser.add_subparsers(title="Modules")
     phase_parser(subparsers)
     args = parser.parse_args()
