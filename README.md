@@ -165,7 +165,7 @@ All the above inversion calling is used to correct or refine SNV phasing inside 
 ## 3- Parent-of-origin detection
 Finally, parent-of-origin chromosome-scale haplotypes can be built using PatMat.py:  
 ```
-PatMat.py phase -v /path/to/Passed_Clair3_Variants.vcf \
+PatMat.py -v /path/to/Passed_Clair3_Variants.vcf \
  -sv /path/to/StrandSeq_phased_variants.vcf \
  -mc /path/to/NanoMethPhase_MethylationCall.bed.gz \
  -b /path/to/Nanopore_aligned_reads.bam \
@@ -175,24 +175,28 @@ PatMat.py phase -v /path/to/Passed_Clair3_Variants.vcf \
 
 Here is the full list of options:  
 ```
-python patmat/PatMat.py phase -h
+python patmat/PatMat.py -h
 
-usage: PatMat.py phase --bam BAM --output OUTPUT --vcf VCF --strand_vcf
-                       STRAND_VCF [--methylcallfile METHYLCALLFILE] [-h]
-                       [--known_dmr KNOWN_DMR] [--whatshap_vcf WHATSHAP_VCF]
-                       [--whatshap_block WHATSHAP_BLOCK]
-                       [--black_list BLACK_LIST] [--per_read PER_READ]
-                       [--hapratio HAPRATIO]
-                       [--min_base_quality MIN_BASE_QUALITY]
-                       [--mapping_quality MAPPING_QUALITY] [--min_snv MIN_SNV]
-                       [--min_read_number MIN_READ_NUMBER] [--min_cg MIN_CG]
-                       [--meth_difference METH_DIFFERENCE]
-                       [--cpg_difference CPG_DIFFERENCE]
-                       [--methyl_coverage METHYL_COVERAGE] [--threads THREADS]
-                       [--chunk_size CHUNK_SIZE] [--include_supplementary]
+usage: PatMat.py [-h] --bam BAM --output OUTPUT --vcf VCF --strand_vcf
+                 STRAND_VCF --methylcallfile METHYLCALLFILE
+                 [--known_dmr KNOWN_DMR] [--whatshap_vcf WHATSHAP_VCF]
+                 [--whatshap_block WHATSHAP_BLOCK] [--black_list BLACK_LIST]
+                 [--per_read PER_READ] [--hapratio HAPRATIO]
+                 [--min_base_quality MIN_BASE_QUALITY]
+                 [--mapping_quality MAPPING_QUALITY]
+                 [--min_variant MIN_VARIANT]
+                 [--min_read_number MIN_READ_NUMBER] [--min_cg MIN_CG]
+                 [--meth_difference METH_DIFFERENCE]
+                 [--cpg_difference CPG_DIFFERENCE]
+                 [--methyl_coverage METHYL_COVERAGE] [--threads THREADS]
+                 [--chunk_size CHUNK_SIZE] [--include_supplementary]
+                 [--include_indels] [--version]
 
-PatMat v1.1 Phasing reads and Methylation using strand-seq and nanopore to
-determine PofO of each homologous chromosome in a single sample.
+Phasing reads and Methylation using strand-seq and nanopore to determine PofO
+of each homologous chromosome in a single sample.
+
+optional arguments:
+  -h, --help            show this help message and exit
 
 required arguments:
   --bam BAM, -b BAM     The path to the cordinate sorted bam file.
@@ -201,33 +205,31 @@ required arguments:
                         path/to/directory/prefix
   --vcf VCF, -v VCF     The path to the vcf file.
   --strand_vcf STRAND_VCF, -sv STRAND_VCF
-                        The path to the chromosome-scale Strand-seq phased vcf
-                        file.
+                        The path to the chromosome-scale phased vcf file.This
+                        is the input vcf file that has been phased using
+                        strand-seq data.
   --methylcallfile METHYLCALLFILE, -mc METHYLCALLFILE
-                        If you want to phase methyl call file (methycall
-                        output format) to also calculate methylation frequency
-                        for each haplotype give the path to the bgziped
-                        methylation call file from methyl_call_processor
-                        Module.
+                        The path to the bgziped and indexed methylation call
+                        file processed using NanoMethPhase
+                        methyl_call_processor Module.
 
 Optional arguments.:
-  -h, --help            show this help message and exit
   --known_dmr KNOWN_DMR, -kd KNOWN_DMR
                         The path to the input file for known imprinted
-                        DMRs.File must have the following information the
+                        DMRs.File must have the following information in the
                         following column order: chromosome start end
-                        MethylatedAlleleOrigin where origine is the methylated
-                        allele origine which must be either maternal or
-                        paternal (First row must be header). By default, we
-                        use iDMR list in repo's patmat directory.
+                        MethylatedAlleleOrigin where the methylated allele
+                        origin must be either maternal or paternal (First row
+                        must be header). By default, we use iDMR list in
+                        repo's patmat directory.
   --whatshap_vcf WHATSHAP_VCF, -wv WHATSHAP_VCF
                         Path to the WhatsHap phased vcf file that is produced
-                        from phasing nanopore reads using WhatsHap. This can
-                        be useful when the chromosome-scale phased variants
-                        are very sparce. File must be sorted and indexed using
-                        tabix.
+                        from phasing input vcf file using nanopore reads via
+                        WhatsHap. This can be useful when the chromosome-scale
+                        phased variants are very sparce. File must be sorted
+                        and indexed using tabix.
   --whatshap_block WHATSHAP_BLOCK, -wb WHATSHAP_BLOCK
-                        Path to the WhatsHap block file file. This file can
+                        Path to the WhatsHap block file. This file can
                         becreated using whatshap stats command. File must
                         beconverted to a bed format with chromosome start end
                         in the first three columns (First row must be header).
@@ -236,14 +238,17 @@ Optional arguments.:
                         phase set (PS) name and blocks will be calculated
                         internaly.
   --black_list BLACK_LIST, -bl BLACK_LIST
-                        List of regions to ignore ther strand-seq
-                        phasedcstatus three first columns must be chromosome
-                        start end. If black list is given the vcf file must be
-                        indexed using tabix.
+                        List of regions to ignore phased varinats at them.
+                        Three first columns must be chromosome start end. If
+                        black list is given the vcf file must be indexed using
+                        tabix.
   --per_read PER_READ, -pr PER_READ
                         If it is your second try and you have per read info
                         file give the path to the per read info file. This
-                        will be significantly faster.
+                        will be significantly faster. This is useful when you
+                        want to try different thresholds for options,
+                        different dmr list, black list, include/exclude
+                        indels, and include/exclude supp reads.
   --hapratio HAPRATIO, -hr HAPRATIO
                         0-1 . Minimmum ratio of variants a read must have from
                         a haplotype to assign it to that haplotype. Default is
@@ -254,9 +259,9 @@ Optional arguments.:
   --mapping_quality MAPPING_QUALITY, -mq MAPPING_QUALITY
                         An integer value to specify thereshold for filtering
                         reads based om mapping quality. Default is >=20
-  --min_snv MIN_SNV, -ms MIN_SNV
-                        minimum number of phased SNVs must a read have to be
-                        phased. Default= 1
+  --min_variant MIN_VARIANT, -mv MIN_VARIANT
+                        minimum number of phased variants must a read have to
+                        be phased. Default= 1
   --min_read_number MIN_READ_NUMBER, -mr MIN_READ_NUMBER
                         minimum number of reads to support a variant to assign
                         to each haplotype. Default= 2
@@ -278,5 +283,8 @@ Optional arguments.:
   --chunk_size CHUNK_SIZE, -cs CHUNK_SIZE
                         Chunk per process. Default is 100
   --include_supplementary, -is
-                        Also include supplementary reads.
+                        Also include supplementary reads (Not recommended).
+  --include_indels, -ind
+                        Also include indels for read phasing to haplotypes.
+  --version             show program's version number and exit
 ```
