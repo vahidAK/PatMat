@@ -288,3 +288,15 @@ Optional arguments.:
                         Also include indels for read phasing to haplotypes.
   --version             show program's version number and exit
 ```
+### 3-1- Outputs
+PatMat will generate multiple outputs.
+#### 3-1-1 NonPofO_HP1-HP2 (Non parent-of-origin) results 
+These are a vcf and a tsv file. These files represent the results for phasing reads and re-phasing het variants (haplotype 1 or HP1 and haplotype 2 or HP2) before assigning parent-of-origin. In the vcf file, for phased 0/1 (0|1 or 1|0) variants the last column includes HP1|HP2 (Ref is HP1 and alt is HP2), or HP2|HP1 (Ref is HP2 and alt is HP1) and for the phased 1/2 variants (1|2) the last column includes Ref_HP1|HP2 (the part before comma on the 5th column is HP1 and the part after comma is HP2) or Ref_HP2|HP1 (the part before comma on the 5th column is HP2 and the part after comma is HP1).  
+#### 3-1-2 PofO_Assignment results 
+These are a vcf and a tsv file. These files represent the results after assigning the parent-of-origin to HP1 and HP2 reads and variants. In the vcf file, for phased 0/1 (0|1 or 1|0) variants the last column includes Mat|Pat (Ref is maternal and alt is paternal), or Pat|Mat (Ref is paternal and alt is maternal) and for the phased 1/2 variants (1|2) the last column includes Ref_Mat|Pat (the part before comma on the 5th column is maternal and the part after comma is paternal) or Ref_Pat|Mat (the part before comma on the 5th column is paternal and the part after comma is maternal).  
+#### 3-1-3 CpG-Methylation-Status-at-DMRs 
+This file represents status of CpGs and their methylation at each DMR on each haplotype, including the number or common CpGs between haplotypes and their methylation frequencies on each haplotypes, how many of them showed given methylation difference on each haplotype, and contribution or detection value of the DMR for each haplotype.  
+#### 3-1-4 HP1_HP2_PerReadInfo 
+This file includes per-read information including coordinates and strand of the reads on reference, read IDs, read flag and if the read is supplemenary or not, read mapping quality, and finally the positions, phred score base quality and base(s) from the read at the input phased het variants from strand-seq (or strand-seq plus WhatsHap, if given) for HP1 and HP2 and unphased variants in the input vcf file (1|2 varinats are considered as unphased). Base quality for indels represent the base quality of the first base. Positions in the per-read file are zero-based.  
+
+**Note:** If you wish to try different criteria, per-read file produced by PatMat >=v1.2.0 allows you to try different thresholds for options, different dmr list, black list, include/exclude indels, and include/exclude supp reads mush faster. Per-read from previous versions cannot be used for different black list or include/exclude supp reads. NanoMethPhase phase module also produces a per-read file, however, per-read file from PatMat is NOT equivalent to the per-read file from NanoMethPhase. Moreover, per-read from NanoMethPhase cannot be used for different mapping quality or include/exclude supp reads.
