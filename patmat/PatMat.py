@@ -1288,7 +1288,7 @@ sp_input.add_argument("--include_indels", "-ind",
                       action="store_true",
                       required=False,
                       help="Also include indels for read phasing to haplotypes.")
-parser.add_argument('--version', action='version', version='%(prog)s 1.2.0')
+sp_input.add_argument('--version', action='version', version='%(prog)s 1.2.0')
 args = parser.parse_args()
 
 
