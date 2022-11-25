@@ -16,7 +16,7 @@ Additional software tools are required to use Strand-seq described in the [scrip
 
 The workflow was developed using the above tools. However, you may use alternatives to each tool.    
 
-Finally you need to use our tool in this repository "**PatMat.py**" to detect chromosome-scale parent-of-origin resolved haplotypes. You need to clone the GitHub repository and use the PatMat.py in the patmat folder. Before using PatMat.py you need to satisfy (install) the following dependencies:  
+Finally you need to use our tool in this repository "**PatMat.py**" to detect chromosome-scale parent-of-origin resolved haplotypes. Try to use the latest released version. You can download the latest release and unzip or untar the files and use the PatMat.py script in the patmat folder. Alternatively, you can clone the GitHub repository and use the PatMat.py in the patmat folder. Before using PatMat.py you need to satisfy (install) the following dependencies:  
 [bgzip](http://www.htslib.org/doc/bgzip.html)  
 [tabix](http://www.htslib.org/doc/tabix.html)  
 python>=3.7.4 and its following dependencies:  
