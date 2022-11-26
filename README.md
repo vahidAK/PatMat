@@ -215,8 +215,8 @@ required arguments:
 
 Optional arguments.:
   --known_dmr KNOWN_DMR, -kd KNOWN_DMR
-                        The path to the input file for known imprinted
-                        DMRs.File must have the following information in the
+                        The path to the input file for known imprinted DMRs.
+                        File must have the following information in the
                         following column order: chromosome start end
                         MethylatedAlleleOrigin where the methylated allele
                         origin must be either maternal or paternal (First row
@@ -229,14 +229,14 @@ Optional arguments.:
                         phased variants are very sparce. File must be sorted
                         and indexed using tabix.
   --whatshap_block WHATSHAP_BLOCK, -wb WHATSHAP_BLOCK
-                        Path to the WhatsHap block file. This file can
-                        becreated using whatshap stats command. File must
-                        beconverted to a bed format with chromosome start end
-                        in the first three columns (First row must be header).
-                        If no block file is given then the assumption is that
-                        the last part after : sign in the 10th column is the
-                        phase set (PS) name and blocks will be calculated
-                        internaly.
+                        Path to the WhatsHap block file. This file can be
+                        created using whatshap stats command. File must be
+                        converted to a bed format with chromosome start end in
+                        the first three columns (First row must be header). If
+                        no block file is given then the assumption is that the
+                        last part after : sign in the 10th column is the phase
+                        set (PS) name and blocks will be calculated
+                        internally.
   --black_list BLACK_LIST, -bl BLACK_LIST
                         List of regions to ignore phased varinats at them.
                         Three first columns must be chromosome start end. If
@@ -245,14 +245,24 @@ Optional arguments.:
   --per_read PER_READ, -pr PER_READ
                         If it is your second try and you have per read info
                         file give the path to the per read info file. This
-                        will be significantly faster. This is useful when you
-                        want to try different thresholds for options,
+                        will be significantly faster. This is also useful when
+                        you want to try different thresholds for options (Note
+                        that if you also provided WhatsHap phased vcf in your
+                        first try, then you cannot use per-read to try
+                        different --min_variant or --hapratio because these
+                        options will be also used to correct WhatsHap phased-
+                        block switches using strand-seq phased variants),
                         different dmr list, black list, include/exclude
                         indels, and include/exclude supp reads.
   --hapratio HAPRATIO, -hr HAPRATIO
                         0-1 . Minimmum ratio of variants a read must have from
                         a haplotype to assign it to that haplotype. Default is
-                        0.75.
+                        0.75. Note that if you also provide WhatsHap phased
+                        vcf file this option will be also used to correct
+                        phased-block switches using Strand-seq phased
+                        variants. In this case, it is minimum ratio of phased
+                        variants at a block that supports the dicision based
+                        on strand-seq phased varinats.
   --min_base_quality MIN_BASE_QUALITY, -mbq MIN_BASE_QUALITY
                         Only include bases with phred score higher or equal
                         than this option. Default is >=7.
@@ -261,7 +271,13 @@ Optional arguments.:
                         reads based om mapping quality. Default is >=20
   --min_variant MIN_VARIANT, -mv MIN_VARIANT
                         minimum number of phased variants must a read have to
-                        be phased. Default= 1
+                        be phased. Default= 1. Note that if you also provide
+                        WhatsHap phased vcf file this option will be also used
+                        to correct phased-block switches using Strand-seq
+                        phased variants. In this case, it is the minimum
+                        number of phased variants at a block that need to
+                        support the dicision based on strand-seq phased
+                        varinats.
   --min_read_number MIN_READ_NUMBER, -mr MIN_READ_NUMBER
                         minimum number of reads to support a variant to assign
                         to each haplotype. Default= 2
@@ -299,4 +315,4 @@ This file represents status of CpGs and their methylation at each DMR on each ha
 #### 3-1-4 HP1_HP2_PerReadInfo 
 This file includes per-read information including coordinates and strand of the reads on reference, read IDs, read flag and if the read is supplemenary or not, read mapping quality, and finally the positions, phred score base quality and base(s) from the read at the input phased het variants from strand-seq (or strand-seq plus WhatsHap, if given) for HP1 and HP2 and unphased variants in the input vcf file (1|2 varinats are considered as unphased). Base quality for indels represent the base quality of the first base. Positions in the per-read file are zero-based.  
 
-**Note:** If you wish to try different criteria, the per-read file produced by PatMat >=v1.2.0 allows you to try different thresholds for options, different dmr list, black list, include/exclude indels, and include/exclude supp reads much faster. Per-read from previous versions cannot be used for different black list or include/exclude supp reads. NanoMethPhase phase module also produces a per-read file, however, per-read file from PatMat is NOT equivalent to the per-read file from NanoMethPhase. Moreover, per-read from NanoMethPhase cannot be used for different mapping quality or include/exclude supp reads.  
+**Note:** If you wish to try different criteria, the per-read file produced by PatMat >=v1.2.0 allows you to try different thresholds for options (**Note** that if you also provided WhatsHap phased vcf in your first try, then you **cannot** use per-read to try different --min_variant or --hapratio because these options will be also used to correct WhatsHap phased-block switches using strand-seq phased variants.), different dmr list, black list, include/exclude indels, and include/exclude supp reads much faster. These are also true for previous versions and their per-read **except** that per-read from previous versions **cannot** be used for different black list or include/exclude supp reads. NanoMethPhase phase module also produces a per-read file, however, per-read file from PatMat is NOT equivalent to the per-read file from NanoMethPhase. Moreover, per-read from NanoMethPhase cannot be used for different mapping quality or include/exclude supp reads.  
