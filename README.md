@@ -308,8 +308,10 @@ Optional arguments.:
 PatMat will generate multiple outputs.
 #### 3-1-1 NonPofO_HP1-HP2 (Non parent-of-origin) results 
 These are a vcf and a tsv file. These files represent the results for phasing reads and re-phasing het variants (haplotype 1 or HP1 and haplotype 2 or HP2) before assigning parent-of-origin. In the vcf file, for phased 0/1 (0|1 or 1|0) variants the last column includes HP1|HP2 (Ref is HP1 and alt is HP2), or HP2|HP1 (Ref is HP2 and alt is HP1) and for the phased 1/2 variants (1|2) the last column includes Ref_HP1|HP2 (the part before comma on the 5th column is HP1 and the part after comma is HP2) or Ref_HP2|HP1 (the part before comma on the 5th column is HP2 and the part after comma is HP1).  
+Note: During re-phasing input vcf variants, if your input vcf is a phased vcf file and some of the varinats could not be re-phased, the phase sign "|" will be just replaced by "/" sign (e.g. 1|0 will be 1/0).  
 #### 3-1-2 PofO_Assignment results 
 These are a vcf and a tsv file. These files represent the results after assigning the parent-of-origin to HP1 and HP2 reads and variants. In the vcf file, for phased 0/1 (0|1 or 1|0) variants the last column includes Mat|Pat (Ref is maternal and alt is paternal), or Pat|Mat (Ref is paternal and alt is maternal) and for the phased 1/2 variants (1|2) the last column includes Ref_Mat|Pat (the part before comma on the 5th column is maternal and the part after comma is paternal) or Ref_Pat|Mat (the part before comma on the 5th column is paternal and the part after comma is maternal).  
+Note: During PofO assignment to the re-phased variants the phase sign "|" will be just replaced by "/" sign (e.g. 1|0 will be 1/0) if PofO could not be inferred.  
 #### 3-1-3 CpG-Methylation-Status-at-DMRs 
 This file represents status of CpGs and their methylation at each DMR on each haplotype, including the number or common CpGs between haplotypes and their methylation frequencies on each haplotypes, how many of them showed given methylation difference on each haplotype, and contribution or detection value of the DMR for each haplotype.  
 #### 3-1-4 HP1_HP2_PerReadInfo 
