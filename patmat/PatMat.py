@@ -1201,7 +1201,10 @@ sp_input.add_argument("--per_read", "-pr",
                       help="If it is your second try and you have per "
                       "read info file give the path to the per "
                       "read info file. This will be significantly faster."
-                      " This is useful when you want to try different thresholds for options,"
+                      " This is also useful when you want to try different thresholds for options (Note that if you "
+                      "also provided WhatsHap phased vcf in your first try, then you cannot use per-read to try "
+                      "different --min_variant or --hapratio because these options will be also used to correct"
+                      " WhatsHap phased-block switches using strand-seq phased variants),"
                       " different dmr list, black list, include/exclude indels, and include/exclude supp reads.")
 sp_input.add_argument("--hapratio", "-hr",
                       action="store",
@@ -1209,7 +1212,10 @@ sp_input.add_argument("--hapratio", "-hr",
                       required=False,
                       default=0.75,
                       help=("0-1 . Minimmum ratio of variants a read must have from a haplotype"
-                            " to assign it to that haplotype. Default is 0.75."))
+                            " to assign it to that haplotype. Default is 0.75. Note that if you also provide "
+                            "WhatsHap phased vcf file this option will be also used to correct phased-block switches"
+                            " using Strand-seq phased variants. In this case, it is minimum ratio of phased variants "
+                            "at a block that supports the dicision based on strand-seq phased varinats."))
 sp_input.add_argument("--min_base_quality", "-mbq",
                       action="store",
                       type=int,
@@ -1231,7 +1237,10 @@ sp_input.add_argument("--min_variant", "-mv",
                       required=False,
                       default=1,
                       help=("minimum number of phased variants must a read "
-                            "have to be phased. Default= 1"))
+                            "have to be phased. Default= 1. Note that if you also provide "
+                            "WhatsHap phased vcf file this option will be also used to correct phased-block switches"
+                            " using Strand-seq phased variants. In this case, it is the minimum number of phased "
+                            "variants at a block that need to support the dicision based on strand-seq phased varinats."))
 sp_input.add_argument("--min_read_number", "-mr",
                       action="store",
                       type=int,
