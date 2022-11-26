@@ -1158,7 +1158,7 @@ sp_input.add_argument("--known_dmr", "-kd",
                                                 os.path.realpath(__file__)
                                                     ),
                                              "Imprinted_DMR_List_V1.tsv"),
-                  help="The path to the input file for known imprinted DMRs."
+                  help="The path to the input file for known imprinted DMRs. "
                         "File must have the following information in the following column order: "
                         "chromosome\tstart\tend\tMethylatedAlleleOrigin "
                         "where the methylated allele origin must be either "
@@ -1178,13 +1178,13 @@ sp_input.add_argument("--whatshap_block", "-wb",
                       type=str,
                       required=False,
                       default=None,
-                      help=("Path to the WhatsHap block file. This file can be"
-                            "created using whatshap stats command. File must be" 
+                      help=("Path to the WhatsHap block file. This file can be "
+                            "created using whatshap stats command. File must be " 
                             "converted to a bed format with chromosome\tstart\tend in "
                             "the first three columns (First row must be header). If no block file is given"
                             " then the assumption is that the last part after : sign "
                             "in the 10th column is the phase set (PS) name and blocks will be"
-                            " calculated internaly."))
+                            " calculated internally."))
 sp_input.add_argument("--black_list", "-bl",
                       action="store",
                       type=str,
