@@ -87,8 +87,7 @@ nanopolish call-methylation \
   -t <number_of_threads> -q cpg \
   -r /path/to/Nanopore_reads.fastq \
   -b /path/to/Nanopore_aligned_reads.bam \
-  -g /path/to/reference.fa > /path/to/MethylationCall.tsv \
-  -q cpg
+  -g /path/to/reference.fa > /path/to/MethylationCall.tsv
 ```
 f5c (versions >=v0.7) can be also used for methylation calling. f5c versions >=v0.7 outputs similar columns as later nanopolish versions (as follows), therefore it is compatible with NanoMethPhase.  
 
