@@ -1211,7 +1211,7 @@ sp_input.add_argument("--hapratio", "-hr",
                       type=float,
                       required=False,
                       default=0.75,
-                      help=("0-1 . Minimmum ratio of variants a read must have from a haplotype"
+                      help=("0-1 . Minimum ratio of variants a read must have from a haplotype"
                             " to assign it to that haplotype. Default is 0.75. Note that if you also provide "
                             "WhatsHap phased vcf file this option will be also used to correct phased-block switches"
                             " using Strand-seq phased variants. In this case, it is minimum ratio of phased variants "
@@ -1236,7 +1236,7 @@ sp_input.add_argument("--min_variant", "-mv",
                       type=int,
                       required=False,
                       default=1,
-                      help=("minimum number of phased variants must a read "
+                      help=("Minimum number of phased variants must a read "
                             "have to be phased. Default= 1. Note that if you also provide "
                             "WhatsHap phased vcf file this option will be also used to correct phased-block switches"
                             " using Strand-seq phased variants. In this case, it is the minimum number of phased "
@@ -1246,14 +1246,14 @@ sp_input.add_argument("--min_read_number", "-mr",
                       type=int,
                       required=False,
                       default=2,
-                      help=("minimum number of reads to support a variant"
+                      help=("Minimum number of reads to support a variant"
                             " to assign to each haplotype. Default= 2"))
 sp_input.add_argument("--min_cg", "-mcg",
                       action="store",
                       type=int,
                       required=False,
                       default= 12,
-                      help=("Minimmum number of CpGs an iDMR must have to "
+                      help=("Minimum number of CpGs an iDMR must have to "
                             " consider it for PofO assignment. Default is 12."))
 sp_input.add_argument("--meth_difference", "-md",
                       action="store",
@@ -1275,7 +1275,7 @@ sp_input.add_argument("--methyl_coverage", "-mcov",
                       type=int,
                       required=False,
                       default=1,
-                      help=("Minimmum Coverage at each CpG site when calculating"
+                      help=("Minimum Coverage at each CpG site when calculating"
                             " methylation frequency. Default is 1."))
 sp_input.add_argument("--threads", "-t",
                       action="store",
