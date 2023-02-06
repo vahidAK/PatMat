@@ -254,7 +254,7 @@ Optional arguments.:
                         different dmr list, black list, include/exclude
                         indels, and include/exclude supp reads.
   --hapratio HAPRATIO, -hr HAPRATIO
-                        0-1 . Minimmum ratio of variants a read must have from
+                        0-1 . Minimum ratio of variants a read must have from
                         a haplotype to assign it to that haplotype. Default is
                         0.75. Note that if you also provide WhatsHap phased
                         vcf file this option will be also used to correct
@@ -267,9 +267,9 @@ Optional arguments.:
                         than this option. Default is >=7.
   --mapping_quality MAPPING_QUALITY, -mq MAPPING_QUALITY
                         An integer value to specify thereshold for filtering
-                        reads based om mapping quality. Default is >=20
+                        reads based on mapping quality. Default is >=20
   --min_variant MIN_VARIANT, -mv MIN_VARIANT
-                        minimum number of phased variants must a read have to
+                        Minimum number of phased variants must a read have to
                         be phased. Default= 1. Note that if you also provide
                         WhatsHap phased vcf file this option will be also used
                         to correct phased-block switches using Strand-seq
@@ -278,20 +278,21 @@ Optional arguments.:
                         support the dicision based on strand-seq phased
                         varinats.
   --min_read_number MIN_READ_NUMBER, -mr MIN_READ_NUMBER
-                        minimum number of reads to support a variant to assign
+                        Minimum number of reads to support a variant to assign
                         to each haplotype. Default= 2
   --min_cg MIN_CG, -mcg MIN_CG
-                        Minimmum number of CpGs an iDMR must have to consider
+                        Minimum number of CpGs an iDMR must have to consider
                         it for PofO assignment. Default is 12.
   --meth_difference METH_DIFFERENCE, -md METH_DIFFERENCE
-                        Methylation difference cutoff for HP1-HP2 or HP2-HP1
-                        CpG methylation. Default is 0.35.
+                        0-1. Minimum methylation difference cutoff for HP1-HP2
+                        or HP2-HP1 CpG methylation. Default is 0.35.
   --cpg_difference CPG_DIFFERENCE, -cd CPG_DIFFERENCE
-                        Cut off for the fraction of CpGs between haplotypes
-                        must be differentially methylated at an iDMR to
-                        consider it for PofO assignment. Default is 0.1.
+                        0-1. Minimum cut off for the fraction of CpGs between
+                        haplotypes must be differentially methylated at an
+                        iDMR to consider it for PofO assignment. Default is
+                        0.1.
   --methyl_coverage METHYL_COVERAGE, -mcov METHYL_COVERAGE
-                        Minimmum Coverage at each CpG site when calculating
+                        Minimum Coverage at each CpG site when calculating
                         methylation frequency. Default is 1.
   --threads THREADS, -t THREADS
                         Number of parallel processes. Default is 4.
