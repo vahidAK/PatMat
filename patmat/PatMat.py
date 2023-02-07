@@ -317,8 +317,8 @@ def PofO_dmr(known_dmr,
                 if num_all >= methyl_coverage:
                     hp2_freq_cg[cg_site]= num_mod/num_all
         common_cg= [i for i in list(hp1_freq_cg.keys()) if i in list(hp2_freq_cg.keys())]
-        diff_cg_hp1= len([i for i in common_cg if hp1_freq_cg[i] - hp2_freq_cg[i] >= meth_difference])
-        diff_cg_hp2= len([i for i in common_cg if hp2_freq_cg[i] - hp1_freq_cg[i] >= meth_difference])
+        diff_cg_hp1= len([i for i in common_cg if (hp1_freq_cg[i] - hp2_freq_cg[i]) >= meth_difference and (hp1_freq_cg[i] - hp2_freq_cg[i]) > 0])
+        diff_cg_hp2= len([i for i in common_cg if (hp2_freq_cg[i] - hp1_freq_cg[i]) >= meth_difference and (hp2_freq_cg[i] - hp1_freq_cg[i]) > 0])
         hp1_freq= 0
         hp2_freq= 0
         for i in common_cg:
@@ -1211,7 +1211,7 @@ sp_input.add_argument("--hapratio", "-hr",
                       type=float,
                       required=False,
                       default=0.75,
-                      help=("0-1 . Minimmum ratio of variants a read must have from a haplotype"
+                      help=("0-1 . Minimum ratio of variants a read must have from a haplotype"
                             " to assign it to that haplotype. Default is 0.75. Note that if you also provide "
                             "WhatsHap phased vcf file this option will be also used to correct phased-block switches"
                             " using Strand-seq phased variants. In this case, it is minimum ratio of phased variants "
@@ -1229,14 +1229,14 @@ sp_input.add_argument("--mapping_quality", "-mq",
                       required=False,
                       default=20,
                       help=("An integer value to specify thereshold for "
-                            "filtering reads based om mapping quality. "
+                            "filtering reads based on mapping quality. "
                             "Default is >=20"))
 sp_input.add_argument("--min_variant", "-mv",
                       action="store",
                       type=int,
                       required=False,
                       default=1,
-                      help=("minimum number of phased variants must a read "
+                      help=("Minimum number of phased variants must a read "
                             "have to be phased. Default= 1. Note that if you also provide "
                             "WhatsHap phased vcf file this option will be also used to correct phased-block switches"
                             " using Strand-seq phased variants. In this case, it is the minimum number of phased "
@@ -1246,28 +1246,28 @@ sp_input.add_argument("--min_read_number", "-mr",
                       type=int,
                       required=False,
                       default=2,
-                      help=("minimum number of reads to support a variant"
+                      help=("Minimum number of reads to support a variant"
                             " to assign to each haplotype. Default= 2"))
 sp_input.add_argument("--min_cg", "-mcg",
                       action="store",
                       type=int,
                       required=False,
                       default= 12,
-                      help=("Minimmum number of CpGs an iDMR must have to "
+                      help=("Minimum number of CpGs an iDMR must have to "
                             " consider it for PofO assignment. Default is 12."))
 sp_input.add_argument("--meth_difference", "-md",
                       action="store",
                       type=float,
                       required=False,
                       default= 0.35,
-                      help=("Methylation difference cutoff for HP1-HP2 or "
+                      help=("0-1. Minimum methylation difference cutoff for HP1-HP2 or "
                             "HP2-HP1 CpG methylation. Default is 0.35."))
 sp_input.add_argument("--cpg_difference", "-cd",
                       action="store",
                       type=float,
                       required=False,
                       default= 0.1,
-                      help=("Cut off for the fraction of CpGs between haplotypes "
+                      help=("0-1. Minimum cut off for the fraction of CpGs between haplotypes "
                             "must be differentially methylated at an iDMR to "
                             "consider it for PofO assignment. Default is 0.1."))
 sp_input.add_argument("--methyl_coverage", "-mcov",
@@ -1275,7 +1275,7 @@ sp_input.add_argument("--methyl_coverage", "-mcov",
                       type=int,
                       required=False,
                       default=1,
-                      help=("Minimmum Coverage at each CpG site when calculating"
+                      help=("Minimum Coverage at each CpG site when calculating"
                             " methylation frequency. Default is 1."))
 sp_input.add_argument("--threads", "-t",
                       action="store",
@@ -1297,7 +1297,7 @@ sp_input.add_argument("--include_indels", "-ind",
                       action="store_true",
                       required=False,
                       help="Also include indels for read phasing to haplotypes.")
-sp_input.add_argument('--version', action='version', version='%(prog)s 1.2.0')
+sp_input.add_argument('--version', action='version', version='%(prog)s 1.2.1_dev')
 args = parser.parse_args()
 
 
