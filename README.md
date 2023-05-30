@@ -171,16 +171,14 @@ described below.
 Here is the full list of options for `strandseq_phase.R`:
 
 ```
-usage: ./Strand-seq/strandseq_phase.R [-h] [-p TRUE or FALSE]
-                                      [-i /path/to/input/]
-                                      [-o /path/to/output/] [-t num_threads]
-                                      [-n name]
-                                      [--inversion_list /path/to/BED]
-                                      [--hard_mask /path/to/BED]
-                                      [--soft_mask /path/to/BED]
-                                      [--prior Numeric vector of length 3]
-                                      [--haploid_prior Numeric vector of length 2]
-                                      /path/to/GRCh38.fasta /path/to/snps.vcf
+usage: ./strandseq_phase.R [-h] [-p TRUE or FALSE] [-i /path/to/input/]
+                           [-o /path/to/output/] [-t integer] [-n string]
+                           [--inversion_list /path/to/BED]
+                           [--hard_mask /path/to/BED]
+                           [--soft_mask /path/to/BED]
+                           [--prior comma-separated numbers]
+                           [--chromosomes comma-separated strings]
+                           /path/to/GRCh38.fasta /path/to/snps.vcf
 
 Performs inversion-aware Strand-seq phasing of a VCF file of SNVs. Requires
 bcftools (samtools.github.io/bcftools/bcftools.html), R>=4.3.0, and the R
@@ -204,11 +202,11 @@ options:
   -o /path/to/output/, --output_folder /path/to/output/
                         Absolute path to a directory where output files should
                         be written. Default: '.'.
-  -t num_threads, --threads num_threads
-                        An integer, the number of parallel threads to run on.
-                        Default: 4.
-  -n name, --name name  A character string as the name of the sample, e.g.,
-                        'HG005'. Default: 'unknown'.
+  -t integer, --threads integer
+                        The number of parallel threads to run on. Default: 4.
+  -n string, --name string
+                        The name of the sample. This will appear in the VCF
+                        file. E.g., 'HG005'. Default: 'unknown'.
   --inversion_list /path/to/BED
                         Absolute path to a BED file containing genomic
                         intervals that might be inversions. This is typically
@@ -232,16 +230,15 @@ options:
                         strandseq_phase.R, which contains the three largest
                         autosomal inversions according to Porubsky et al.
                         2022, except for a very rare one on chr2.
-  --prior Numeric vector of length 3
-                        A vector of prior weights for inversion genotypes.
-                        Only needs to be altered if --inversion-list is not
-                        the default. See InvertypeR for more details.
-  --haploid_prior Numeric vector of length 2
-                        A vector of prior weights for haploid inversion
-                        genotypes. Only needs to be altered if --inversion-
-                        list is not the default. See InvertypeR for more
-                        details.
-
+  --prior comma-separated numbers
+                        A comma-separated list of prior weights for inversion
+                        genotypes, without spaces. Only needs to be altered if
+                        --inversion_list is not the default. E.g.,
+                        0.96,0.02,0.02. See InvertypeR for more details.
+  --chromosomes comma-separated strings
+                        A comma-separated list of chromosome names, without
+                        spaces. Only SNVs on these chromosomes will be phased.
+                        E.g., chr1,chr2,chr3. Default: the 22 autosomes.
 ```
 ### 2-2 Installations and setup
 For the [parent-of-origin phasing paper](https://doi.org/10.1016/j.xgen.2022.100233) that first presented this method, we used the dependencies and code at commit 
