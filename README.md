@@ -241,8 +241,7 @@ options:
                         E.g., chr1,chr2,chr3. Default: the 22 autosomes.
 ```
 ### 2-2 Installations and setup
-For the [parent-of-origin phasing paper](https://doi.org/10.1016/j.xgen.2022.100233) that first presented this method, we used the dependencies and code at commit 
-0876947e0932a6beac44ca374796416e6e55410e of this repository. However, the most recent version is preferred. 
+Note that for the [parent-of-origin phasing paper](https://doi.org/10.1016/j.xgen.2022.100233) that first presented this method, we used the dependencies and code from PatMat v1.1.1 (this repo). However, the most recent version is preferred. 
 
 First, R (v4.3.0 or higher) and bcftools can be installed separately, or using miniconda3 and the "env.yml" file:
 
