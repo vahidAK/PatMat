@@ -155,6 +155,7 @@ phasing (with a Linux OS):
     -o ./phased \
     -t 12 \
     -n HG005 \
+    /path/to/VCF/of/snvs.vcf
 ```
 
 It may be necessary to change the permissions first:
@@ -178,7 +179,7 @@ usage: ./strandseq_phase.R [-h] [-p TRUE or FALSE] [-i /path/to/input/]
                            [--soft_mask /path/to/BED]
                            [--prior comma-separated numbers]
                            [--chromosomes comma-separated strings]
-                           /path/to/GRCh38.fasta /path/to/snps.vcf
+                           /path/to/snps.vcf
 
 Performs inversion-aware Strand-seq phasing of a VCF file of SNVs. Requires
 bcftools (samtools.github.io/bcftools/bcftools.html), R>=4.3.0, and the R
@@ -187,9 +188,6 @@ hanlon/InvertypeR), argparse (CRAN), and BSgenome.Hsapiens.UCSC.hg38
 (Bioconductor).
 
 positional arguments:
-  /path/to/GRCh38.fasta
-                        Absolute path to the FASTA-format GRCh38 human
-                        reference genome.
   /path/to/snps.vcf     Absolute path to a VCF file of SNVs to phase.
 
 options:
@@ -274,11 +272,11 @@ Strand-seq libraries are typically low-coverage, and this makes it hard to disco
 combine data from many libraries into two composite files: one built from regions of libraries where all reads mapped with the same orientation (Watson-Watson or 
 Crick-Crick regions), and one where reads mapped with both orientations (Watson-Crick). The latter file entails a phasing step to distinguish cases where (for an autosome) 
 homolog 1 gave the forward reads and homolog 2 gave the reverse reads, rather than homolog 1 giving reverse reads and homolog 2 giving forward reads. Apart from identifying 
-and phasing such regions, this process is effectively a problem of merging BAM files and reorienting reads in some cases. 
+and phasing such regions, this process is effectively a problem of merging BAM files (loaded into R) and reorienting reads in some cases. 
 
-InvertypeR, which genotypes inversions, takes as input a list of positions to examine. To obtain a list of putative inversions de novo, we run BreakpointR on the composite 
-files three times with different bin sizes and extract the coordinates of short segments of the genome with unexpected read orientations (such as inversions might give). We 
-combine this with a list of inversions from the literature.
+The main InvertypeR function, which genotypes inversions, takes as input a list of positions to examine. To obtain a list of putative inversions de novo, we run BreakpointR 
+on the composite files three times with different bin sizes and extract the coordinates of short segments of the genome with unexpected read orientations (such as inversions
+might give). We combine this with a list of inversions from the literature.
 
 ### 2-3-2 Inversion genotyping
 InvertypeR counts reads inside the putative inversions by orientation in each composite file. Using a simple Bayesian model of read counts, posterior probabilites for 

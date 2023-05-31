@@ -53,12 +53,6 @@ parser <- ArgumentParser(description='Performs inversion-aware Strand-seq phasin
     R>=4.3.0, and the R packages devtools (CRAN), BiocManager (CRAN), InvertypeR (GitHub: vincent-hanlon/InvertypeR), argparse (CRAN), and BSgenome.Hsapiens.UCSC.hg38 
     (Bioconductor).')
 
-parser$add_argument("reference",
-    type = "character",
-    help = "Absolute path to the FASTA-format GRCh38 human reference genome.",
-    metavar = "/path/to/GRCh38.fasta"
-)
-
 parser$add_argument("vcf",
     type = "character", 
     help = "Absolute path to a VCF file of SNVs to phase.",
@@ -139,7 +133,6 @@ parser$add_argument("--chromosomes",
 args <- parser$parse_args()
 
 stopifnot("Provide a valid VCF file with the --vcf flag" = file.exists(args$vcf))
-stopifnot("Provide a valid FASTA reference genome with the --reference flag" = file.exists(args$reference))
 stopifnot("Provide a valid path to a directory containing Strand-seq BAM files with the --input_folder flag" = file.exists(args$input_folder))
 stopifnot("Provide a valid BED file of blacklisted regions with the --hard_mask flag" = file.exists(args$hard_mask))
 stopifnot("Provide a valid BED file of putative inversions from the literature with the --inversion_list flag" = file.exists(args$inversion_list))
@@ -275,7 +268,6 @@ invisible(suppressMessages(correctInvertedRegionPhasing(
     input.bams = args$input_folder,
     chromosomes = args$chromosomes,
     bsGenome = "BSgenome.Hsapiens.UCSC.hg38",
-    ref.fasta = args$reference,
     recall.phased = TRUE,
     het.genotype = "lenient",
     pairedEndReads = args$paired,
@@ -283,7 +275,7 @@ invisible(suppressMessages(correctInvertedRegionPhasing(
     background = 0.1,
     lookup.bp = 1000000,
     assume.biallelic = TRUE,
-    lookup.blacklist = args$hard_mask
+    lookup.blacklist = invertyper::import_bed(args$hard_mask)
 )))
 
 stopTimedMessage(ptm)
