@@ -1191,8 +1191,8 @@ def main(args):
         for read in reads:
             reads_NonPofO.write('\t'.join(read)+'\t'+"HP2"+'\n')
     reads_NonPofO.close()
-    out_freqhp1= out + '_NonPofO_MethylationHP1.tsv'
-    out_freqhp2= out + '_NonPofO_MethylationHP2.tsv'
+    out_freqhp1= out + '_NonPofO_HP1-HP2_MethylationHP1.tsv'
+    out_freqhp2= out + '_NonPofO_HP1-HP2_MethylationHP2.tsv'
     out_freqhp1_non_pofo = open(out_freqhp1,'w')
     out_freqhp2_non_pofo = open(out_freqhp2,'w')
     freq_header= "Chromosome\tStart\tEnd\tCov\tMod\tFreq"
@@ -1391,8 +1391,8 @@ def main(args):
     assignment_file.close()
     out_scores= open(out + '_PofO_Scores.tsv','w')
     out_scores.write("Chromosome\tOrigin_HP1\tOrigin_HP2\tPofO_Assignment_Score\n")
-    out_freqMaternal= out + '_MethylationMaternal.tsv'
-    out_freqPaternal= out + '_MethylationPaternal.tsv'
+    out_freqMaternal= out + '_PofO_Assignment_MethylationMaternal.tsv'
+    out_freqPaternal= out + '_PofO_Assignment_MethylationPaternal.tsv'
     out_freqMaternal_non_pofo = open(out_freqMaternal,'w')
     out_freqPaternal_non_pofo = open(out_freqPaternal,'w')
     out_freqMaternal_non_pofo.write(freq_header+"\n")
@@ -1437,7 +1437,7 @@ def main(args):
 """
 Specific argument parser.
 """
-parser = argparse.ArgumentParser(prog='PatMat.py', add_help=False,
+parser = argparse.ArgumentParser(prog='patmat.py', add_help=False,
                                  description="Phasing reads and Methylation "
                                              "using strand-seq and nanopore to determine "
                                              "PofO of each homologous chromosome "
@@ -1484,17 +1484,16 @@ optional.add_argument("--tool_and_callthresh", "-tc",
                            type=str,
                            required=False,
                            default="guppy:0.4",
-                           help=("Software you have used for methylation calling "
-                                 "(nanoplish, megalodon, deepsignal,guppy (bam file with 5mC tag)):"
-                                 "methylation call threshold for considering a site as "
-                                 "methylated, unmethylated or ambiguous in methylation call file. "
+                           help=("Software you have used for methylation calling:Call threshold. "
+                                 "Supported tools include guppy (bam file with CpG methylation tags), nanoplish, "
+                                 "megalodon (megalodon calls must inlcude only CpG methylation), and deepsignal. "
                                  "For example, nanopolish:1.5 is when methylation"
                                  " calling performed by nanopolish and a CpG with llr >= 1.5 will be considered "
                                  "as methylated and llr <= -1.5 as unmethylated, anything "
                                  "in between will be considered as ambiguous call and ignored. "
-                                 "For megalodon, deepsignl and guppy, call thresold will be delta probability (0-1)"
-                                 ". For example threshold 0.6 means >=0.8 is methylated and <=0.2 is not and between"
-                                 " 0.2-0.8 will be ignored. Default is guppy:0.4"))
+                                 "For guppy, megalodon, and deepsignl call thresold will be delta probability (0-1)"
+                                 ". For example threshold 0.4 means any call >=0.7 is methylated and <=0.3 is not and between"
+                                 " 0.3-0.7 will be ignored. Default is guppy:0.4"))
 optional.add_argument("--known_dmr", "-kd",
                   action="store",
                   type=str,

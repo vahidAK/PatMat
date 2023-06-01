@@ -8,114 +8,91 @@ imprinted regions to detect parent-of-origin.
 
 **Citation:** [Parent-of-origin detection and chromosome-scale haplotyping using long-read DNA methylation sequencing and 
 Strand-seq](https://www.cell.com/cell-genomics/fulltext/S2666-979X(22)00191-4)  
-  
-To run this workflow you will need the following third-party tools for processing nanopore data:  
-**Guppy**: For basecalling nanopore reads.  
-**[Minimap2](https://github.com/lh3/minimap2)**: To align nanopore reads to the reference genome.  
-**[Nanopolish](https://github.com/jts/nanopolish)**: To call DNA methylation from nanopore data.  
-**[NanoMethPhase](https://github.com/vahidAK/NanoMethPhase)**: To process methylation call results from nanopolish.  
-**[Clair3](https://github.com/HKU-BAL/Clair3)**: To call variants from aligned nanopore reads.  
-
-Additional software is required to use Strand-seq, as described [below](https://github.com/vahidAK/PatMat/blob/main/README.md#2--Strand\-seq-Data-Analysis).
-
-The workflow was developed using the above tools. However, you may use alternatives to each tool.    
-
-Finally you need to use our tool in this repository "**PatMat.py**" to detect chromosome-scale parent-of-origin resolved haplotypes. Try to use the latest released version. 
-You can download the latest release and unzip or untar the files and use the PatMat.py script in the patmat folder. Alternatively, you can clone the GitHub repository and 
-use the PatMat.py in the patmat folder. Before using PatMat.py you need to satisfy (install) the following dependencies:  
-[bgzip](http://www.htslib.org/doc/bgzip.html)  
-[tabix](http://www.htslib.org/doc/tabix.html)  
-python>=3.7.4 and its following dependencies:  
-pytabix>=0.1  
-pysam>=0.16.0  
-tqdm>=4.54.1   
 
 Table of Contents
 =================
-
-**[Full Tutorial](https://github.com/vahidAK/PatMat/blob/main/README.md#Full-Tutorial)**
-* [Nanopore Data Analysis](https://github.com/vahidAK/PatMat/blob/main/README.md#1--Nanopore-Data-Analysis)
-  * [Basecalling from nanopore data](https://github.com/vahidAK/PatMat/blob/main/README.md#1\-1--Basecalling-from-nanopore-data)
-  * [Mapping nanopore basecalled reads](https://github.com/vahidAK/PatMat/blob/main/README.md#1\-2-Mapping-nanopore-basecalled-reads)
-  * [Methylation Calling from nanopore data](https://github.com/vahidAK/PatMat/blob/main/README.md#1\-3-Methylation-Calling-from-nanopore-data)
-  * [Variant Calling from nanopore data](https://github.com/vahidAK/PatMat/blob/main/README.md#1\-4-Variant-Calling-from-nanopore-data)
-* [Strand-seq Data Analysis](https://github.com/vahidAK/PatMat/blob/main/README.md#2--Strand\-seq-Data-Analysis)
-* [Parent-of-origin detection](https://github.com/vahidAK/PatMat/blob/main/README.md#3--Parent\-of\-origin-detection)
+**[Installation](https://github.com/vahidAK/PatMat/blob/main/README.md#installation)**  
   
-# Full Tutorial
+**[Full Tutorial](https://github.com/vahidAK/PatMat/blob/main/README.md#full-tutorial)**
+* [Nanopore Data Analysis](https://github.com/vahidAK/PatMat/blob/main/README.md#1--nanopore-data-analysis)
+* [Basecalling, mapping, and methylation calling from nanopore data using Guppy](https://github.com/vahidAK/PatMat/blob/main/README.md#1\-1--basecalling,-mapping,-and methylation-calling-from-nanopore-data-using-guppy)
+* [Variant Calling from nanopore data using Clair3](https://github.com/vahidAK/PatMat/blob/main/README.md#1\-2-variant-calling-from-nanopore-data-using-clair3)
+* [Strand-seq Data Analysis](https://github.com/vahidAK/PatMat/blob/main/README.md#2--strand\-seq-Data-Analysis)
+* [Parent-of-origin detection](https://github.com/vahidAK/PatMat/blob/main/README.md#3--parent\-of\-origin-detection)
+  
+# Installation
+To run this workflow you will need to install/have the following third-party tools:  
+Guppy: For basecalling, mapping, and methylation calling of nanopore reads.  
+[Clair3](https://github.com/HKU-BAL/Clair3): To call variants from aligned nanopore reads.  
+The workflow was developed using the above tools. However, you may use appropriate alternatives to each tool.  
+
+The workflow is basically two part, nanopore analysis part and strand-seq analysis part. To use the tools and scripts in the PatMat repository for this workflow you can download the latest release or clone the repository and install required dependencies in the [patmat/env.yml](https://github.com/vahidAK/PatMat/blob/main/patmat/env.yml) and [Strand-seq/env.yml](https://github.com/vahidAK/PatMat/blob/main/Strand-seq/env.yml) as follow:  
+**Note**: You first need to have conda/miniconda installed. If you do not have conda/miniconda follow instrusctions [here](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) to install it and then run the following commands.  
+To clone and install:
+```
+git clone https://github.com/vahidAK/PatMat.git
+cd PatMat
+chmod -x */* && chmod +x */{patmat.py,strandseq_phase.R}
+conda env create -f patmat/env.yml
+conda activate patmat
+env_path=$(conda info | grep -i 'active env location' | cut -d'/' -f2- | awk '{print "/"$0"/bin"}')
+ln -s $PWD/patmat/*{.py,.tsv,.sh} $env_path 
+conda env create -f Strand-seq/env.yml
+conda activate strandseq
+env_path=$(conda info | grep -i 'active env location' | cut -d'/' -f2- | awk '{print "/"$0"/bin"}')
+ln -s $PWD/Strand-seq/*{.R,.bed} $env_path 
+R
+# Now in the R run the following codes to install R packages
+install.packages(c("devtools","BiocManager","argparse"))
+devtools::install_github(repo="vincent-hanlon/InvertypeR")
+BiocManager::install("BSgenome.Hsapiens.UCSC.hg38")
+```  
+OR to download the latest release and install:
+```
+VERSION=1.3.0
+wget https://github.com/vahidAK/PatMat/archive/refs/tags/v"$VERSION".tar.gz && tar -xzf v"$VERSION".tar.gz
+cd PatMat-"$VERSION"/
+chmod -x */* && chmod +x */{patmat.py,strandseq_phase.R}
+conda env create -f patmat/env.yml
+conda activate patmat
+env_path=$(conda info | grep -i 'active env location' | cut -d'/' -f2- | awk '{print "/"$0"/bin"}')
+ln -s $PWD/patmat/*{.py,.tsv,.sh} $env_path 
+conda env create -f Strand-seq/env.yml
+conda activate strandseq
+env_path=$(conda info | grep -i 'active env location' | cut -d'/' -f2- | awk '{print "/"$0"/bin"}')
+ln -s $PWD/Strand-seq/*{.R,.bed} $env_path 
+R
+# Now in the R run the following codes to install R packages
+install.packages(c("devtools","BiocManager","argparse"))
+devtools::install_github(repo="vincent-hanlon/InvertypeR")
+BiocManager::install("BSgenome.Hsapiens.UCSC.hg38")
+```
+The above commands will clone/download the repository and install all the dependencies in two separate environments, strandseq and patmat. To analyse the strand-seq data you need to first activate strandseq environment using ```conda activate strandseq```. To run patmat.py at the end of the workflow you need to first activate the patmat environment using ```conda activate patmat```.
+
+# Full Tutorial  
+Note that for the [parent-of-origin phasing paper](https://doi.org/10.1016/j.xgen.2022.100233) that first presented this method, we used the dependencies and code from PatMat v1.1.1 (this repo). However, the most recent version is preferred.  
 
 ## 1- Nanopore Data Analysis
-### 1-1 Basecalling from nanopore data
-We use Oxford Nanopore Technologies' basecaller, guppy, for translating raw signals to DNA sequence.
-```
-guppy_basecaller --input_path <Path to fast5 directory> \
-  --save_path <path to output directory> \
-  --config <appropriate configuration file (e.g. dna_r9.4.1_450bps_sup_prom.cfg)> \
-  --device <GPU devices to be used (e,g. cuda:0 cuda:1)> \
-  --trim_strategy dna
-```
-After basecalling you need to merge all the fastq files to a single file.
-
-### 1-2 Mapping nanopore basecalled reads
-Here we use [minimap2](https://github.com/lh3/minimap2) to align nanopore reads to reference genome. You may use other tools such as 
-[Winnowmap](https://github.com/marbl/Winnowmap).
-```
-minimap2 -ax map-ont --MD -L -t <# of threads> \
-  /path/to/reference.fa \
-  /path/to/Nanopore_reads.fastq > /path/to/Nanopore_aligned_reads.sam 
-```
-After alignment was complete you need to sort and index alignment file.
-```
-samtools sort -@ <# of threads> /path/to/Nanopore_aligned_reads.sam  -o /path/to//Nanopore_aligned_reads.bam 
-samtools index -@ <# of threads> /path/to/Nanopore_aligned_reads.bam
-```
-
-### 1-3 Indexing and Methylation Calling from nanopore data  
-Here we use [nanopolish](https://github.com/jts/nanopolish) for methylation calling however you may use [f5c](https://github.com/hasindu2008/f5c), 
-[megalodon](https://github.com/nanoporetech/megalodon) or [DeepSignal](https://github.com/bioinfomaticsCSU/deepsignal). 
-
-#### 1-3-1 indexing fastq file using fast5 files:
-
-NOTE: Fastqs must be merged to a single file
+### 1-1 Basecalling, mapping, and methylation calling from nanopore data using Guppy
 
 ```
-nanopolish index -d /path/to/Fast5_files reads.fastq
+guppy_basecaller  \
+    --input_path <Path to fast5 directory> \
+    --save_path <path to output directory> \
+    --config <appropriate configuration file (e.g. dna_r10.4.1_e8.2_400bps_modbases_5mc_cg_sup_prom.cfg)> \
+    --device <GPU devices to be used (e,g. cuda:0 cuda:1)> \
+    --compress_fastq \
+    --recursive \
+    --bam_out \
+    --index \
+    --align_ref ${reference_fasta} \
+    --disable_pings \
+    --data_path /gsc/software/linux-x86_64-ubuntu20/ont-guppy_6.3.8/ont-guppy/data/ \
+    --trim_strategy dna
 ```
-You can also specify sequencing summary file to accelerate indexing.  
-Nanopolish index proccess can be time consuming. [f5c](https://github.com/hasindu2008/f5c) which is an optimised and GPU accelerated version of nanopolish can be used for 
-indexing fastq using fast5 files on multiple threads. The output of f5c index (for fast5) is [equivalent](https://hasindu2008.github.io/f5c/docs/commands) to that from 
-nanopolish index.  
+After basecalling if you have multiple bam files you need to merge them all to a single bam file. Bam file must be reference coordinate sorted and indexed.  
 
-```
-f5c index -t <# of threads> --iop <# of I/O processes to read fast5 files> -d /path/to/Fast5_files reads.fastq
-```
-
-#### 1-3-2 Methylation calling for CpG from each read:
-
-```
-nanopolish call-methylation \
-  -t <number_of_threads> -q cpg \
-  -r /path/to/Nanopore_reads.fastq \
-  -b /path/to/Nanopore_aligned_reads.bam \
-  -g /path/to/reference.fa > /path/to/MethylationCall.tsv
-```
-f5c (versions >=v0.7) can be also used for methylation calling. f5c versions >=v0.7 outputs similar columns as later nanopolish versions (as follows), therefore it is 
-compatible with NanoMethPhase.  
-
-```
-chromosome	strand	start	end	read_name	log_lik_ratio	log_lik_methylated	log_lik_unmethylated	num_calling_strands	num_motifs	sequence
-```
-  
-#### 1-3-3 Pre-processing methylation call file
-We then need to pre-process methylation call file from nanopolish using [NanoMethPhase](https://github.com/vahidAK/NanoMethPhase) methyl_call_processor module.
-```
-nanomethphase methyl_call_processor -mc MethylationCall.tsv -t 20 | sort -k1,1 -k2,2n -k3,3n | bgzip > NanoMethPhase_MethylationCall.bed.gz && tabix -p bed 
-NanoMethPhase_MethylationCall.bed.gz
-```
-### 1-4 Variant Calling from nanopore data
-
-Here use [Clair3](https://github.com/HKU-BAL/Clair3) to call variants. However, you may call variants with other
-tools such as [deepvariant](https://github.com/google/deepvariant).
+### 1-2 Variant calling from nanopore data using Clair3
 
 ```
 run_clair3.sh --bam_fn=/path/to/Nanopore_aligned_reads.bam \
@@ -124,32 +101,27 @@ run_clair3.sh --bam_fn=/path/to/Nanopore_aligned_reads.bam \
   --threads=<# of threads> --platform=ont \
   --model_path=/path/to/model/ont_guppy5_r941_sup_g5014
 ```
-After variant calling the results will be in merge_output.vcf.gz file in the output directory. You then need to extract high uality variants:  
+After variant calling the results will be in merge_output.vcf.gz file in the output directory. We recommend using quality passed variants only:  
 ```
 gunzip -c /path/to/output/directory/merge_output.vcf.gz | awk '$1 ~ /^#/ || $7=="PASS"' > /path/to/output/Passed_Clair3_Variants.vcf
 ```  
 
 ## 2- Strand-seq Data Analysis
+To run strand-seq analysis part first you must activate strandseq conda environment:
+```
+conda activate strandseq
+```
 ### 2-1 Quick overview
 Typically, 30-100 good quality Strand-seq libraries with at least 20 million unique reads in total should be used for phasing. These must be aligned to the GRCh38 reference 
 genome and poor-quality libraries must be identified and removed using [ASHLEYS QC](https://github.com/friendsofstrandseq/ashleys-qc) (Gros et al. 2021).
 
-The inversion-aware Strand-seq phasing routine described here has the following dependencies. Some of these can be installed with the [conda environment 
-file](https://github.com/vahidAK/PatMat/tree/main/Strand-seq/env.yml).
 
-* [bcftools](https://samtools.github.io/bcftools/bcftools.html)
-* [R](https://www.r-project.org/) (v4.3.0 or higher)
-* The R package [devtools](https://cran.r-project.org/web/packages/devtools/index.html)
-* The R package [BiocManager](https://cran.r-project.org/web/packages/BiocManager/index.html)
-* The R package [argparse](https://cran.r-project.org/web/packages/argparse/index.html)
-* The R package [BSgenome.Hsapiens.UCSC.hg38](https://bioconductor.org/packages/release/data/annotation/html/BSgenome.Hsapiens.UCSC.hg38.html)
-* The R package [InvertypeR](https://github.com/vincent-hanlon/InvertypeR)
-
-With this software installed and with the BAM files and a nanopore-derived VCF file of non-phased SNVs, something like the following can be run to perform Strand-seq 
-phasing (with a Linux OS): 
+With the BAM files and a nanopore-derived VCF file of non-phased SNVs, something like the following can be run to perform Strand-seq 
+phasing (with a Linux OS):  
 
 ```
-./Strand-seq/strandseq_phase.R \
+conda activate strandseq
+Rscript strandseq_phase.R \
     -p TRUE \
     -i /path/to/strandseq/bams/ \
     -o ./phased \
@@ -157,19 +129,11 @@ phasing (with a Linux OS):
     -n HG005 \
     /path/to/VCF/of/snvs.vcf
 ```
-
 (Note that as of June 2023, the StrandPhaseR dependency issues several warning messages ("closing unused connection") when this is run, but that seems to be a bug in the 
-dependency rather than an issue with strandseq_phase.R)
-
-It may be necessary to change the permissions first:
-
-```
-chmod 770 ./Strand-seq/strandseq_phase.R
-```
-
+dependency rather than an issue with strandseq_phase.R)  
 This method calls inversions using [InvertypeR](https://github.com/vincent-hanlon/InvertypeR) (most of the runtime), which help refine phasing, and then it phases the SNVs 
 using the standard Strand-seq R packages [BreakpointR](https://bioconductor.org/packages/release/bioc/html/breakpointR.html) and 
-[StrandPhaseR](https://github.com/daewoooo/StrandPhaseR). The result is a phased VCF file of SNVs ("samplename.phased.inv_aware.vcf"), which can be used with PatMat.py as 
+[StrandPhaseR](https://github.com/daewoooo/StrandPhaseR). The result is a phased VCF file of SNVs ("samplename.phased.inv_aware.vcf"), which can be used with patmat.py as 
 described below.
 
 Here is the full list of options for `strandseq_phase.R`:
@@ -241,17 +205,6 @@ options:
                         spaces. Only SNVs on these chromosomes will be phased.
                         E.g., chr1,chr2,chr3. Default: the 22 autosomes.
 ```
-### 2-2 Installations and setup
-Note that for the [parent-of-origin phasing paper](https://doi.org/10.1016/j.xgen.2022.100233) that first presented this method, we used the dependencies and code from PatMat v1.1.1 (this repo). However, the most recent version is preferred. 
-
-First, R (v4.3.0 or higher) and bcftools can be installed separately, or using miniconda3 and the "env.yml" file:
-
-```
-conda env create --file ./Strand-seq/env.yml -n strandseq
-conda activate strandseq
-```
-The R packages devtools, BiocManager, InvertypeR, argparse, and BSgenome.Hsapiens.UCSC.hg38 must be installed using `install.packages()` from base 
-R, `BiocManager::install()`, or `devtools::install_github()`. 
 
 ### 2-2-1 Library QC
 Separately, the Strand-seq library QC tool [ASHLEYS QC](https://github.com/friendsofstrandseq/ashleys-qc) should be used to select only good-quality libraries for analysis 
@@ -275,11 +228,10 @@ Strand-seq libraries are typically low-coverage, and this makes it hard to disco
 combine data from many libraries into two composite files: one built from regions of libraries where all reads mapped with the same orientation (Watson-Watson or 
 Crick-Crick regions), and one where reads mapped with both orientations (Watson-Crick). The latter file entails a phasing step to distinguish cases where (for an autosome) 
 homolog 1 gave the forward reads and homolog 2 gave the reverse reads, rather than homolog 1 giving reverse reads and homolog 2 giving forward reads. Apart from identifying 
-and phasing such regions, this process is effectively a problem of merging BAM files (loaded into R) and reorienting reads in some cases. 
+and phasing such regions, this process is effectively a problem of merging BAM files (loaded into R) and reorienting reads in some cases.  
 
 The main InvertypeR function, which genotypes inversions, takes as input a list of positions to examine. To obtain a list of putative inversions de novo, we run BreakpointR 
-on the composite files three times with different bin sizes and extract the coordinates of short segments of the genome with unexpected read orientations (such as inversions
-might give). We combine this with a list of inversions from the literature.
+on the composite files three times with different bin sizes and extract the coordinates of short segments of the genome with unexpected read orientations (such as inversions might give). We combine this with a list of inversions from the literature.
 
 ### 2-3-2 Inversion genotyping
 InvertypeR counts reads inside the putative inversions by orientation in each composite file. Using a simple Bayesian model of read counts, posterior probabilites for 
@@ -299,42 +251,43 @@ switches the haplotypes of alleles inside homozygous inversions and re-phases al
 StrandPhaseR (excluding the inversion correction) can be found [here](https://dx.doi.org/10.14288/1.0406302).
 
 ## 3- Parent-of-origin detection
-Finally, parent-of-origin chromosome-scale haplotypes can be built using PatMat.py:  
+Finally, parent-of-origin assigned chromosome-scale haplotypes can be built using patmat.py: 
+Remember to activate patmat environment first and then run it.
 ```
-PatMat.py -v /path/to/Passed_Clair3_Variants.vcf \
+conda activate patmat
+patmat.py -v /path/to/Passed_Clair3_Variants.vcf \
  -sv /path/to/StrandSeq_phased_variants.vcf \
- -mc /path/to/NanoMethPhase_MethylationCall.bed.gz \
- -b /path/to/Nanopore_aligned_reads.bam \
+ -mc /path/to/guppy.bam \
+ -b /path/to/guppy.bam \
  -o <Output pass and prefix> \
  -t <# of threads>
 ```
 
 Here is the full list of options:  
 ```
-python patmat/PatMat.py -h
+patmat.py -h
 
-usage: PatMat.py [-h] --bam BAM --output OUTPUT --vcf VCF --strand_vcf
-                 STRAND_VCF --methylcallfile METHYLCALLFILE
+usage: patmat.py --bam BAM --output OUTPUT --vcf VCF --strand_vcf STRAND_VCF
+                 --reference REFERENCE --methylcallfile METHYLCALLFILE
+                 [--tool_and_callthresh TOOL_AND_CALLTHRESH]
                  [--known_dmr KNOWN_DMR] [--whatshap_vcf WHATSHAP_VCF]
                  [--whatshap_block WHATSHAP_BLOCK] [--black_list BLACK_LIST]
-                 [--per_read PER_READ] [--hapratio HAPRATIO]
-                 [--min_base_quality MIN_BASE_QUALITY]
+                 [--hapratio HAPRATIO] [--min_base_quality MIN_BASE_QUALITY]
                  [--mapping_quality MAPPING_QUALITY]
                  [--min_variant MIN_VARIANT]
                  [--min_read_number MIN_READ_NUMBER] [--min_cg MIN_CG]
-                 [--meth_difference METH_DIFFERENCE]
-                 [--cpg_difference CPG_DIFFERENCE]
-                 [--methyl_coverage METHYL_COVERAGE] [--threads THREADS]
+                 [--cpg_difference CPG_DIFFERENCE] [--threads THREADS]
                  [--chunk_size CHUNK_SIZE] [--include_supplementary]
-                 [--include_indels] [--version]
+                 [--include_indels] [--per_read PER_READ]
+                 [--delta_cutoff DELTA_CUTOFF] [--pvalue PVALUE]
+                 [--smoothing_span SMOOTHING_SPAN]
+                 [--smoothing_flag SMOOTHING_FLAG] [--equal_disp EQUAL_DISP]
+                 [--version] [-h]
 
 Phasing reads and Methylation using strand-seq and nanopore to determine PofO
 of each homologous chromosome in a single sample.
 
-optional arguments:
-  -h, --help            show this help message and exit
-
-required arguments:
+Required arguments:
   --bam BAM, -b BAM     The path to the cordinate sorted bam file.
   --output OUTPUT, -o OUTPUT
                         The path to directory and prefix to save files. e.g
@@ -344,12 +297,29 @@ required arguments:
                         The path to the chromosome-scale phased vcf file.This
                         is the input vcf file that has been phased using
                         strand-seq data.
+  --reference REFERENCE, -ref REFERENCE
+                        The path to the reference file. File must be indexed
+                        using samtools faidx.
   --methylcallfile METHYLCALLFILE, -mc METHYLCALLFILE
-                        The path to the bgziped and indexed methylation call
-                        file processed using NanoMethPhase
-                        methyl_call_processor Module.
+                        The path to the per-read methylation call file or the
+                        bam file with mthylation tag.
 
-Optional arguments.:
+Optional arguments:
+  --tool_and_callthresh TOOL_AND_CALLTHRESH, -tc TOOL_AND_CALLTHRESH
+                        Software you have used for methylation calling:Call
+                        threshold. Supported tools include guppy (bam file
+                        with CpG methylation tags), nanoplish, megalodon
+                        (megalodon calls must inlcude only CpG methylation),
+                        and deepsignal. For example, nanopolish:1.5 is when
+                        methylation calling performed by nanopolish and a CpG
+                        with llr >= 1.5 will be considered as methylated and
+                        llr <= -1.5 as unmethylated, anything in between will
+                        be considered as ambiguous call and ignored. For
+                        guppy, megalodon, and deepsignl call thresold will be
+                        delta probability (0-1). For example threshold 0.4
+                        means any call >=0.7 is methylated and <=0.3 is not
+                        and between 0.3-0.7 will be ignored. Default is
+                        guppy:0.4
   --known_dmr KNOWN_DMR, -kd KNOWN_DMR
                         The path to the input file for known imprinted DMRs.
                         File must have the following information in the
@@ -378,6 +348,51 @@ Optional arguments.:
                         Three first columns must be chromosome start end. If
                         black list is given the vcf file must be indexed using
                         tabix.
+  --hapratio HAPRATIO, -hr HAPRATIO
+                        0-1 . Minimmum ratio of variants a read must have from
+                        a haplotype to assign it to that haplotype. Default is
+                        0.75. Note that if you also provide WhatsHap phased
+                        vcf file this option will be also used to correct
+                        phased-block switches using Strand-seq phased
+                        variants. In this case, it is minimum ratio of phased
+                        variants at a block that supports the dicision based
+                        on strand-seq phased varinats.
+  --min_base_quality MIN_BASE_QUALITY, -mbq MIN_BASE_QUALITY
+                        Only include bases with phred score higher or equal
+                        than this option. Default is >=7. if your bam does not
+                        incude base quality data or cannot be read this option
+                        will not be use.
+  --mapping_quality MAPPING_QUALITY, -mq MAPPING_QUALITY
+                        An integer value to specify thereshold for filtering
+                        reads based om mapping quality. Default is >=20
+  --min_variant MIN_VARIANT, -mv MIN_VARIANT
+                        minimum number of phased variants must a read have to
+                        be phased. Default= 1. Note that if you also provide
+                        WhatsHap phased vcf file this option will be also used
+                        to correct phased-block switches using Strand-seq
+                        phased variants. In this case, it is the minimum
+                        number of phased variants at a block that need to
+                        support the dicision based on strand-seq phased
+                        varinats.
+  --min_read_number MIN_READ_NUMBER, -mr MIN_READ_NUMBER
+                        minimum number of reads to support a variant to assign
+                        to each haplotype. Default= 2
+  --min_cg MIN_CG, -mcg MIN_CG
+                        Minimmum number of CpGs an iDMR must have to consider
+                        it for PofO assignment. Default is 5.
+  --cpg_difference CPG_DIFFERENCE, -cd CPG_DIFFERENCE
+                        Minimum cut off for the fraction of CpGs between
+                        haplotypes must be differentially methylated at an
+                        iDMR to consider it for PofO assignment. Default is
+                        0.1.
+  --threads THREADS, -t THREADS
+                        Number of parallel processes. Default is 4.
+  --chunk_size CHUNK_SIZE, -cs CHUNK_SIZE
+                        Chunk per process. Default is 100
+  --include_supplementary, -is
+                        Also include supplementary reads (Not recommended).
+  --include_indels, -ind
+                        Also include indels for read phasing to haplotypes.
   --per_read PER_READ, -pr PER_READ
                         If it is your second try and you have per read info
                         file give the path to the per read info file. This
@@ -390,84 +405,97 @@ Optional arguments.:
                         block switches using strand-seq phased variants),
                         different dmr list, black list, include/exclude
                         indels, and include/exclude supp reads.
-  --hapratio HAPRATIO, -hr HAPRATIO
-                        0-1 . Minimum ratio of variants a read must have from
-                        a haplotype to assign it to that haplotype. Default is
-                        0.75. Note that if you also provide WhatsHap phased
-                        vcf file this option will be also used to correct
-                        phased-block switches using Strand-seq phased
-                        variants. In this case, it is minimum ratio of phased
-                        variants at a block that supports the dicision based
-                        on strand-seq phased varinats.
-  --min_base_quality MIN_BASE_QUALITY, -mbq MIN_BASE_QUALITY
-                        Only include bases with phred score higher or equal
-                        than this option. Default is >=7.
-  --mapping_quality MAPPING_QUALITY, -mq MAPPING_QUALITY
-                        An integer value to specify thereshold for filtering
-                        reads based on mapping quality. Default is >=20
-  --min_variant MIN_VARIANT, -mv MIN_VARIANT
-                        Minimum number of phased variants must a read have to
-                        be phased. Default= 1. Note that if you also provide
-                        WhatsHap phased vcf file this option will be also used
-                        to correct phased-block switches using Strand-seq
-                        phased variants. In this case, it is the minimum
-                        number of phased variants at a block that need to
-                        support the dicision based on strand-seq phased
-                        varinats.
-  --min_read_number MIN_READ_NUMBER, -mr MIN_READ_NUMBER
-                        Minimum number of reads to support a variant to assign
-                        to each haplotype. Default= 2
-  --min_cg MIN_CG, -mcg MIN_CG
-                        Minimum number of CpGs an iDMR must have to consider
-                        it for PofO assignment. Default is 12.
-  --meth_difference METH_DIFFERENCE, -md METH_DIFFERENCE
-                        0-1. Minimum methylation difference cutoff for HP1-HP2
-                        or HP2-HP1 CpG methylation. Default is 0.35.
-  --cpg_difference CPG_DIFFERENCE, -cd CPG_DIFFERENCE
-                        0-1. Minimum cut off for the fraction of CpGs between
-                        haplotypes must be differentially methylated at an
-                        iDMR to consider it for PofO assignment. Default is
-                        0.1.
-  --methyl_coverage METHYL_COVERAGE, -mcov METHYL_COVERAGE
-                        Minimum Coverage at each CpG site when calculating
-                        methylation frequency. Default is 1.
-  --threads THREADS, -t THREADS
-                        Number of parallel processes. Default is 4.
-  --chunk_size CHUNK_SIZE, -cs CHUNK_SIZE
-                        Chunk per process. Default is 100
-  --include_supplementary, -is
-                        Also include supplementary reads (Not recommended).
-  --include_indels, -ind
-                        Also include indels for read phasing to haplotypes.
-  --version             show program's version number and exit
+
+Optional arguments: The following options are DSS options for differential methylation analysis to find differentially methylated CpGs between haplotypes:
+  --delta_cutoff DELTA_CUTOFF, -dc DELTA_CUTOFF
+                        0-1. A threshold for defining differentially
+                        methylated loci (DML) or CpGs.In DML testing
+                        procedure, hypothesis test that the two groups means
+                        are equal is conducted at each CpG site. Here if delta
+                        is specified, the function will compute the posterior
+                        probability that the difference of the means are
+                        greater than delta, and then call DML based on that.
+                        Default is 0.1.
+  --pvalue PVALUE, -pv PVALUE
+                        0-1. When delta is not specified, this is the
+                        threshold of p-value for defining DML and loci with
+                        p-value less than this threshold will be deemed DMLs.
+                        When delta is specified, CpG sites with posterior
+                        probability greater than 1-pvalue_threshold are deemed
+                        DML. Default is 0.001
+  --smoothing_span SMOOTHING_SPAN, -sms SMOOTHING_SPAN
+                        The size of smoothing window, in basepairs. Default is
+                        500.
+  --smoothing_flag SMOOTHING_FLAG, -smf SMOOTHING_FLAG
+                        TRUE/FALSE. A flag to indicate whether to apply
+                        smoothing in estimating mean methylation levels. For
+                        more instruction see DSS R package guide. Default is
+                        TRUE.
+  --equal_disp EQUAL_DISP, -ed EQUAL_DISP
+                        TRUE/FALSE. A flag to indicate whether the dispersion
+                        in two groups are deemed equal or not. For more
+                        instruction see DSS R package guide. Default is FALSE.
+                        Because there is no biological replicate here, you
+                        should specify either equal_disp TRUE or
+                        smoothing_flag TRUE. Do not specify both as FALSE.
+
+Help and version options:
+  --version             Print program's version and exit
+  -h, --help            Print this help and exit.
 ```
 ### 3-1- Outputs
 PatMat will generate multiple outputs.
 #### 3-1-1 NonPofO_HP1-HP2 (Non parent-of-origin) results 
-These are a vcf and a tsv file. These files represent the results for phasing reads and re-phasing het variants (haplotype 1 or HP1 and haplotype 2 or HP2) before assigning 
-parent-of-origin. In the vcf file, for phased 0/1 (0|1 or 1|0) variants the last column includes HP1|HP2 (Ref is HP1 and alt is HP2), or HP2|HP1 (Ref is HP2 and alt is HP1) 
-and for the phased 1/2 variants (1|2) the last column includes Ref_HP1|HP2 (the part before comma on the 5th column is HP1 and the part after comma is HP2) or Ref_HP2|HP1 
+These are a vcf and a tsv files. These files represent the results for phasing methylation and reads and re-phasing het variants (haplotype 1 or HP1 and haplotype 2 or HP2) before assigning parent-of-origin. In the vcf file, for phased 0/1 (0|1 or 1|0) variants the last column includes HP1|HP2 (Ref is HP1 and alt is HP2), or HP2|HP1 (Ref is HP2 and alt is HP1) and for the phased 1/2 variants (1|2) the last column includes Ref_HP1|HP2 (the part before comma on the 5th column is HP1 and the part after comma is HP2) or Ref_HP2|HP1 
 (the part before comma on the 5th column is HP2 and the part after comma is HP1).  
 Note: During re-phasing input vcf variants, if your input vcf is a phased vcf file and some of the varinats could not be re-phased, the phase sign "|" will be just replaced 
 by "/" sign (e.g. 1|0 will be 1/0).  
 #### 3-1-2 PofO_Assignment results 
-These are a vcf and a tsv file. These files represent the results after assigning the parent-of-origin to HP1 and HP2 reads and variants. In the vcf file, for phased 0/1 
-(0|1 or 1|0) variants the last column includes Mat|Pat (Ref is maternal and alt is paternal), or Pat|Mat (Ref is paternal and alt is maternal) and for the phased 1/2 
-variants (1|2) the last column includes Ref_Mat|Pat (the part before comma on the 5th column is maternal and the part after comma is paternal) or Ref_Pat|Mat (the part 
-before comma on the 5th column is paternal and the part after comma is maternal).  
-Note: During PofO assignment to the re-phased variants the phase sign "|" will be just replaced by "/" sign (e.g. 1|0 will be 1/0) if PofO could not be inferred.  
+These are a vcf and a tsv files. These files represent the results after assigning the parent-of-origin to HP1 and HP2 methylation data, reads, and variants. In the vcf file, for phased 0/1 (0|1 or 1|0) variants the last column includes Mat|Pat (Ref is maternal and alt is paternal), or Pat|Mat (Ref is paternal and alt is maternal) and for the phased 1/2 variants (1|2) the last column includes Ref_Mat|Pat (the part before comma on the 5th column is maternal and the part after comma is paternal) or Ref_Pat|Mat (the part before comma on the 5th column is paternal and the part after comma is maternal).  
+Note: During PofO assignment to the re-phased variants, the phase sign "|" will be just replaced by "/" sign (e.g. 1|0 will be 1/0) if PofO could not be inferred.  
 #### 3-1-3 CpG-Methylation-Status-at-DMRs 
 This file represents status of CpGs and their methylation at each DMR on each haplotype, including the number or common CpGs between haplotypes and their methylation 
 frequencies on each haplotypes, how many of them showed given methylation difference on each haplotype, and contribution or detection value of the DMR for each haplotype.  
-#### 3-1-4 HP1_HP2_PerReadInfo 
+#### 3-1-4 DMLtest.tsv.gz and callDML.tsv.gz
+These are the files from DSS statisticall analysis for detection of differentially methylated CpGs. DMLtest stores statistical results for all the CpGs and callDML stores differentially methylated CpGs.
+#### 3-1-5 PofO_Scores.tsv 
+This file included PofO assignment scores for each chromosome.
+#### 3-1-6 HP1_HP2_PerReadInfo 
 This file includes per-read information including coordinates and strand of the reads on reference, read IDs, read flag and if the read is supplemenary or not, read mapping 
 quality, and finally the positions, phred score base quality and base(s) from the read at the input phased het variants from strand-seq (or strand-seq plus WhatsHap, if 
 given) for HP1 and HP2 and unphased variants in the input vcf file (1|2 varinats are considered as unphased). Base quality for indels represent the base quality of the 
 first base. Positions in the per-read file are zero-based.  
-
 **Note:** If you wish to try different criteria, the per-read file produced by PatMat >=v1.2.0 allows you to try different thresholds for options (**Note** that if you also 
 provided WhatsHap phased vcf in your first try, then you **cannot** use per-read to try different --min_variant or --hapratio because these options will be also used to 
 correct WhatsHap phased-block switches using strand-seq phased variants.), different dmr list, black list, include/exclude indels, and include/exclude supp reads much 
 faster. These are also true for previous versions and their per-read **except** that per-read from previous versions **cannot** be used for different black list or 
 include/exclude supp reads. NanoMethPhase phase module also produces a per-read file, however, per-read file from PatMat is NOT equivalent to the per-read file from 
-NanoMethPhase. 
+NanoMethPhase.  
+
+# More info about other methylation callers
+By default, we assume that you called methylation using guppy and your guppy bam also has methylation tag. However, patmat.py also supports other methylation callers including Nanopolish (Or f5c>=v0.7, which is a GPU implementation of nanopolish with the same output format), Megalodon, and DeepSignal. Here are some more information about their output per-read methylation call files and columns for compatibility with patmat.py:  
+nanopolish and f5c>=v0.7 produce the following columns and the CpG coordinates are zero-based and coordinates for both strands are based on positive strand (positions for the CpG from both strands are the same):
+```
+chromosome	strand	start	end	read_name	log_lik_ratio	log_lik_methylated	log_lik_unmethylated	num_calling_strands	num_motifs	sequence
+chr2	+	200000365	200000365	50152360-5abb-4e1f-9ce0-c08a49d65b57	3.91	-142.10	-146.01	1	1	GTGAACGCTTT
+chr2	+	200000776	200000776	50152360-5abb-4e1f-9ce0-c08a49d65b57	-20.59	-243.72	-223.13	1	1	TAACTCGATTT
+chr2	-	200000365	200000365	607a605c-f01b-4b02-a8d5-b4c8adb88e6b	4.93	-257.29	-262.22	1	1	GTGAACGCTTT
+chr2	-	200000776	200000776	607a605c-f01b-4b02-a8d5-b4c8adb88e6b	-11.09	-225.59	-214.50	1	1	TAACTCGATTT
+```
+Megalodon per-read text methylation call output has the following columns and CpG coordinates are zero-based and coordinates of negative strand are 1 bp greater than positive strand (The methylation call file must be only for methylation. Do not use per-read methylation file that has multiple modification calls, e.g. 5mC and 5hmC):
+```
+read_id	chrm	strand	pos	mod_log_prob	can_log_prob	mod_base
+56780a98-ccb3-41a5-8ed1-fc069412fc13    chr11   +       21488565        -0.9126647710800171     -0.5132502558405262     m
+56780a98-ccb3-41a5-8ed1-fc069412fc13    chr11   +       21486004        -0.8042076826095581     -0.5931974211226271     m
+2cc45d27-6084-49f1-b156-34501adc7651    chr11   -       21488566        -3.271272659301758      -0.03869726232984402    m
+2cc45d27-6084-49f1-b156-34501adc7651    chr11   -       21486005        -4.3451995849609375     -0.013053750265459633   m
+```
+DeepSignal methylation call file has the following columns and CpG coordinates are zero-based and coordinates of negative strand are 1 bp greater than the positive strand:
+```
+chrom   pos     strand  pos_in_strand   readname        read_strand     prob_0  prob_1  called_label    k_mer
+chr11	2669073	+	-1	19b5bd8e-0a50-449d-8dc1-ea2dc4e2fe2b	t	0.09740365	0.90259635	1	TACCCTGCCGTATCAGT
+chr11	2669107	+	-1	19b5bd8e-0a50-449d-8dc1-ea2dc4e2fe2b	t	0.13432296	0.865677	1	ACTGGCTACGTGTGGCT
+chr11	2669074	-	-1	12652f63-7676-4ad8-b7bf-af1aec4b282d	t	0.13398732	0.8660127	1	CACTGATACGGCAGGGT
+chr11	2669108	-	-1	12652f63-7676-4ad8-b7bf-af1aec4b282d	t	0.12144542	0.87855464	1	GAGCCACACGTAGCCAG
+```  
+
