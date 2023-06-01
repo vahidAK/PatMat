@@ -158,6 +158,9 @@ phasing (with a Linux OS):
     /path/to/VCF/of/snvs.vcf
 ```
 
+(Note that as of June 2023, the StrandPhaseR dependency issues several warning messages ("closing unused connection") when this is run, but that seems to be a bug in the 
+dependency rather than an issue with strandseq_phase.R)
+
 It may be necessary to change the permissions first:
 
 ```
