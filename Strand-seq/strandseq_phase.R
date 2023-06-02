@@ -2,7 +2,7 @@
 
 # Run like this: ./strandseq_phase.R -h
 
-# Requires bcftools, R>=4.3.0, and the R packages devtools, BiocManager, InvertypeR, argparse, and BSgenome.Hsapiens.UCSC.hg38
+# Requires bcftools, R>=4.3.0, and the R packages InvertypeR, argparse, and BSgenome.Hsapiens.UCSC.hg38
 
 
 #######################################################################################################
@@ -50,8 +50,8 @@ tryCatch(
 suppressPackageStartupMessages(library("argparse"))
 
 parser <- ArgumentParser(description='Performs inversion-aware Strand-seq phasing of a VCF file of SNVs. Requires bcftools (samtools.github.io/bcftools/bcftools.html), 
-    R>=4.3.0, and the R packages devtools (CRAN), BiocManager (CRAN), InvertypeR (GitHub: vincent-hanlon/InvertypeR), argparse (CRAN), and BSgenome.Hsapiens.UCSC.hg38 
-    (Bioconductor).')
+    R>=4.3.0, and the R packages InvertypeR (GitHub: vincent-hanlon/InvertypeR), argparse (CRAN), and BSgenome.Hsapiens.UCSC.hg38 (Bioconductor). These are best
+    installed with the R package installer, pak (CRAN)!')
 
 parser$add_argument("vcf",
     type = "character", 

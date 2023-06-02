@@ -61,11 +61,11 @@ conda env create -f Strand-seq/env.yml
 conda activate strandseq
 env_path=$(conda info | grep -i 'active env location' | cut -d'/' -f2- | awk '{print "/"$0"/bin"}')
 ln -s $PWD/Strand-seq/*{.R,.bed} $env_path 
-R
-# Now in the R run the following codes to install R packages
-install.packages(c("devtools","BiocManager","argparse"))
-devtools::install_github(repo="vincent-hanlon/InvertypeR")
-BiocManager::install("BSgenome.Hsapiens.UCSC.hg38")
+```
+Now open R and run the following to install additional R packages:
+```
+install.packages("pak")
+pak::pkg_install(c("argparse", "BSgenome.Hsapiens.UCSC.hg38", "vincent-hanlon/InvertypeR"))
 ```
 The above commands will clone/download the repository and install all the dependencies in two separate environments, strandseq and patmat. To analyse the strand-seq data you need to first activate strandseq environment using ```conda activate strandseq```. To run patmat.py at the end of the workflow you need to first activate the patmat environment using ```conda activate patmat```.
 
@@ -107,52 +107,68 @@ gunzip -c /path/to/output/directory/merge_output.vcf.gz | awk '$1 ~ /^#/ || $7==
 ```  
 
 ## 2- Strand-seq Data Analysis
-To run strand-seq analysis part first you must activate strandseq conda environment:
+
+Typically, 30-100 good quality Strand-seq libraries with at least 20 million unique reads in total should be used for phasing. These must be aligned to the GRCh38 reference
+genome and poor-quality libraries must be identified and removed using [ASHLEYS QC](https://github.com/friendsofstrandseq/ashleys-qc) (Gros et al. 2021). Then 
+`strandseq_phase.R` can be run from the command line to call inversions and perform inversion-aware phasing.
+
+### 2-1 Library QC
+The Strand-seq library QC tool [ASHLEYS QC](https://github.com/friendsofstrandseq/ashleys-qc) should be used to select only good-quality libraries for analysis
+(installation instructions in the GitHub link). Typically, after activating the correct conda environment (`conda activate ashleys`), move to the directory containing
+aligned and indexed Strand-seq BAM files and run something like the following:
+```
+ashleys.py -j 12 features -f ./ -w 5000000 2000000 1000000 800000 600000 400000 200000 -o ./features.tsv
+ashleys.py predict -p ./features.tsv -o ./quality.txt -m scripts/tools/svc_default.pkl
+```
+Then examine quality.txt and either (i) use libraries with a score >0.5 or (ii) use libraries with a score >0.7 and have a domain expert manually inspect libraries with a
+score 0.5-0.7 to see whether they should be included in the analysis. For instructions on how to align FASTQ files, mark duplicates etc., and generate BAM files, see
+alignment.sh in Methods part 1 of this [book chapter](https://dx.doi.org/10.14288/1.0406302), also found [here](https://github.com/vincent-hanlon/MiMB-StrandPhaseR)
+(otherwise, just use your standard sequence alignment for short read data, keeping the single-cell libraries separate).
+
+### 2-2 Phasing
+
+Activate the conda environment:
 ```
 conda activate strandseq
 ```
-### 2-1 Quick overview
-Typically, 30-100 good quality Strand-seq libraries with at least 20 million unique reads in total should be used for phasing. These must be aligned to the GRCh38 reference 
-genome and poor-quality libraries must be identified and removed using [ASHLEYS QC](https://github.com/friendsofstrandseq/ashleys-qc) (Gros et al. 2021).
-
-
-With the BAM files and a nanopore-derived VCF file of non-phased SNVs, something like the following can be run to perform Strand-seq 
+THen, with the Strand-seq BAM files and a nanopore-derived VCF file of non-phased SNVs, something like the following can be run to perform Strand-seq 
 phasing (with a Linux OS):  
 
 ```
-conda activate strandseq
-strandseq_phase.R \
+./strandseq_phase.R \
     -p TRUE \
     -i /path/to/strandseq/bams/ \
     -o ./phased \
     -t 12 \
-    -n HG005 \
+    -n samplename \
     /path/to/VCF/of/snvs.vcf
 ```
 (Note that as of June 2023, the StrandPhaseR dependency issues several warning messages ("closing unused connection") when this is run, but that seems to be a bug in the 
 dependency rather than an issue with strandseq_phase.R)  
-This method calls inversions using [InvertypeR](https://github.com/vincent-hanlon/InvertypeR) (most of the runtime), which help refine phasing, and then it phases the SNVs 
-using the standard Strand-seq R packages [BreakpointR](https://bioconductor.org/packages/release/bioc/html/breakpointR.html) and 
-[StrandPhaseR](https://github.com/daewoooo/StrandPhaseR). The result is a phased VCF file of SNVs ("samplename.phased.inv_aware.vcf"), which can be used with patmat.py as 
+
+The result is a phased VCF file of SNVs ("samplename.phased.inv_aware.vcf"), which can be used with patmat.py as 
 described below.
 
 Here is the full list of options for `strandseq_phase.R`:
 
 ```
-usage: strandseq_phase.R [-h] [-p TRUE or FALSE] [-i /path/to/input/]
-                           [-o /path/to/output/] [-t integer] [-n string]
-                           [--inversion_list /path/to/BED]
-                           [--hard_mask /path/to/BED]
-                           [--soft_mask /path/to/BED]
-                           [--prior comma-separated numbers]
-                           [--chromosomes comma-separated strings]
-                           /path/to/snps.vcf
+(strandseq) vhanlon@ORCA:~/PatMat$ ./Strand-seq/strandseq_phase.R  -h
+usage: ./Strand-seq/strandseq_phase.R [-h] [-p TRUE or FALSE]
+                                      [-i /path/to/input/]
+                                      [-o /path/to/output/] [-t integer]
+                                      [-n string]
+                                      [--inversion_list /path/to/BED]
+                                      [--hard_mask /path/to/BED]
+                                      [--soft_mask /path/to/BED]
+                                      [--prior comma-separated numbers]
+                                      [--chromosomes comma-separated strings]
+                                      /path/to/snps.vcf
 
 Performs inversion-aware Strand-seq phasing of a VCF file of SNVs. Requires
 bcftools (samtools.github.io/bcftools/bcftools.html), R>=4.3.0, and the R
-packages devtools (CRAN), BiocManager (CRAN), InvertypeR (GitHub: vincent-
-hanlon/InvertypeR), argparse (CRAN), and BSgenome.Hsapiens.UCSC.hg38
-(Bioconductor).
+packages InvertypeR (GitHub: vincent-hanlon/InvertypeR), argparse (CRAN), and
+BSgenome.Hsapiens.UCSC.hg38 (Bioconductor). These are best installed with the
+R package installer, pak (CRAN)!
 
 positional arguments:
   /path/to/snps.vcf     Absolute path to a VCF file of SNVs to phase.
@@ -206,34 +222,22 @@ options:
                         E.g., chr1,chr2,chr3. Default: the 22 autosomes.
 ```
 
-### 2-2-1 Library QC
-Separately, the Strand-seq library QC tool [ASHLEYS QC](https://github.com/friendsofstrandseq/ashleys-qc) should be used to select only good-quality libraries for analysis 
-(installation instructions in the GitHub link). Typically, after activating the correct conda environment (`conda activate ashleys`), move to the directory containing 
-aligned and indexed Strand-seq BAM files and run something like the following:
-```
-ashleys.py -j 12 features -f ./ -w 5000000 2000000 1000000 800000 600000 400000 200000 -o ./features.tsv
-ashleys.py predict -p ./features.tsv -o ./quality.txt -m scripts/tools/svc_default.pkl
-```
-Then examine quality.txt and either (i) use libraries with a score >0.5 or (ii) use libraries with a score >0.7 and have a domain expert manually inspect libraries with a 
-score 0.5-0.7 to see whether they should be included in the analysis. For instructions on how to align FASTQ files, mark duplicates etc., and generate BAM files, see 
-alignment.sh in Methods part 1 of this [book chapter](https://dx.doi.org/10.14288/1.0406302), also found [here](https://github.com/vincent-hanlon/MiMB-StrandPhaseR) 
-(otherwise, just use your standard sequence alignment for short read data, keeping the single-cell libraries separate).
 
-### 2-3-1 Composite files for inversion calling
-
+### 2-3 What is actually going on here?
 In practice, performing Strand-seq phasing now just requires running `./Strand-seq/strandseq_phase.R` as described above. The rest of Section 2 of this user guide just 
 describes what the phasing method is actually doing.
 
+#### 2-3-1 Composite files
 Strand-seq libraries are typically low-coverage, and this makes it hard to discover and genotype small inversions. To address this, we use the R package InvertypeR to 
 combine data from many libraries into two composite files: one built from regions of libraries where all reads mapped with the same orientation (Watson-Watson or 
 Crick-Crick regions), and one where reads mapped with both orientations (Watson-Crick). The latter file entails a phasing step to distinguish cases where (for an autosome) 
 homolog 1 gave the forward reads and homolog 2 gave the reverse reads, rather than homolog 1 giving reverse reads and homolog 2 giving forward reads. Apart from identifying 
 and phasing such regions, this process is effectively a problem of merging BAM files (loaded into R) and reorienting reads in some cases.  
 
+#### 2-3-2 Inversion genotyping
 The main InvertypeR function, which genotypes inversions, takes as input a list of positions to examine. To obtain a list of putative inversions de novo, we run BreakpointR 
 on the composite files three times with different bin sizes and extract the coordinates of short segments of the genome with unexpected read orientations (such as inversions might give). We combine this with a list of inversions from the literature.
 
-### 2-3-2 Inversion genotyping
 InvertypeR counts reads inside the putative inversions by orientation in each composite file. Using a simple Bayesian model of read counts, posterior probabilites for 
 inversion genotypes are calculated (effectively a comparison of the actual read count pattern with expected read count patterns for the various genotype and error signals). 
 InvertypeR also resizes inversions if the coordinates do not perfectly match the region with reversed read orientations. We take inversions with a posterior probability 
@@ -241,7 +245,7 @@ above 95% for either the heterozygous or homozygous genotype. Since InvertypeR i
 from the literature or from BreakpointR (above), we then combine them by merging overlapping inversions subject to some constraints. Only inversions larger than 10 kb are 
 used to correct phasing.
 
-### 2-3-3 Phasing
+#### 2-3-3 Phasing
 All the above inversion calling is used to correct or refine SNV phasing inside inversions (where Strand-seq would otherwise make mistakes). This is important for the iDMRs 
 that fall inside inversions, and when variants of interest fall inside inversions. We use StrandPhaseR to phase the nanopore-derived SNVs, and then we correct the phasing 
 within inversions using the StrandPhaseR tool `correctInvertedRegionPhasing()`. For this process, first we identify Watson-Crick regions (aka WC regions; used for phasing) 
