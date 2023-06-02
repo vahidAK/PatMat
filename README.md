@@ -131,7 +131,7 @@ Activate the conda environment:
 ```
 conda activate strandseq
 ```
-THen, with the Strand-seq BAM files and a nanopore-derived VCF file of non-phased SNVs, something like the following can be run to perform Strand-seq 
+Then, with the Strand-seq BAM files and a nanopore-derived VCF file of non-phased SNVs, something like the following can be run to perform Strand-seq 
 phasing (with a Linux OS):  
 
 ```
@@ -152,7 +152,6 @@ described below.
 Here is the full list of options for `strandseq_phase.R`:
 
 ```
-(strandseq) vhanlon@ORCA:~/PatMat$ ./Strand-seq/strandseq_phase.R  -h
 usage: ./Strand-seq/strandseq_phase.R [-h] [-p TRUE or FALSE]
                                       [-i /path/to/input/]
                                       [-o /path/to/output/] [-t integer]
