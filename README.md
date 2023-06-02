@@ -262,6 +262,7 @@ patmat.py -v /path/to/Passed_Clair3_Variants.vcf \
  -sv /path/to/StrandSeq_phased_variants.vcf \
  -mc /path/to/guppy.bam \
  -b /path/to/guppy.bam \
+ -ref /path/to/reference.fa \
  -o <Output pass and prefix> \
  -t <# of threads>
 ```
