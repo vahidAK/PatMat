@@ -121,7 +121,7 @@ phasing (with a Linux OS):
 
 ```
 conda activate strandseq
-Rscript strandseq_phase.R \
+strandseq_phase.R \
     -p TRUE \
     -i /path/to/strandseq/bams/ \
     -o ./phased \
@@ -139,7 +139,7 @@ described below.
 Here is the full list of options for `strandseq_phase.R`:
 
 ```
-usage: ./strandseq_phase.R [-h] [-p TRUE or FALSE] [-i /path/to/input/]
+usage: strandseq_phase.R [-h] [-p TRUE or FALSE] [-i /path/to/input/]
                            [-o /path/to/output/] [-t integer] [-n string]
                            [--inversion_list /path/to/BED]
                            [--hard_mask /path/to/BED]
