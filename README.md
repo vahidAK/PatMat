@@ -35,9 +35,9 @@ Table of Contents
         
   
 # Installation
-The workflow is basically two part, nanopore analysis part and strand-seq analysis part. To use this workflow you can download the latest release or clone the repository and install required dependencies in the [env.yml](https://github.com/vahidAK/PatMat/blob/main/env.yml) as follow:  
-**Note**: You first need to have conda/miniconda installed. If you do not have conda/miniconda follow instrusctions [here](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) to install it and then run the following commands.  
-**Note**: For nanopore analysis part you also need guppy basecaller that does basecalling, mapping, and methylation calling. This tool is only available through the [Oxford Nanopore Technologies community website](https://nanoporetech.com/community). You need to create an account there and get this tool yourself.  
+The workflow is basically two part, nanopore analysis part and Strand-seq analysis part. To use this workflow you can download the latest release or clone the repository and install required dependencies in the [env.yml](https://github.com/vahidAK/PatMat/blob/main/env.yml) as follow:  
+**Note**: You first need to have conda/miniconda installed. If you do not have conda/miniconda follow instructions [here](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) to install it and then run the following commands. Alternatively, [mamba](https://mamba.readthedocs.io/en/latest/installation.html) is faster alternative to conda.   
+**Note**: For nanopore analysis part you also need guppy basecaller that does basecalling, mapping, and methylation calling. This tool is only available through the [Oxford Nanopore Technologies community website](https://nanoporetech.com/community). You need to create an account there and get this tool yourself.
 To clone and install:
 ```
 git clone https://github.com/vahidAK/PatMat.git
@@ -69,7 +69,7 @@ R
 install.packages("pak")
 pak::pkg_install(c("argparse", "BSgenome.Hsapiens.UCSC.hg38", "vincent-hanlon/InvertypeR", "sys", "R.utils", "DSS", "tibble"))
 ```
-The above commands will clone/download the repository and install all the dependencies in the patmat environment. You need to first activate the envisonment to be able to run the tools  ```conda activate patmat```.
+The above commands will clone/download the repository and install all the dependencies in the patmat environment. You need to first activate the environment to be able to run the tools  ```conda activate patmat```.
 
 # Full Tutorial  
 Note that for the [parent-of-origin phasing paper](https://doi.org/10.1016/j.xgen.2022.100233) that first presented this method, we used the dependencies and code from PatMat v1.1.1 (this repo). However, the most recent version is preferred. Moreover, currently the workflow is available for the human reference genome GRCh38/hg38 because iDMR coordinates are based on hg38 and Strand-seq analysis also configured based on hg38.   
@@ -132,13 +132,13 @@ alignment.sh in Methods part 1 of this [book chapter](https://dx.doi.org/10.1428
 
 Activate the conda environment:
 ```
-conda activate strandseq
+conda activate patmat
 ```
 Then, with the Strand-seq BAM files and a nanopore-derived VCF file of non-phased SNVs, something like the following can be run to perform Strand-seq 
 phasing (with a Linux OS):  
 
 ```
-./strandseq_phase.R \
+./Strand-seq/strandseq_phase.R \
     -p TRUE \
     -i /path/to/strandseq/bams/ \
     -o ./phased \
@@ -146,10 +146,9 @@ phasing (with a Linux OS):
     -n samplename \
     /path/to/VCF/of/snvs.vcf
 ```
-(Note that as of June 2023, the StrandPhaseR dependency issues several warning messages ("closing unused connection") when this is run, but that seems to be a bug in the 
-dependency rather than an issue with strandseq_phase.R)  
+(Note that as of June 2023, the StrandPhaseR dependency sometimes issues several warning messages ("closing unused connection") when this is run, but that seems to be a bug in the dependency rather than an issue with strandseq_phase.R)  
 
-The result is a phased VCF file of SNVs ("samplename.phased.inv_aware.vcf"), which can be used with patmat.py as 
+The result is a phased VCF file of SNVs ("samplename.phased.inv_aware.vcf"), which can be used with `patmat.py` as 
 described below.
 
 Here is the full list of options for `strandseq_phase.R`:
