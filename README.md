@@ -36,7 +36,7 @@ Table of Contents
   
 # Installation
 The workflow is basically two part, nanopore analysis part and Strand-seq analysis part. To use this workflow you can download the latest release or clone the repository and install required dependencies in the [env.yml](https://github.com/vahidAK/PatMat/blob/main/env.yml) as follow:  
-**Note**: You first need to have conda/miniconda installed. If you do not have conda/miniconda follow instructions [here](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) to install it and then run the following commands. Alternatively, [mamba](https://mamba.readthedocs.io/en/latest/installation.html) is faster alternative to conda.   
+**Note**: You first need to have conda/miniconda installed. If you do not have conda/miniconda follow instructions [here](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) to install it and then run the following commands. Alternatively, [mamba](https://mamba.readthedocs.io/en/latest/installation.html) is a faster alternative to conda.   
 **Note**: For nanopore analysis part you also need guppy basecaller that does basecalling, mapping, and methylation calling. This tool is only available through the [Oxford Nanopore Technologies community website](https://nanoporetech.com/community). You need to create an account there and get this tool yourself.
 To clone and install:
 ```
