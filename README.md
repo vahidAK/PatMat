@@ -39,7 +39,8 @@ The workflow is basically two part, nanopore analysis part and Strand-seq analys
 **Note**: You first need to have conda/miniconda installed. If you do not have conda/miniconda follow instructions [here](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) to install it and then run the following commands. Alternatively, [mamba](https://mamba.readthedocs.io/en/latest/installation.html) is a faster alternative to conda.   
 **Note**: For nanopore analysis part you need guppy basecaller that does basecalling, mapping, and methylation calling. This tool is only available through the [Oxford Nanopore Technologies community website](https://nanoporetech.com/community). You need to create an account there and get this tool yourself.  
 **Note**: For variant calling from nanopore data you need [clair3](https://github.com/HKU-BAL/Clair3). You need to install clair3 in its own dedicated conda environment by running ```conda create -n clair3 -c bioconda clair3 python=3.9.0 -y```. For more instructions and also to download the appropriate model for variant calling visit [clair3 GitHub](https://github.com/HKU-BAL/Clair3).  
-  
+**Note**: For the quality control of Strand-seq libraries you need [ASHLEYS QC](https://github.com/friendsofstrandseq/ashleys-qc). It needs to be installed in its own dedicated conda environment. Follow their instructions on [ASHLEYS QC GitHub](https://github.com/friendsofstrandseq/ashleys-qc) to install this tool.  
+
 To use the tools in this repository and run the workflow you can download the latest release or clone the repository and install the required dependencies in the [env.yml](https://github.com/vahidAK/PatMat/blob/main/env.yml) as follow:  
 To clone and install:
 ```
