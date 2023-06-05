@@ -11,19 +11,33 @@ Strand-seq](https://www.cell.com/cell-genomics/fulltext/S2666-979X(22)00191-4)
 
 Table of Contents
 =================
-**[Installation](https://github.com/vahidAK/PatMat/blob/main/README.md#installation)**  
-  
-**[Full Tutorial](https://github.com/vahidAK/PatMat/blob/main/README.md#full-tutorial)**
-* [Nanopore Data Analysis](https://github.com/vahidAK/PatMat/blob/main/README.md#1--nanopore-data-analysis)
-* [Basecalling, mapping, and methylation calling from nanopore data using Guppy](https://github.com/vahidAK/PatMat/blob/main/README.md#1\-1--basecalling,-mapping,-and methylation-calling-from-nanopore-data-using-guppy)
-* [Variant Calling from nanopore data using Clair3](https://github.com/vahidAK/PatMat/blob/main/README.md#1\-2-variant-calling-from-nanopore-data-using-clair3)
-* [Strand-seq Data Analysis](https://github.com/vahidAK/PatMat/blob/main/README.md#2--strand\-seq-Data-Analysis)
-* [Parent-of-origin detection](https://github.com/vahidAK/PatMat/blob/main/README.md#3--parent\-of\-origin-detection)
+* [Installation](https://github.com/vahidAK/PatMat/blob/main/README.md#installation)
+* [Full Tutorial](https://github.com/vahidAK/PatMat/blob/main/README.md#full-tutorial)
+  * [Nanopore Data Analysis](https://github.com/vahidAK/PatMat/blob/main/README.md#1--nanopore-data-analysis)
+    * [Basecalling, mapping, and methylation calling from nanopore data using Guppy](https://github.com/vahidAK/PatMat/blob/main/README.md#1\-1-basecalling,-mapping,-and-methylation-calling-from-nanopore-data-using-guppy)
+    * [Variant Calling from nanopore data using clair3](https://github.com/vahidAK/PatMat/blob/main/README.md#1\-2-variant-calling-from-nanopore-data-using-clair3)
+  * [Strand-seq Data Analysis](https://github.com/vahidAK/PatMat/blob/main/README.md#2--strand\-seq-data-analysis)
+    * [Library QC](https://github.com/vahidAK/PatMat/blob/main/README.md#2\-1-library-qc)
+    * [Phasing](https://github.com/vahidAK/PatMat/blob/main/README.md#2\-2-phasing)
+    * [What is actually going on here?](https://github.com/vahidAK/PatMat/blob/main/README.md#2\-3-what-is-actually-going-on-here?)
+      * [Composite files](https://github.com/vahidAK/PatMat/blob/main/README.md#2\-3-1-composite-files)
+      * [Inversion genotyping](https://github.com/vahidAK/PatMat/blob/main/README.md#2\-3-2-inversion-genotyping)
+      * [Phasing](https://github.com/vahidAK/PatMat/blob/main/README.md#2\-3-3-phasing)
+  * [Parent-of-origin detection](https://github.com/vahidAK/PatMat/blob/main/README.md#3--parent\-of\-origin-detection)
+    * [Outputs](https://github.com/vahidAK/PatMat/blob/main/README.md#3-1-outputs)
+      * [NonPofO_HP1-HP2 results](https://github.com/vahidAK/PatMat/blob/main/README.md#3-1-1-nonpofo_hp1\-hp2-results)
+      * [PofO_Assignment results](https://github.com/vahidAK/PatMat/blob/main/README.md#3-1-2-pofo_assignment-results)
+      * [CpG-Methylation-Status-at-DMRs](https://github.com/vahidAK/PatMat/blob/main/README.md#3-1-3-cpg\-methylation\-status\-at\-dmrs)
+      * [DMLtest.tsv.gz and callDML.tsv.gz](https://github.com/vahidAK/PatMat/blob/main/README.md#3-1-4-dmltest.tsv.gz-and-calldml.tsv.gz)
+      * [PofO_Scores.tsv](https://github.com/vahidAK/PatMat/blob/main/README.md#3-1-5-pofo_scores.tsv)
+      * [HP1_HP2_PerReadInfo](https://github.com/vahidAK/PatMat/blob/main/README.md#3-1-6-hp1_hp2_perreadinfo)
+* [More info about other methylation callers](https://github.com/vahidAK/PatMat/blob/main/README.md#more-info-about-other-methylation-callers)
+        
   
 # Installation
 The workflow is basically two part, nanopore analysis part and strand-seq analysis part. To use this workflow you can download the latest release or clone the repository and install required dependencies in the [env.yml](https://github.com/vahidAK/PatMat/blob/main/env.yml) as follow:  
-**Note**: You first need to have conda/miniconda installed. If you do not have conda/miniconda follow instrusctions [here](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) to install it and then run the following commands.
-Note that for nanopore you also need guppy that does basecalling, mapping, and methylation calling. This tool is available through nanopore community website.   
+**Note**: You first need to have conda/miniconda installed. If you do not have conda/miniconda follow instrusctions [here](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) to install it and then run the following commands.  
+**Note**: For nanopore analysis part you also need guppy basecaller that does basecalling, mapping, and methylation calling. This tool is only available through the [Oxford Nanopore Technologies community website] (https://nanoporetech.com/community). You need to create an account there and get this tool yourself.  
 To clone and install:
 ```
 git clone https://github.com/vahidAK/PatMat.git
@@ -436,9 +450,9 @@ Help and version options:
   --version             Print program's version and exit
   -h, --help            Print this help and exit.
 ```
-### 3-1- Outputs
+### 3-1 Outputs
 PatMat will generate multiple outputs.
-#### 3-1-1 NonPofO_HP1-HP2 (Non parent-of-origin) results 
+#### 3-1-1 NonPofO_HP1-HP2 results 
 These are a vcf and a tsv files. These files represent the results for phasing methylation and reads and re-phasing het variants (haplotype 1 or HP1 and haplotype 2 or HP2) before assigning parent-of-origin. In the vcf file, for phased 0/1 (0|1 or 1|0) variants the last column includes HP1|HP2 (Ref is HP1 and alt is HP2), or HP2|HP1 (Ref is HP2 and alt is HP1) and for the phased 1/2 variants (1|2) the last column includes Ref_HP1|HP2 (the part before comma on the 5th column is HP1 and the part after comma is HP2) or Ref_HP2|HP1 
 (the part before comma on the 5th column is HP2 and the part after comma is HP1).  
 Note: During re-phasing input vcf variants, if your input vcf is a phased vcf file and some of the varinats could not be re-phased, the phase sign "|" will be just replaced 
