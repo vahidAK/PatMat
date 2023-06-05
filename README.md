@@ -21,56 +21,44 @@ Table of Contents
 * [Parent-of-origin detection](https://github.com/vahidAK/PatMat/blob/main/README.md#3--parent\-of\-origin-detection)
   
 # Installation
-To run this workflow you will need to install/have the following third-party tools:  
-Guppy: For basecalling, mapping, and methylation calling of nanopore reads.  
-[Clair3](https://github.com/HKU-BAL/Clair3): To call variants from aligned nanopore reads.  
-The workflow was developed using the above tools. However, you may use appropriate alternatives to each tool.  
-
-The workflow is basically two part, nanopore analysis part and strand-seq analysis part. To use the tools and scripts in the PatMat repository for this workflow you can download the latest release or clone the repository and install required dependencies in the [patmat/env.yml](https://github.com/vahidAK/PatMat/blob/main/patmat/env.yml) and [Strand-seq/env.yml](https://github.com/vahidAK/PatMat/blob/main/Strand-seq/env.yml) as follow:  
-**Note**: You first need to have conda/miniconda installed. If you do not have conda/miniconda follow instrusctions [here](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) to install it and then run the following commands.  
+The workflow is basically two part, nanopore analysis part and strand-seq analysis part. To use this workflow you can download the latest release or clone the repository and install required dependencies in the [env.yml](https://github.com/vahidAK/PatMat/blob/main/env.yml) as follow:  
+**Note**: You first need to have conda/miniconda installed. If you do not have conda/miniconda follow instrusctions [here](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) to install it and then run the following commands.
+Note that for nanopore you also need guppy that does basecalling, mapping, and methylation calling. This tool is available through nanopore community website.   
 To clone and install:
 ```
 git clone https://github.com/vahidAK/PatMat.git
 cd PatMat
 chmod -x */* && chmod +x */{patmat.py,strandseq_phase.R}
-conda env create -f patmat/env.yml
+conda env create -f env.yml
 conda activate patmat
+conda install -c bioconda clair3 # Clair3 is needed for variant calling from nanopore data. Also download appropriate model from their github https://github.com/HKU-BAL/Clair3
 env_path=$(conda info | grep -i 'active env location' | cut -d'/' -f2- | awk '{print "/"$0"/bin"}')
-ln -s $PWD/patmat/*{.py,.tsv,.sh} $env_path 
-conda env create -f Strand-seq/env.yml
-conda activate strandseq
-env_path=$(conda info | grep -i 'active env location' | cut -d'/' -f2- | awk '{print "/"$0"/bin"}')
-ln -s $PWD/Strand-seq/*{.R,.bed} $env_path 
+ln -s $PWD/{patmat,Strand-seq}/* $env_path 
+# Now we need to open R and install required R packages as follow:
 R
-# Now in the R run the following codes to install R packages
-install.packages(c("devtools","BiocManager","argparse"))
-devtools::install_github(repo="vincent-hanlon/InvertypeR")
-BiocManager::install("BSgenome.Hsapiens.UCSC.hg38")
-```  
+install.packages("pak")
+pak::pkg_install(c("argparse", "BSgenome.Hsapiens.UCSC.hg38", "vincent-hanlon/InvertypeR", "sys", "R.utils", "DSS", "tibble"))
+``` 
 OR to download the latest release and install:
 ```
 VERSION=1.3.0
 wget https://github.com/vahidAK/PatMat/archive/refs/tags/v"$VERSION".tar.gz && tar -xzf v"$VERSION".tar.gz
 cd PatMat-"$VERSION"/
 chmod -x */* && chmod +x */{patmat.py,strandseq_phase.R}
-conda env create -f patmat/env.yml
+conda env create -f env.yml
 conda activate patmat
+conda install -c bioconda clair3 # Clair3 is needed for variant calling from nanopore data. Also download appropriate model from their github https://github.com/HKU-BAL/Clair3
 env_path=$(conda info | grep -i 'active env location' | cut -d'/' -f2- | awk '{print "/"$0"/bin"}')
-ln -s $PWD/patmat/*{.py,.tsv,.sh} $env_path 
-conda env create -f Strand-seq/env.yml
-conda activate strandseq
-env_path=$(conda info | grep -i 'active env location' | cut -d'/' -f2- | awk '{print "/"$0"/bin"}')
-ln -s $PWD/Strand-seq/*{.R,.bed} $env_path 
-```
-Now open R and run the following to install additional R packages:
-```
+ln -s $PWD/{patmat,Strand-seq}/* $env_path 
+# Now we need to open R and install required R packages as follow:
+R
 install.packages("pak")
-pak::pkg_install(c("argparse", "BSgenome.Hsapiens.UCSC.hg38", "vincent-hanlon/InvertypeR"))
+pak::pkg_install(c("argparse", "BSgenome.Hsapiens.UCSC.hg38", "vincent-hanlon/InvertypeR", "sys", "R.utils", "DSS", "tibble"))
 ```
-The above commands will clone/download the repository and install all the dependencies in two separate environments, strandseq and patmat. To analyse the strand-seq data you need to first activate strandseq environment using ```conda activate strandseq```. To run patmat.py at the end of the workflow you need to first activate the patmat environment using ```conda activate patmat```.
+The above commands will clone/download the repository and install all the dependencies in the patmat environment. You need to first activate the envisonment to be able to run the tools  ```conda activate patmat```.
 
 # Full Tutorial  
-Note that for the [parent-of-origin phasing paper](https://doi.org/10.1016/j.xgen.2022.100233) that first presented this method, we used the dependencies and code from PatMat v1.1.1 (this repo). However, the most recent version is preferred.  
+Note that for the [parent-of-origin phasing paper](https://doi.org/10.1016/j.xgen.2022.100233) that first presented this method, we used the dependencies and code from PatMat v1.1.1 (this repo). However, the most recent version is preferred. Moreover, currently the workflow is available for the human reference genome GRCh38/hg38 because iDMR coordinates are based on hg38 and Strand-seq analysis also configured based on hg38.   
 
 ## 1- Nanopore Data Analysis
 ### 1-1 Basecalling, mapping, and methylation calling from nanopore data using Guppy
@@ -92,9 +80,10 @@ guppy_basecaller  \
 ```
 After basecalling if you have multiple bam files you need to merge them all to a single bam file. Bam file must be reference coordinate sorted and indexed.  
 
-### 1-2 Variant calling from nanopore data using Clair3
+### 1-2 Variant calling from nanopore data using [clair3](https://github.com/HKU-BAL/Clair3)
 
 ```
+conda activate patmat # first activate patmat environment
 run_clair3.sh --bam_fn=/path/to/Nanopore_aligned_reads.bam \
   --ref_fn=/path/to/reference.fa \
   --output=/path/to/output/directory \
@@ -502,4 +491,5 @@ chr11	2669107	+	-1	19b5bd8e-0a50-449d-8dc1-ea2dc4e2fe2b	t	0.13432296	0.865677	1	
 chr11	2669074	-	-1	12652f63-7676-4ad8-b7bf-af1aec4b282d	t	0.13398732	0.8660127	1	CACTGATACGGCAGGGT
 chr11	2669108	-	-1	12652f63-7676-4ad8-b7bf-af1aec4b282d	t	0.12144542	0.87855464	1	GAGCCACACGTAGCCAG
 ```  
+
 
