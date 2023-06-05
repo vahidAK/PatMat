@@ -35,9 +35,11 @@ Table of Contents
         
   
 # Installation
-The workflow is basically two part, nanopore analysis part and Strand-seq analysis part. To use this workflow you can download the latest release or clone the repository and install required dependencies in the [env.yml](https://github.com/vahidAK/PatMat/blob/main/env.yml) as follow:  
+The workflow is basically two part, nanopore analysis part and Strand-seq analysis part. All the tools needed to run the workflow can be installed by downloading/cloning this repository as explained below. However there are a few dependencies that you need to have/install separately first including conda, guppy, and clair3 (See the notes below).   
 **Note**: You first need to have conda/miniconda installed. If you do not have conda/miniconda follow instructions [here](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) to install it and then run the following commands. Alternatively, [mamba](https://mamba.readthedocs.io/en/latest/installation.html) is a faster alternative to conda.   
-**Note**: For nanopore analysis part you also need guppy basecaller that does basecalling, mapping, and methylation calling. This tool is only available through the [Oxford Nanopore Technologies community website](https://nanoporetech.com/community). You need to create an account there and get this tool yourself.
+**Note**: For nanopore analysis part you also need guppy basecaller that does basecalling, mapping, and methylation calling. This tool is only available through the [Oxford Nanopore Technologies community website](https://nanoporetech.com/community). You need to create an account there and get this tool yourself.  
+**Note**: For variant calling from nanopore data you also need to have [clair3](https://github.com/HKU-BAL/Clair3). You need to install clair3 in its own dedicated conda environment by running ```conda create -n clair3 -c bioconda clair3 python=3.9.0 -y```. For more instructions and also to download the appropriate model for variant calling visit [clair3 GitHub](https://github.com/HKU-BAL/Clair3).  
+To use the tools in this repository and run the workflow you can download the latest release or clone the repository and install the required dependencies in the [env.yml](https://github.com/vahidAK/PatMat/blob/main/env.yml) as follow:  
 To clone and install:
 ```
 git clone https://github.com/vahidAK/PatMat.git
@@ -45,7 +47,6 @@ cd PatMat
 chmod -x */* && chmod +x */{patmat.py,strandseq_phase.R}
 conda env create -f env.yml
 conda activate patmat
-conda install -c bioconda clair3 # Clair3 is needed for variant calling from nanopore data. Also download appropriate model from their github https://github.com/HKU-BAL/Clair3
 env_path=$(conda info | grep -i 'active env location' | cut -d'/' -f2- | awk '{print "/"$0"/bin"}')
 ln -s $PWD/{patmat,Strand-seq}/* $env_path 
 # Now we need to open R and install required R packages as follow:
@@ -61,7 +62,6 @@ cd PatMat-"$VERSION"/
 chmod -x */* && chmod +x */{patmat.py,strandseq_phase.R}
 conda env create -f env.yml
 conda activate patmat
-conda install -c bioconda clair3 # Clair3 is needed for variant calling from nanopore data. Also download appropriate model from their github https://github.com/HKU-BAL/Clair3
 env_path=$(conda info | grep -i 'active env location' | cut -d'/' -f2- | awk '{print "/"$0"/bin"}')
 ln -s $PWD/{patmat,Strand-seq}/* $env_path 
 # Now we need to open R and install required R packages as follow:
@@ -94,10 +94,13 @@ guppy_basecaller  \
 ```
 After basecalling if you have multiple bam files you need to merge them all to a single bam file. Bam file must be reference coordinate sorted and indexed.  
 
-### 1-2 Variant calling from nanopore data using [clair3](https://github.com/HKU-BAL/Clair3)
-
+### 1-2 Variant calling from nanopore data using clair3
+Activate the conda environment:
 ```
-conda activate patmat # first activate patmat environment
+conda activate clair3
+```
+Now you can call variants using clair3:
+```
 run_clair3.sh --bam_fn=/path/to/Nanopore_aligned_reads.bam \
   --ref_fn=/path/to/reference.fa \
   --output=/path/to/output/directory \
