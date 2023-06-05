@@ -149,16 +149,17 @@ suppressPackageStartupMessages(library("BSgenome.Hsapiens.UCSC.hg38"))
 # A function to reconcile (very crudely) inversions from two different sources: genotyping known coordinates and de novo discovery
 combine_genotyped_discovered_inversions <- function(inversions) {
 
-    if(nrow(inversions[[1]])==0){
-        return(inversions[[2]])
-    } else if(nrow(inversions[[2]])==0){
-        return(inversions[[1]])
-    } else {
-        geno <- inversions[[1]][inversions[[1]]$end - inversions[[1]]$start + 1 > 10000 & inversions[[1]]$probability >= 0.95 &
+     geno <- inversions[[1]][inversions[[1]]$end - inversions[[1]]$start + 1 > 10000 & inversions[[1]]$probability >= 0.95 &
             inversions[[1]]$genotype != 0 & inversions[[1]]$genotype != "0|0" & !inversions[[1]]$low_read_density, -10]
 
-        disc <- inversions[[2]][inversions[[2]]$end - inversions[[2]]$start + 1 > 10000 & inversions[[2]]$probability >= 0.95 &
+     disc <- inversions[[2]][inversions[[2]]$end - inversions[[2]]$start + 1 > 10000 & inversions[[2]]$probability >= 0.95 &
             inversions[[2]]$genotype != 0 & inversions[[2]]$genotype != "0|0" & !inversions[[2]]$low_read_density, -10]
+
+    if(nrow(geno)==0){
+        return(disc)
+    } else if(nrow(disc)==0){
+        return(geno)
+    } else {
 
         geno <- sort(GenomicRanges::makeGRangesFromDataFrame(geno, keep.extra.columns = T))
         disc <- sort(GenomicRanges::makeGRangesFromDataFrame(disc, keep.extra.columns = T))
