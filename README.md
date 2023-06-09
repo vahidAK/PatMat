@@ -151,7 +151,9 @@ phasing (with a Linux OS):
     -n samplename \
     /path/to/VCF/of/snvs.vcf
 ```
-(Note that as of June 2023, the StrandPhaseR dependency sometimes issues several warning messages ("closing unused connection") when this is run, but that seems to be a bug in the dependency rather than an issue with strandseq_phase.R)  
+Note that as of June 2023, the StrandPhaseR dependency sometimes issues several warning messages ("closing unused connection") when this is run, but that seems to be a bug 
+in the dependency rather than an issue with `strandseq_phase.R`. Also, this script will operate on any heterozygous biallelic SNVs it finds in the VCF you provide, even if 
+the FILTER field is not PASS but LowQual or something.
 
 The result is a phased VCF file of SNVs ("samplename.phased.inv_aware.vcf"), which can be used with `patmat.py` as 
 described below.
