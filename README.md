@@ -53,7 +53,7 @@ env_path=$(conda info | grep -i 'active env location' | cut -d'/' -f2- | awk '{p
 ln -s $PWD/{patmat,Strand-seq}/* $env_path 
 # Now we need to open R and install required R packages as follow:
 R
-install.packages("pak")
+install.packages("pak", type="source")
 pak::pkg_install(c("argparse", "BSgenome.Hsapiens.UCSC.hg38", "vincent-hanlon/InvertypeR", "sys", "R.utils", "DSS", "tibble"))
 ``` 
 OR to download the latest release and install:
@@ -140,7 +140,7 @@ Activate the conda environment:
 conda activate patmat
 ```
 Then, with the Strand-seq BAM files and a nanopore-derived VCF file of non-phased SNVs, something like the following can be run to perform Strand-seq 
-phasing (with a Linux OS):  
+phasing (from the Linux command line):  
 
 ```
 ./Strand-seq/strandseq_phase.R \
@@ -161,16 +161,16 @@ described below.
 Here is the full list of options for `strandseq_phase.R`:
 
 ```
-usage: ./Strand-seq/strandseq_phase.R [-h] [-p TRUE or FALSE]
-                                      [-i /path/to/input/]
-                                      [-o /path/to/output/] [-t integer]
-                                      [-n string]
-                                      [--inversion_list /path/to/BED]
-                                      [--hard_mask /path/to/BED]
-                                      [--soft_mask /path/to/BED]
-                                      [--prior comma-separated numbers]
-                                      [--chromosomes comma-separated strings]
-                                      /path/to/snps.vcf
+usage: ./strandseq_phase.R [-h] [-p TRUE or FALSE] [-i /path/to/BAMs/]
+                           [-o /path/to/output/] [-t integer] [-n string]
+                           [--inversion_list /path/to/BED]
+                           [--hard_mask /path/to/BED]
+                           [--soft_mask /path/to/BED]
+                           [--prior comma-separated numbers]
+                           [--chromosomes comma-separated strings]
+                           [--filter_snvs TRUE or FALSE]
+                           [--fix_het_invs TRUE or FALSE]
+                           /path/to/snvs.vcf
 
 Performs inversion-aware Strand-seq phasing of a VCF file of SNVs. Requires
 bcftools (samtools.github.io/bcftools/bcftools.html), R>=4.3.0, and the R
@@ -179,13 +179,13 @@ BSgenome.Hsapiens.UCSC.hg38 (Bioconductor). These are best installed with the
 R package installer, pak (CRAN)!
 
 positional arguments:
-  /path/to/snps.vcf     Absolute path to a VCF file of SNVs to phase.
+  /path/to/snvs.vcf     Absolute path to a VCF file of SNVs to phase.
 
 options:
   -h, --help            show this help message and exit
   -p TRUE or FALSE, --paired TRUE or FALSE
                         Are the Strand-seq reads paired end? Default: TRUE.
-  -i /path/to/input/, --input_folder /path/to/input/
+  -i /path/to/BAMs/, --input_folder /path/to/BAMs/
                         Absolute path to the directory containing good-quality
                         Strand-seq libraries for your sample. Default: '.'.
   -o /path/to/output/, --output_folder /path/to/output/
@@ -228,6 +228,17 @@ options:
                         A comma-separated list of chromosome names, without
                         spaces. Only SNVs on these chromosomes will be phased.
                         E.g., chr1,chr2,chr3. Default: the 22 autosomes.
+  --filter_snvs TRUE or FALSE
+                        Should SNVs be filtered such that the FILTER column of
+                        the input VCF is either 'PASS' or '.', removing
+                        potential low quality sites? Default TRUE.
+  --fix_het_invs TRUE or FALSE
+                        If TRUE, an attempt will be made to correct Strand-seq
+                        phasing errors caused by heterozygous inversions. If
+                        FALSE, SNVs inside heterozygous inversions will simply
+                        not be phased. Switch errors sometimes remain after
+                        phase correction at heterozygous inversions, but more
+                        SNVs can generally be phased. Default FALSE.
 ```
 
 
@@ -259,8 +270,8 @@ that fall inside inversions, and when variants of interest fall inside inversion
 within inversions using the StrandPhaseR tool `correctInvertedRegionPhasing()`. For this process, first we identify Watson-Crick regions (aka WC regions; used for phasing) 
 with BreakpointR, and then StrandPhaseR assigns alleles that appear in reads with opposite orientations to different homologs (assuming the reads are in the same WC region 
 or chromosome in the same cell). It then combines the phase information from many cells to produce a consensus phased VCF. The inversion correction step then effectively 
-switches the haplotypes of alleles inside homozygous inversions and re-phases alleles inside heterozygous inversions. A more complete step-by-step guide to using 
-StrandPhaseR (excluding the inversion correction) can be found [here](https://dx.doi.org/10.14288/1.0406302).
+switches the haplotypes of alleles inside homozygous inversions and either (i) re-phases alleles inside heterozygous inversions or (ii) removes snvs inside heterozygous 
+inversions from the output VCF file. A more complete step-by-step guide to using StrandPhaseR (excluding the inversion correction) can be found [here](https://dx.doi.org/10.14288/1.0406302).
 
 ## 3- Parent-of-origin detection
 Finally, parent-of-origin assigned chromosome-scale haplotypes can be built using patmat.py: 

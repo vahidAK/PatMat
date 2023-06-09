@@ -56,7 +56,7 @@ parser <- ArgumentParser(description='Performs inversion-aware Strand-seq phasin
 parser$add_argument("vcf",
     type = "character", 
     help = "Absolute path to a VCF file of SNVs to phase.",
-    metavar = "/path/to/snps.vcf"
+    metavar = "/path/to/snvs.vcf"
 )
 
 parser$add_argument("-p", "--paired",
@@ -68,7 +68,7 @@ parser$add_argument("-p", "--paired",
 parser$add_argument("-i", "--input_folder",
     type = "character", required = F, default=".",
     help = "Absolute path to the directory containing good-quality Strand-seq libraries for your sample. Default: '.'.",
-    metavar = "/path/to/input/"
+    metavar = "/path/to/BAMs/"
 )
 
 parser$add_argument("-o", "--output_folder",
@@ -130,12 +130,29 @@ parser$add_argument("--chromosomes",
     metavar = "comma-separated strings"
 )
 
+parser$add_argument("--filter_snvs",
+    type = "logical", required = F, default = TRUE,
+    help = "Should SNVs be filtered such that the FILTER column of the input VCF is either 'PASS' or '.', removing potential low quality sites? Default TRUE.",
+    metavar = "TRUE or FALSE"
+)
+
+parser$add_argument("--fix_het_invs",
+    type = "logical", required = F, default = FALSE,
+    help = "If TRUE, an attempt will be made to correct Strand-seq phasing errors caused by heterozygous inversions. If FALSE, SNVs inside 
+        heterozygous inversions will simply not be phased. Switch errors sometimes remain after phase correction at heterozygous inversions,
+        but more SNVs can generally be phased. Default FALSE.",
+    metavar = "TRUE or FALSE"
+)
+
+
 args <- parser$parse_args()
 
 stopifnot("Provide a valid VCF file with the --vcf flag" = file.exists(args$vcf))
 stopifnot("Provide a valid path to a directory containing Strand-seq BAM files with the --input_folder flag" = file.exists(args$input_folder))
 stopifnot("Provide a valid BED file of blacklisted regions with the --hard_mask flag" = file.exists(args$hard_mask))
 stopifnot("Provide a valid BED file of putative inversions from the literature with the --inversion_list flag" = file.exists(args$inversion_list))
+stopifnot("--filter_snvs must be TRUE or FALSE" = is.logical(args$filter_snvs))
+stopifnot("--fix_het_invs must be TRUE or FALSE" = is.logical(args$fix_het_invs))
 
 if(!file.exists(args$output_folder)){
     dir.create(args$output_folder)
@@ -181,6 +198,15 @@ args$prior <- as.numeric(unlist(strsplit(gsub(" ","",args$prior),",")))
 
 message("\n       ##########     Inversions     ##########")
 
+if(args$filter_snvs){
+    ptm <- startTimedMessage("\n       filtering the input VCF ...")
+    out <- file.path(args$output_folder, "input_snvs_unphased_filtered.vcf.gz")
+    command <- paste0("bcftools view -Oz -f 'PASS,.' ", args$vcf, " > ", out, "; tabix -p vcf out")
+    invisible(system(command, ignore.stderr = TRUE))
+    args$vcf <- out
+    stopTimedMessage(ptm)
+}
+
 # calling inversions
 # because this now uses an improved regions_to_genotype (better than the 2023 PofO paper), I have ...
 # ... removed the smallest breakpointR windowsize = 40 and minReads = 15, which added ~ 6 hrs runtime on 12 CPU
@@ -210,12 +236,29 @@ inversions <- invertyper_pipeline(
 )
 
 # combining inversions from two sources and writing them to files
+ptm <- startTimedMessage("\n       processing inversion calls ...")
 combined_inversions <- combine_genotyped_discovered_inversions(inversions)
+correct_inversions <- combined_inversions 
+
+if(!args$fix_het_invs){
+    correct_inversions <- combined_inversions[combined_inversions[,10]=="1|1" | combined_inversions[,10]=="1",]
+    het_inversions <- combined_inversions[combined_inversions[,10]!="1|1" & combined_inversions[,10]!="1", c(1:3)]
+    het_path <-  file.path(args$output_folder, "invertyper", paste0(args$name, ".inversions.above10kb.heterozygous.bed"))
+    write.table(het_inversions, file = het_path, sep = "\t", row.names = F, col.names = F, quote = F)
+    out <- file.path(args$output_folder, "input_snvs_unphased_filtered_noHETinvs.vcf.gz")
+    command <- paste0("bcftools view -Oz -T ^", het_path, " ", args$vcf, " > ", out, "; tabix -p vcf out")
+    invisible(system(command, ignore.stderr = TRUE))
+    args$vcf <- out
+}
+
 write.table(combined_inversions, file = file.path(args$output_folder,"invertyper", paste0(args$name, ".inversions.above10kb.txt")), 
     sep = "\t", row.names = F, col.names = T, quote = F)
-write.table(combined_inversions[, c(1:3)], file = file.path(args$output_folder, "invertyper", paste0(args$name, 
-    ".inversions.above10kb.bed")), sep = "\t", row.names = F, col.names = F, quote = F)
+write.table(correct_inversions[, c(1:3)], file = file.path(args$output_folder, "invertyper", paste0(args$name, 
+    ".inversions.above10kb.for_correction.bed")), sep = "\t", row.names = F, col.names = F, quote = F)
+stopTimedMessage(ptm)
+
 message("\n       ##########     Phasing     ##########")
+
 ptm <- startTimedMessage("\n       identifying WC regions for SNV phasing ...")
 
 # finding Watson-Crick regions, which are suitable for phasing
@@ -261,7 +304,7 @@ ptm <- startTimedMessage("       correcting phase at inversions ...")
 # Correcting phasing within inversions
 invisible(suppressMessages(correctInvertedRegionPhasing(
     outputfolder =  file.path(args$output_folder, "SPR_output", "VCFfiles"),
-    inv.bed = file.path(args$output_folder, "invertyper", paste0(args$name, ".inversions.above10kb.bed")),
+    inv.bed = file.path(args$output_folder, "invertyper", paste0(args$name, ".inversions.above10kb.for_correction.bed")),
     strandphaseR.data = file.path(args$output_folder, "SPR_output", "data"),
     breakpointR.data = file.path(args$output_folder, "BPR_output", "data"),
     vcfs.files = file.path(args$output_folder, "SPR_output", "VCFfiles"),
