@@ -73,6 +73,8 @@ pak::pkg_install(c("argparse", "BSgenome.Hsapiens.UCSC.hg38", "vincent-hanlon/In
 ```
 The above commands will clone/download the repository and install all the dependencies in the patmat environment. You need to first activate the environment to be able to run the tools  ```conda activate patmat```.
 
+The `pak` installations require that you have valid GitHub credentials on your system, or no GitHub credentials.
+
 # Full Tutorial  
 Note that for the [parent-of-origin phasing paper](https://doi.org/10.1016/j.xgen.2022.100233) that first presented this method, we used the dependencies and code from PatMat v1.1.1 (this repo). However, the most recent version is preferred. Moreover, currently the workflow is available for the human reference genome GRCh38/hg38 because iDMR coordinates are based on hg38 and Strand-seq analysis also configured based on hg38.   
 
