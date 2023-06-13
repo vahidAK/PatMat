@@ -16,7 +16,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-PatMat: Parent-of-origin resolved chromosome-scale haplotyping
+PatMat: Parent-of-origin (Paternal and Maternal) resolved chromosome-scale haplotyping
 """
 
 __author__ = "Vahid Akbari"
@@ -41,8 +41,12 @@ from tqdm import tqdm
 from modbampy import ModBam
 
 def get_variant_info(feed_list,
-                  alignment_file,
-                  chrom):
+                     alignment_file,
+                     chrom):
+    '''
+    This function maps each read to hetrezygout variants and returnes how 
+    many haplotype 1, haplotype 2, and unphased variants mapped to each read.
+    '''
     read_HP_list= list()
     samfile = pysam.AlignmentFile(alignment_file, 'rb')
     NA_phred= False
@@ -203,7 +207,7 @@ def get_variant_info(feed_list,
 def openalignment(alignment_file,
                   window):
     '''
-    Opens a bam/sam file and creates bam iterator
+    Opens an alignment file and creates bam iterator
     '''
     bam = pysam.AlignmentFile(alignment_file, 'rb')
     if window is not None:
@@ -246,18 +250,24 @@ def openfile(file):
 
 
 def PofO_dmr(known_dmr, 
-                 chrom_list,
-                 out,
-                 min_cg,
-                 cpg_difference):
+             chrom_list,
+             out,
+             min_cg,
+             cpg_difference):
+    '''
+    This function maps differentially methylated CpGs 
+    to the known iDMRs for PofO assignment 
+    '''
     tb_calldml= tabix.open(out+"_callDML.tsv.gz")
     tb_dmltest= tabix.open(out+"_DMLtest.tsv.gz")
     out_meth= open(out+"_CpG-Methylation-Status-at-DMRs.tsv",'w')
     dmr_file= openfile(known_dmr)
     header= next(dmr_file).rstrip()
-    out_meth.write(header+"\tAll_CpGs_At_iDMR_CouldBeExaminedInBothHaplotypes\tDifferentiallyMethylatedCpGs_HypermethylatedOnHP1\t"
-                    "DifferentiallyMethylatedCpGs_HypermethylatedOnHP2\tMethylationFrequency_HP1\tMethylationFrequency_HP2\t"
-                    "DetectionValue_HP1\tDetectionValue_HP2\n")
+    out_meth.write(header+"\tAll_CpGs_At_iDMR_CouldBeExaminedInBothHaplotypes\t"
+                   "DifferentiallyMethylatedCpGs_HypermethylatedOnHP1\t"
+                   "DifferentiallyMethylatedCpGs_HypermethylatedOnHP2\t"
+                   "MethylationFrequency_HP1\tMethylationFrequency_HP2\t"
+                   "Included_Or_Ignored_For_PofO_Assignment\n")
     chrom_hp_origin_count= defaultdict(lambda: defaultdict(int))
     for line in dmr_file:
         line= line.rstrip().split('\t')
@@ -268,7 +278,8 @@ def PofO_dmr(known_dmr,
         dmr_end= int(line[2])
         origin= line[3].lower()
         if origin not in ["maternal","paternal"]:
-            warnings.warn("iDMR: {} does not have a valid origin (must be paternal or maternal. case insensitive). "
+            warnings.warn("iDMR: {} does not have a valid origin "
+                          "(must be paternal or maternal. case insensitive). "
                           "This iDMR will not be used for PofO assignment and PofO"
                           " assignment score calculation.".format('\t'.join(line)))
         try:
@@ -300,42 +311,48 @@ def PofO_dmr(known_dmr,
                 elif (float(record[4]) - float(record[3])) > 0:
                     diff_cg_hp2 += 1
         if num_cg < 1:
-            out_meth.write('\t'.join(line)+'\t'+str(num_cg)+'\t'+"NA"+'\t'+"NA"+
-                            '\t'+"NA" + '\t' + "NA"+'\t' + "Ignored:No_CpG" + '\t' +
-                            "Ignored:No_CpG" +'\n')
+            out_meth.write('\t'.join(line)+'\t'+str(num_cg)+
+                           '\tNA\tNA\tNA\tNA\tIgnored:No_CpG\n')
             continue
         hp1_freq= hp1_freq/num_cg
         hp2_freq= hp2_freq/num_cg
         if num_cg < min_cg and abs(diff_cg_hp1 - diff_cg_hp2) / num_cg < cpg_difference:
-            out_meth.write('\t'.join(line)+'\t'+str(num_cg)+'\t'+str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+
-                            '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + "Ignored:DidNotMeet_min_cg_And_cpg_difference" + '\t' +
-                            "Ignored:DidNotMeet_min_cg_And_cpg_difference" +'\n')
+            out_meth.write('\t'.join(line)+'\t'+str(num_cg)+'\t'+
+                           str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+
+                           '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + 
+                           'Ignored:DidNotMeet_min_cg_And_cpg_difference\n')
             continue
         elif num_cg < min_cg and diff_cg_hp1 == 0 and diff_cg_hp2 == 0:
-            out_meth.write('\t'.join(line)+'\t'+str(num_cg)+'\t'+str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+
-                            '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + "Ignored:DidNotMeet_min_cg_And_DifferentiallyMethylatedCpGsIsZeroInBothHaplotypes" + '\t' +
-                            "Ignored:DidNotMeet_min_cg_And_DifferentiallyMethylatedCpGsIsZeroInBothHaplotypes" +'\n')
+            out_meth.write('\t'.join(line)+'\t'+str(num_cg)+'\t'+
+                           str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+
+                           '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + 
+                           'Ignored:DidNotMeet_min_cg_And_DifferentiallyMethylated'
+                           'CpGsIsZeroInBothHaplotypes\n')
             continue
         elif num_cg < min_cg:
-            out_meth.write('\t'.join(line)+'\t'+str(num_cg)+'\t'+str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+
-                            '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + "Ignored:DidNotMeet_min_cg" + '\t' +
-                            "Ignored:DidNotMeet_min_cg" +'\n')
+            out_meth.write('\t'.join(line)+'\t'+str(num_cg)+'\t'+
+                           str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+
+                           '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' +
+                           'Ignored:DidNotMeet_min_cg\n')
             continue
         elif abs(diff_cg_hp1 - diff_cg_hp2) / num_cg < cpg_difference:
-            out_meth.write('\t'.join(line)+'\t'+str(num_cg)+'\t'+str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+
-                            '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + "Ignored:DidNotMeet_cpg_difference" + '\t' +
-                            "Ignored:DidNotMeet_cpg_difference" +'\n')
+            out_meth.write('\t'.join(line)+'\t'+str(num_cg)+'\t'+
+                           str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+
+                           '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' +
+                           'Ignored:DidNotMeet_cpg_difference\n')
             continue
         elif diff_cg_hp1 == 0 and diff_cg_hp2 == 0: 
-            out_meth.write('\t'.join(line)+'\t'+str(num_cg)+'\t'+str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+ 
-                            '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + "Ignored:DifferentiallyMethylatedCpGsIsZeroInBothHaplotypes" + '\t' +
-                            "Ignored:DifferentiallyMethylatedCpGsIsZeroInBothHaplotypes" +'\n') 
+            out_meth.write('\t'.join(line)+'\t'+str(num_cg)+'\t'+
+                           str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+ 
+                           '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + 
+                           'Ignored:DifferentiallyMethylatedCpGsIsZeroInBothHaplotypes\n')
             continue
         num_cg_to_add_hp1= diff_cg_hp1
         num_cg_to_add_hp2= diff_cg_hp2
-        out_meth.write('\t'.join(line)+'\t'+str(num_cg)+'\t'+str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+
-                        '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + str(num_cg_to_add_hp1) + '\t' + 
-                        str(num_cg_to_add_hp2)+'\n')  
+        out_meth.write('\t'.join(line)+'\t'+str(num_cg)+'\t'+
+                       str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+
+                       '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + 
+                       'Included\n')  
         if origin == 'maternal':
             chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP1'] += num_cg_to_add_hp1
             chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP2'] += num_cg_to_add_hp2
@@ -358,6 +375,10 @@ def out_freq(chromosome,
              hp2_dict,
              callthresh, 
              reference):
+    '''
+    This function converts a per-read methylation call/bam file to 
+    haplotyped (HP1 and HP2) methylation frequencies.  
+    '''
     hp1_freq= defaultdict(list)
     hp2_freq= defaultdict(list)
     if tool=="nanopolish":
@@ -497,6 +518,9 @@ def out_freq(chromosome,
 def out_pofo_freq(hp_fre,
                   chrom,
                   output):
+    '''
+    Outputs PofO assigned methylation frequency files.
+    '''
     if os.path.exists(hp_fre):
         with openfile(hp_fre) as file:
             next(file)
@@ -515,8 +539,8 @@ def out_pofo_freq(hp_fre,
 
 def vcf2dict(vcf_strand):
     """
-    This function converts the input vcf file to haplotype1 and
-    haplotype2 dictionaries to be used for read phasing.
+    Process and converts the strand-seq vcf file to a dictionary
+    for downstream use.
     """
     strand_vars= 0
     vcf_dict= defaultdict(dict)
@@ -529,9 +553,14 @@ def vcf2dict(vcf_strand):
             line_list[9].startswith('0|.') or
             line_list[9].startswith('1|.') or
             line_list[9].startswith('.|1')):
-            line_list[9] = line_list[9].replace(".|0","1|0").replace(".|1","0|1").replace("1|.","1|0").replace("0|.","0|1")
-            warnings.warn("{}:{} variant in strand-seq vcf has .|0 or 0|. or .|1 or 1|. phased genotype."
-                          "Note that it will be interpreted as 1|0 or 0|1 or 0|1 or 1|0".format(line_list[0], line_list[1]))
+            line_list[9] = line_list[9].replace(".|0","1|0"
+                                                ).replace(".|1","0|1"
+                                                          ).replace("1|.","1|0"
+                                                                    ).replace("0|.","0|1")
+            warnings.warn("{}:{} variant in strand-seq vcf has .|0 or 0|. "
+                          "or .|1 or 1|. phased genotype. Note that it "
+                          "will be interpreted as 1|0 or 0|1 or 0|1 or "
+                          "1|0".format(line_list[0], line_list[1]))
         chrom = line_list[0]
         if (line_list[9].startswith('1|0') or 
             line_list[9].startswith('0|1')):
@@ -542,8 +571,12 @@ def vcf2dict(vcf_strand):
 
 
 def check_vcfs(vcf,
-           vcf_strand,
-           vcf_whats):
+               vcf_strand,
+               vcf_whats):
+    '''
+    Checks how many of the phased variants in strand-seq vcf have the same   
+    position in input vcf and whatshap vcf (if whatshap vcf is given).
+    '''
     common_strand= 0
     common_whats= 0
     vcf_dict, strand_vars= vcf2dict(vcf_strand)
@@ -561,10 +594,9 @@ def check_vcfs(vcf,
                  line[1] in vcf_dict[line[0]])):
                 common_strand += 1
     if vcf_whats is None:
-        warnings.warn("Out of {} reference heterozygous phased variants in strand-seq vcf, "
-                      "{} ({})% variants had the same position in input "
-                      "vcf file. These numbers help you to check if"
-                      " the input vcf and strand-seq vcf belong to the same sample."
+        warnings.warn("Out of {} reference heterozygous phased variants in "
+                      "strand-seq vcf, {} ({})% variants had the same position "
+                      "in input vcf file."
                       "".format(strand_vars, 
                                 common_strand,
                                 round((common_strand/strand_vars)*100,2)))
@@ -585,9 +617,7 @@ def check_vcfs(vcf,
         warnings.warn("Out of {} reference heterozygous phased variants in strand-seq vcf,"
                       " {} ({})% variants had the same position in "
                       "input vcf and {} ({})% variants "
-                      " had the same position in whatshap vcf file. "
-                      "These numbers help you to check if the input "
-                      "vcf, whatshap vcf and strand-seq vcf belong to the same sample."
+                      " had the same position in whatshap vcf file."
                       "".format(strand_vars, 
                                 common_strand,
                                 round((common_strand/strand_vars)*100,2),
@@ -596,7 +626,12 @@ def check_vcfs(vcf,
     
         
 def strand_vcf2dict_phased(vcf_strand,
-                           vcf):
+                           vcf,
+                           include_all_variants):
+    '''
+    Intersects input vcf and strand-seq vcf and stores phased 
+    and unphased hetrozygout variants into a dictionary for read phasing.
+    '''
     check_vcfs(vcf, vcf_strand, None)
     final_dict= defaultdict(set)
     vcf_dict, strand_vars= vcf2dict(vcf_strand)
@@ -605,6 +640,8 @@ def strand_vcf2dict_phased(vcf_strand,
             if line.startswith("#"):
                 continue
             line=line.rstrip().split('\t')
+            if not include_all_variants and line[6] not in ["PASS","."]:
+                continue
             if ((line[9].startswith('0/1') or 
                  line[9].startswith('1/0') or 
                  line[9].startswith('0|1') or
@@ -641,11 +678,15 @@ def vcf2dict_phased(block_file,
                     vcf_strand,
                     hapRatio,
                     minvariant,
-                    vcf):
-    """
-    This function converts the input vcf file to haplotype1 and
-    haplotype2 dictionaries to be used for read phasing.
-    """
+                    vcf,
+                    include_all_variants):
+    '''
+    In case whatshap vcf file is also given, this function uses phased variants
+    from strand-seq to correct PofO phasing switches accross whathap blocks
+    . This fuction then intersects input vcf, strand-seq vcf, and whatshap vcf
+    and stores phased and unphased hetrozygout variants into a 
+    dictionary for read phasing.
+    '''
     check_vcfs(vcf, vcf_strand, vcf_whats)
     final_dict= defaultdict(set)
     vcf_dict, strand_vars= vcf2dict(vcf_strand)
@@ -699,6 +740,8 @@ def vcf2dict_phased(block_file,
             if line.startswith("#"):
                 continue
             line=line.rstrip().split('\t')
+            if not include_all_variants and line[6] not in ["PASS","."]:
+                continue
             if ((line[9].startswith('0/1') or 
                  line[9].startswith('1/0') or 
                  line[9].startswith('0|1') or
@@ -737,6 +780,10 @@ def per_read_variant(vcf_dict,
                      chunk,
                      threads,
                      perReadinfo):
+    '''
+    This function extracts per-read information for variants and 
+    writes HP1_HP2_PerReadInfo file.
+    '''
     chrom_list = sorted(list(vcf_dict.keys()))
     for chrom in chrom_list:
         per_read_hp = defaultdict(lambda: defaultdict(list))
@@ -804,7 +851,8 @@ def per_read_variant(vcf_dict,
             if phred_check:
                 warnings.warn("Some or all bases in some or all reads from {} do "
                               "not have based qualities in the bam file."
-                              " Phred quality thereshold will be ignored for these bases.".format(chrom))
+                              " Phred quality thereshold will be ignored "
+                              "for these bases.".format(chrom))
         else:
             warnings.warn("{} does not have any mapped reads in alignment "
                           "file Or alignment is truncated or corrupt indexed. "
@@ -813,6 +861,10 @@ def per_read_variant(vcf_dict,
 
 
 def get_block(vcf_whats):
+    '''
+    In case whatshap vcf is provided but the block file is not given, 
+    this fuction extracts phased blocks from whatshap vcf file.
+    '''
     blocks= defaultdict(set)
     final= list()
     with openfile(vcf_whats) as wv:
@@ -830,6 +882,9 @@ def get_block(vcf_whats):
 
 
 def get_indels(vcf):
+    '''
+    Extracts hetrozygout indels from input vcf file. 
+    '''
     indels= set()
     with openfile(vcf) as vcf_file:
         for line in vcf_file:
@@ -842,17 +897,16 @@ def get_indels(vcf):
                 line[9].startswith("1/0")):
                 if len(line[3]) > 1 or len(line[4]) > 1:
                     indels.add((line[0],str(int(line[1])-1)))
-            # Non-reference het indels (e.g. 1/2) are ignored as they will be in unphased column of per-read info file
+            # Non-reference het indels (e.g. 1/2) are ignored as 
+            #they will be in unphased column of per-read info file
     return indels
 
 
-
 def main(args):
-    """
-    This is the phase module which phase the nanopore reads and
-    methylation data to corresponding haplotype using vcf file and
-    processed methylation call file.
-    """
+    '''
+    The main function that uses user's inputs and other functions to phased and
+    PofO assign variants and methylation.
+    '''
     hapRatio = args.hapratio
     minvariant= args.min_variant
     min_cg= args.min_cg
@@ -873,7 +927,7 @@ def main(args):
     callthresh= float(callthresh)
     if tool not in ["guppy","nanopolish","megalodon","deepsignal"]:
         raise Exception("Select tool_and_callthresh option correctly.")
-    sites_to_ignore= set()
+    sites_to_ignore= set()                    
     if args.black_list is not None:
         if not os.path.isfile(vcf+".tbi"):
             raise Exception("Black list is given but it seems that"
@@ -897,11 +951,15 @@ def main(args):
         per_read_file= os.path.abspath(args.per_read)
     else:
         if args.strand_vcf is not None and args.whatshap_vcf is None:
-            warnings.warn("Using strand-seq phased vcf only with {}.".format(known_dmr.split('/')[-1]))
+            warnings.warn("Using strand-seq phased vcf only with"
+                          " {}.".format(known_dmr.split('/')[-1]))
             vcf_strand = os.path.abspath(args.strand_vcf)
-            final_dict= strand_vcf2dict_phased(vcf_strand, vcf)
+            final_dict= strand_vcf2dict_phased(vcf_strand, 
+                                               vcf, 
+                                               args.include_all_variants)
         elif args.strand_vcf is not None and args.whatshap_vcf is not None:
-            warnings.warn("Using both strand-seq phased and WhatsHap phased vcf with {}.".format(known_dmr.split('/')[-1]))
+            warnings.warn("Using both strand-seq phased and WhatsHap phased "
+                          "vcf with {}.".format(known_dmr.split('/')[-1]))
             vcf_whats= os.path.abspath(args.whatshap_vcf)
             vcf_strand = os.path.abspath(args.strand_vcf)
             if not os.path.isfile(vcf_whats+".tbi"):
@@ -921,7 +979,8 @@ def main(args):
                                         vcf_strand,
                                         hapRatio,
                                         minvariant,
-                                        vcf)
+                                        vcf,
+                                        args.include_all_variants)
         else:
             raise Exception("No strand-seq vcf is given.")
     if args.per_read is None:
@@ -1028,6 +1087,8 @@ def main(args):
                 re_assignment.write(line)
                 continue
             line= line.rstrip().split('\t')
+            if not args.include_all_variants and line[6] not in ["PASS","."]:
+                continue
             if 'PS' in line[8].split(":"):
                 ps_index= line[8].split(":").index('PS')
                 new_ps= line[8].split(":")
@@ -1153,6 +1214,10 @@ def main(args):
                         re_assignment.write('\t'.join(line[0:8]+
                                             [':'.join(new_ps)]+
                                             [':'.join(new_hp).replace("|", "/")])+'\n')
+            else:
+                re_assignment.write('\t'.join(line[0:8]+
+                                              [':'.join(new_ps)]+
+                                              [':'.join(new_hp).replace("|", "/")])+'\n')
         re_assignment.close()
     read_dictHP1 = defaultdict(set)
     read_dictHP2 = defaultdict(set)    
@@ -1348,29 +1413,37 @@ def main(args):
                     if line[9].startswith('0|1'):
                         if chrom_hp_origin[line[0]]['HP1'][0] == 'maternal':
                             assignment_file.write('\t'.join(line[0:9])+'\t'+
-                                                      line[9].replace("HP1","Mat").replace("HP2","Pat")
+                                                      line[9].replace("HP1","Mat"
+                                                                      ).replace("HP2","Pat")
                                                       +'\n')
                         if chrom_hp_origin[line[0]]['HP1'][0] == 'paternal':
                             assignment_file.write('\t'.join(line[0:9])+'\t'+
-                                                      line[9].replace("0|1","1|0").replace("HP1","Pat").replace("HP2","Mat")
+                                                      line[9].replace("0|1","1|0"
+                                                                      ).replace("HP1","Pat"
+                                                                                ).replace("HP2","Mat")
                                                       +'\n')
                     elif line[9].startswith('1|0'):
                         if chrom_hp_origin[line[0]]['HP2'][0] == 'maternal':
                             assignment_file.write('\t'.join(line[0:9])+'\t'+
-                                                      line[9].replace("1|0","0|1").replace("HP1","Pat").replace("HP2","Mat")
+                                                      line[9].replace("1|0","0|1"
+                                                                      ).replace("HP1","Pat"
+                                                                                ).replace("HP2","Mat")
                                                       +'\n')
                         if chrom_hp_origin[line[0]]['HP2'][0] == 'paternal':
                             assignment_file.write('\t'.join(line[0:9])+'\t'+
-                                                      line[9].replace("HP1","Mat").replace("HP2","Pat")
+                                                      line[9].replace("HP1","Mat"
+                                                                      ).replace("HP2","Pat")
                                                       +'\n')
                     elif line[9].startswith('1|2'):
                         if chrom_hp_origin[line[0]]['HP2'][0] == 'maternal':
                             assignment_file.write('\t'.join(line[0:9])+"\t"+
-                                                      line[9].replace("HP2", "Mat").replace("HP1", "Pat")
+                                                      line[9].replace("HP2", "Mat"
+                                                                      ).replace("HP1", "Pat")
                                                       +'\n')
                         if chrom_hp_origin[line[0]]['HP2'][0] == 'paternal':
                             assignment_file.write('\t'.join(line[0:9])+'\t'+
-                                                      line[9].replace("HP2", "Pat").replace("HP1", "Mat")
+                                                      line[9].replace("HP2", "Pat"
+                                                                      ).replace("HP1", "Mat")
                                                       +'\n')
                     else:
                         assignment_file.write('\t'.join(line[0:8]+
@@ -1465,7 +1538,8 @@ required.add_argument("--strand_vcf", "-sv",
                       type=str,
                       required=True,
                       help="The path to the chromosome-scale phased vcf file."
-                           "This is the input vcf file that has been phased using strand-seq data.")
+                           "This is the input vcf file that has been phased "
+                           "using strand-seq data.")
 required.add_argument("--reference", "-ref",
                       action="store",
                       type=str,
@@ -1484,15 +1558,20 @@ optional.add_argument("--tool_and_callthresh", "-tc",
                            type=str,
                            required=False,
                            default="guppy:0.4",
-                           help=("Software you have used for methylation calling:Call threshold. "
-                                 "Supported tools include guppy (bam file with CpG methylation tags), nanoplish, "
-                                 "megalodon (megalodon calls must inlcude only CpG methylation), and deepsignal. "
+                           help=("Software you have used for methylation "
+                                 "calling:Call threshold. Supported tools "
+                                 "include guppy (bam file with CpG methylation"
+                                 " tags), nanoplish, megalodon (megalodon calls"
+                                 " must inlcude only CpG methylation), and deepsignal. "
                                  "For example, nanopolish:1.5 is when methylation"
-                                 " calling performed by nanopolish and a CpG with llr >= 1.5 will be considered "
-                                 "as methylated and llr <= -1.5 as unmethylated, anything "
-                                 "in between will be considered as ambiguous call and ignored. "
-                                 "For guppy, megalodon, and deepsignl call thresold will be delta probability (0-1)"
-                                 ". For example threshold 0.4 means any call >=0.7 is methylated and <=0.3 is not and between"
+                                 " calling performed by nanopolish and a CpG with"
+                                 " llr >= 1.5 will be considered as methylated "
+                                 "and llr <= -1.5 as unmethylated, anything "
+                                 "in between will be considered as ambiguous"
+                                 " call and ignored. For guppy, megalodon, and"
+                                 " deepsignl call thresold will be delta probability (0-1)"
+                                 ". For example threshold 0.4 means any call >=0.7"
+                                 " is methylated and <=0.3 is not and between"
                                  " 0.3-0.7 will be ignored. Default is guppy:0.4"))
 optional.add_argument("--known_dmr", "-kd",
                   action="store",
@@ -1503,7 +1582,8 @@ optional.add_argument("--known_dmr", "-kd",
                                                     ),
                                              "Imprinted_DMR_List_V1.tsv"),
                   help="The path to the input file for known imprinted DMRs. "
-                        "File must have the following information in the following column order: "
+                        "File must have the following information in the "
+                        "following column order: "
                         "chromosome\tstart\tend\tMethylatedAlleleOrigin "
                         "where the methylated allele origin must be either "
                         "maternal or paternal (First row must be header). "
@@ -1514,8 +1594,9 @@ optional.add_argument("--whatshap_vcf", "-wv",
                       required=False,
                       default=None,
                       help=("Path to the WhatsHap phased vcf file that is produced from "
-                            "phasing input vcf file using nanopore reads via WhatsHap. This can be useful "
-                            "when the chromosome-scale phased variants are very sparce. "
+                            "phasing input vcf file using nanopore reads via "
+                            "WhatsHap. This can be useful when the chromosome-scale"
+                            " phased variants are very sparce. "
                             "File must be sorted and indexed using tabix."))
 optional.add_argument("--whatshap_block", "-wb",
                       action="store",
@@ -1542,11 +1623,15 @@ optional.add_argument("--hapratio", "-hr",
                       type=float,
                       required=False,
                       default=0.75,
-                      help=("0-1 . Minimmum ratio of variants a read must have from a haplotype"
-                            " to assign it to that haplotype. Default is 0.75. Note that if you also provide "
-                            "WhatsHap phased vcf file this option will be also used to correct phased-block switches"
-                            " using Strand-seq phased variants. In this case, it is minimum ratio of phased variants "
-                            "at a block that supports the dicision based on strand-seq phased varinats."))
+                      help=("0-1 . Minimmum ratio of variants a read must have "
+                            "from a haplotype to assign it to that haplotype. "
+                            "Default is 0.75. Note that if you also provide "
+                            "WhatsHap phased vcf file this option will be "
+                            "also used to correct phased-block switches"
+                            " using Strand-seq phased variants. In this case,"
+                            " it is minimum ratio of phased variants "
+                            "at a block that supports the dicision based "
+                            "on strand-seq phased varinats."))
 optional.add_argument("--min_base_quality", "-mbq",
                       action="store",
                       type=int,
@@ -1571,9 +1656,12 @@ optional.add_argument("--min_variant", "-mv",
                       default=1,
                       help=("minimum number of phased variants must a read "
                             "have to be phased. Default= 1. Note that if you also provide "
-                            "WhatsHap phased vcf file this option will be also used to correct phased-block switches"
-                            " using Strand-seq phased variants. In this case, it is the minimum number of phased "
-                            "variants at a block that need to support the dicision based on strand-seq phased varinats."))
+                            "WhatsHap phased vcf file this option will be also"
+                            " used to correct phased-block switches"
+                            " using Strand-seq phased variants. In this case,"
+                            " it is the minimum number of phased "
+                            "variants at a block that need to support the "
+                            "dicision based on strand-seq phased varinats."))
 optional.add_argument("--min_read_number", "-mr",
                       action="store",
                       type=int,
@@ -1596,18 +1684,12 @@ optional.add_argument("--cpg_difference", "-cd",
                       help=("Minimum cut off for the fraction of CpGs between haplotypes "
                             "must be differentially methylated at an iDMR to "
                             "consider it for PofO assignment. Default is 0.1."))
-optional.add_argument("--threads", "-t",
-                      action="store",
-                      type=int,
+optional.add_argument("--include_all_variants", "-iav",
+                      action="store_true",
                       required=False,
-                      default=4,
-                      help="Number of parallel processes. Default is 4.")
-optional.add_argument("--chunk_size", "-cs",
-                      action="store",
-                      type=int,
-                      required=False,
-                      default=100,
-                      help=("Chunk per process. Default is 100"))
+                      help="By default, only variant that have \"PASS\" or \".\" "
+                           " in the FILTER column of the input vcf file will be used."
+                           " Select this flag if you want to use all the variants.")
 optional.add_argument("--include_supplementary", "-is",
                       action="store_true",
                       required=False,
@@ -1625,34 +1707,55 @@ optional.add_argument("--per_read", "-pr",
                       help="If it is your second try and you have per "
                       "read info file give the path to the per "
                       "read info file. This will be significantly faster."
-                      " This is also useful when you want to try different thresholds for options (Note that if you "
-                      "also provided WhatsHap phased vcf in your first try, then you cannot use per-read to try "
-                      "different --min_variant or --hapratio because these options will be also used to correct"
-                      " WhatsHap phased-block switches using strand-seq phased variants),"
-                      " different dmr list, black list, include/exclude indels, and include/exclude supp reads.")
-optional = parser.add_argument_group("Optional arguments: The following options are DSS options for differential methylation"
-                                     " analysis to find differentially methylated CpGs between haplotypes")
+                      " This is also useful when you want to try different"
+                      " thresholds for options (Note that if you "
+                      "also provided WhatsHap phased vcf in your first "
+                      "try, then you cannot use per-read to try "
+                      "different --min_variant or --hapratio because "
+                      "these options will be also used to correct"
+                      " WhatsHap phased-block switches using strand-seq "
+                      "phased variants), different dmr list, black list, "
+                      "include/exclude indels, and include/exclude supp reads.")
+optional.add_argument("--threads", "-t",
+                      action="store",
+                      type=int,
+                      required=False,
+                      default=4,
+                      help="Number of parallel processes. Default is 4.")
+optional.add_argument("--chunk_size", "-cs",
+                      action="store",
+                      type=int,
+                      required=False,
+                      default=100,
+                      help=("Chunk per process. Default is 100"))
+optional = parser.add_argument_group("Optional arguments. The following options "
+                                     "are DSS options for differential methylation"
+                                     " analysis to find differentially methylated "
+                                     "CpGs between haplotypes")
 optional.add_argument("--delta_cutoff", "-dc",
                             action="store",
                             type=float,
                             default=0.1,
                             required=False,
                             help=("0-1. A threshold for defining differentially "
-                                  "methylated loci (DML) or CpGs."
-                                  "In DML testing procedure, hypothesis test that the two groups "
-                                  "means are equal is conducted at each CpG site. Here if delta is "
-                                  "specified, the function will compute the posterior probability that "
-                                  "the difference of the means are greater than delta,"
+                                  "methylated loci (DML) or CpGs. In DML testing"
+                                  " procedure, hypothesis test that the two groups "
+                                  "means are equal is conducted at each CpG site. "
+                                  "Here if delta is specified, the function will "
+                                  "compute the posterior probability that the "
+                                  "difference of the means are greater than delta,"
                                   " and then call DML based on that. Default is 0.1."))
 optional.add_argument("--pvalue", "-pv",
                       action="store",
                       type=float,
                       required=False,
                       default= 0.001,
-                      help=("0-1. When delta is not specified, this is the threshold of p-value for defining DML and "
-                            "loci with p-value less than this threshold will be deemed DMLs."
-                            " When delta is specified, CpG sites with posterior probability greater than 1-pvalue"
-                            "_threshold are deemed DML. Default is 0.001"))
+                      help=("0-1. When delta is not specified, this is the "
+                            "threshold of p-value for defining DML and "
+                            "loci with p-value less than this threshold "
+                            "will be deemed DMLs. When delta is specified, "
+                            "CpG sites with posterior probability greater than"
+                            " 1-pvalue_threshold are deemed DML. Default is 0.001"))
 optional.add_argument("--smoothing_span", "-sms",
                             action="store",
                             type=int,
@@ -1665,9 +1768,10 @@ optional.add_argument("--smoothing_flag", "-smf",
                         type=str,
                         default="TRUE",
                         required=False,
-                        help=("TRUE/FALSE. A flag to indicate whether to apply smoothing"
-                              " in estimating mean methylation levels."
-                              " For more instruction see DSS R package guide. Default is TRUE."))
+                        help=("TRUE/FALSE. A flag to indicate whether to apply "
+                              "smoothing in estimating mean methylation levels."
+                              " For more instruction see DSS R package guide. "
+                              "Default is TRUE."))
 optional.add_argument("--equal_disp", "-ed",
                         action="store",
                         type=str,
@@ -1675,9 +1779,11 @@ optional.add_argument("--equal_disp", "-ed",
                         required=False,
                         help=("TRUE/FALSE. A flag to indicate whether the "
                               "dispersion in two groups are deemed equal or not. "
-                              "For more instruction see DSS R package guide. Default is FALSE."
-                              " Because there is no biological replicate here, you should"
-                              " specify either equal_disp TRUE or smoothing_flag TRUE. Do not specify both as FALSE."))
+                              "For more instruction see DSS R package guide. "
+                              "Default is FALSE Because there is no biological"
+                              " replicate here, you should specify either "
+                              "equal_disp TRUE or smoothing_flag TRUE. "
+                              "Do not specify both as FALSE."))
 optional = parser.add_argument_group("Help and version options")
 optional.add_argument('--version', action='version', 
                       version='%(prog)s 1.3.0_dev',
