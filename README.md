@@ -1,7 +1,7 @@
 # PatMat:  
 ![](docs/FlowChart.png)  
 
-This workflow enables simultanous chromosome-scale haplotyping and parent-of-origin detection in a single sample without any parental data using a combination of nanopore 
+This workflow enables simultaneous chromosome-scale haplotyping and parent-of-origin detection in a single sample without any parental data using a combination of nanopore 
 sequencing and Strand-seq.
 We will use nanopore-detected variants and their long-range phasing from Strand-seq to detect chromosome-scale haplotypes. We then use DNA methylation information at known 
 imprinted regions to detect parent-of-origin.  
@@ -35,9 +35,9 @@ Table of Contents
         
   
 # Installation
-The workflow is basically two part, nanopore analysis part and Strand-seq analysis part. All the tools needed to run the workflow can be installed by downloading/cloning this repository as explained below. However, there are a few dependencies that you need to have/install separately first including conda, guppy, clair3, and ashleys (See the notes below).   
-**Note 1**: You first need to have conda/miniconda installed. If you do not have conda/miniconda follow instructions [here](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) to install it and then run the following commands. Alternatively, [mamba](https://mamba.readthedocs.io/en/latest/installation.html) is a faster alternative to conda.   
-**Note 2**: For nanopore analysis part you need guppy basecaller that does basecalling, mapping, and methylation calling. This tool is only available through the [Oxford Nanopore Technologies community website](https://nanoporetech.com/community). You need to create an account there and get this tool yourself.  
+The workflow is basically two parts, the nanopore analysis part and the Strand-seq analysis part. All the tools needed to run the workflow can be installed by downloading/cloning this repository as explained below. However, there are a few dependencies that you need to have/install separately first including conda, guppy, clair3, and ashleys (See the notes below).   
+**Note 1**: You first need to have conda/miniconda installed. If you do not have conda/miniconda follow the instructions [here](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) to install it and then run the following commands. Alternatively, [mamba](https://mamba.readthedocs.io/en/latest/installation.html) is a faster alternative to conda.   
+**Note 2**: For the nanopore analysis part you need guppy basecaller that does basecalling, mapping, and methylation calling. This tool is only available through the [Oxford Nanopore Technologies community website](https://nanoporetech.com/community). You need to create an account there and get this tool yourself.  
 **Note 3**: For variant calling from nanopore data you need [clair3](https://github.com/HKU-BAL/Clair3). You need to install clair3 in its own dedicated conda environment by running ```conda create -n clair3 -c bioconda clair3 python=3.9.0 -y```. For more instructions and also to download the appropriate model for variant calling visit [clair3 GitHub](https://github.com/HKU-BAL/Clair3).  
 **Note 4**: For the quality control of Strand-seq libraries you need [ASHLEYS QC](https://github.com/friendsofstrandseq/ashleys-qc). It needs to be installed in its own dedicated conda environment. Follow their instructions on [ASHLEYS QC GitHub](https://github.com/friendsofstrandseq/ashleys-qc) to install this tool.  
 
@@ -51,7 +51,7 @@ conda env create -f env.yml
 conda activate patmat
 env_path=$(conda info | grep -i 'active env location' | cut -d'/' -f2- | awk '{print "/"$0"/bin"}')
 ln -s $PWD/{patmat,Strand-seq}/* $env_path 
-# Now we need to open R and install required R packages as follow:
+# Now we need to open R and install the required R packages as follows:
 R
 install.packages("pak", type="source")
 pak::pkg_install(c("argparse", "BSgenome.Hsapiens.UCSC.hg38", "vincent-hanlon/InvertypeR", "sys", "R.utils", "DSS", "tibble"))
@@ -66,17 +66,18 @@ conda env create -f env.yml
 conda activate patmat
 env_path=$(conda info | grep -i 'active env location' | cut -d'/' -f2- | awk '{print "/"$0"/bin"}')
 ln -s $PWD/{patmat,Strand-seq}/* $env_path 
-# Now we need to open R and install required R packages as follow:
+# Now we need to open R and install the required R packages as follows:
 R
 install.packages("pak")
 pak::pkg_install(c("argparse", "BSgenome.Hsapiens.UCSC.hg38", "vincent-hanlon/InvertypeR", "sys", "R.utils", "DSS", "tibble"))
 ```
 The above commands will clone/download the repository and install all the dependencies in the patmat environment. You need to first activate the environment to be able to run the tools  ```conda activate patmat```.
 
-The `pak` installations require that you have valid GitHub credentials on your system, or no GitHub credentials.
+The `pak` installations require that you have valid GitHub credentials on your system or no GitHub credentials.
 
 # Full Tutorial  
-Note that for the [parent-of-origin phasing paper](https://doi.org/10.1016/j.xgen.2022.100233) that first presented this method, we used the dependencies and code from PatMat v1.1.1 (this repo). However, the most recent version is preferred. Moreover, currently the workflow is available for the human reference genome GRCh38/hg38 because iDMR coordinates are based on hg38 and Strand-seq analysis also configured based on hg38.   
+Note that for the [parent-of-origin phasing paper](https://doi.org/10.1016/j.xgen.2022.100233) that first presented this method, we used the dependencies and code from PatMat v1.1.1 (this repo). However, the most recent version is preferred.  
+Currently, the workflow is available for the human reference genome GRCh38/hg38 because iDMR coordinates are based on hg38 and Strand-seq analysis is also configured based on hg38.   
 
 ## 1- Nanopore Data Analysis
 ### 1-1 Basecalling, mapping, and methylation calling from nanopore data using Guppy
@@ -96,7 +97,7 @@ guppy_basecaller  \
     --data_path /gsc/software/linux-x86_64-ubuntu20/ont-guppy_6.3.8/ont-guppy/data/ \
     --trim_strategy dna
 ```
-After basecalling if you have multiple bam files you need to merge them all to a single bam file. Bam file must be reference coordinate sorted and indexed.  
+After basecalling if you have multiple bam files you need to merge them all into a single bam file. Bam file must be reference coordinate sorted and indexed.  
 
 ### 1-2 Variant calling from nanopore data using clair3
 Activate the conda environment:
@@ -111,10 +112,7 @@ run_clair3.sh --bam_fn=/path/to/Nanopore_aligned_reads.bam \
   --threads=<# of threads> --platform=ont \
   --model_path=/path/to/model/ont_guppy5_r941_sup_g5014
 ```
-After variant calling the results will be in merge_output.vcf.gz file in the output directory. We recommend using quality passed variants only:  
-```
-gunzip -c /path/to/output/directory/merge_output.vcf.gz | awk '$1 ~ /^#/ || $7=="PASS"' > /path/to/output/Passed_Clair3_Variants.vcf
-```  
+After variant calling the results will be in the merge_output.vcf.gz file in the output directory.  
 
 ## 2- Strand-seq Data Analysis
 
@@ -276,10 +274,13 @@ switches the haplotypes of alleles inside homozygous inversions and either (i) r
 inversions from the output VCF file. A more complete step-by-step guide to using StrandPhaseR (excluding the inversion correction) can be found [here](https://dx.doi.org/10.14288/1.0406302).
 
 ## 3- Parent-of-origin detection
-Finally, parent-of-origin assigned chromosome-scale haplotypes can be built using patmat.py: 
-Remember to activate patmat environment first and then run it.
+Finally, parent-of-origin assigned chromosome-scale haplotypes can be built using patmat.py.  
+Activate the conda environment:
 ```
 conda activate patmat
+```
+Now you can run patmat.py:
+```
 patmat.py -v /path/to/Passed_Clair3_Variants.vcf \
  -sv /path/to/StrandSeq_phased_variants.vcf \
  -mc /path/to/guppy.bam \
@@ -302,11 +303,11 @@ usage: patmat.py --bam BAM --output OUTPUT --vcf VCF --strand_vcf STRAND_VCF
                  [--mapping_quality MAPPING_QUALITY]
                  [--min_variant MIN_VARIANT]
                  [--min_read_number MIN_READ_NUMBER] [--min_cg MIN_CG]
-                 [--cpg_difference CPG_DIFFERENCE] [--threads THREADS]
-                 [--chunk_size CHUNK_SIZE] [--include_supplementary]
-                 [--include_indels] [--per_read PER_READ]
-                 [--delta_cutoff DELTA_CUTOFF] [--pvalue PVALUE]
-                 [--smoothing_span SMOOTHING_SPAN]
+                 [--cpg_difference CPG_DIFFERENCE] [--include_all_variants]
+                 [--include_supplementary] [--include_indels]
+                 [--per_read PER_READ] [--threads THREADS]
+                 [--chunk_size CHUNK_SIZE] [--delta_cutoff DELTA_CUTOFF]
+                 [--pvalue PVALUE] [--smoothing_span SMOOTHING_SPAN]
                  [--smoothing_flag SMOOTHING_FLAG] [--equal_disp EQUAL_DISP]
                  [--version] [-h]
 
@@ -314,13 +315,13 @@ Phasing reads and Methylation using strand-seq and nanopore to determine PofO
 of each homologous chromosome in a single sample.
 
 Required arguments:
-  --bam BAM, -b BAM     The path to the cordinate sorted bam file.
+  --bam BAM, -b BAM     The path to the coordinate sorted bam file.
   --output OUTPUT, -o OUTPUT
                         The path to directory and prefix to save files. e.g
                         path/to/directory/prefix
   --vcf VCF, -v VCF     The path to the vcf file.
   --strand_vcf STRAND_VCF, -sv STRAND_VCF
-                        The path to the chromosome-scale phased vcf file.This
+                        The path to the chromosome-scale phased vcf file. This
                         is the input vcf file that has been phased using
                         strand-seq data.
   --reference REFERENCE, -ref REFERENCE
@@ -328,20 +329,20 @@ Required arguments:
                         using samtools faidx.
   --methylcallfile METHYLCALLFILE, -mc METHYLCALLFILE
                         The path to the per-read methylation call file or the
-                        bam file with mthylation tag.
+                        bam file with methylation tag.
 
 Optional arguments:
   --tool_and_callthresh TOOL_AND_CALLTHRESH, -tc TOOL_AND_CALLTHRESH
                         Software you have used for methylation calling:Call
                         threshold. Supported tools include guppy (bam file
                         with CpG methylation tags), nanoplish, megalodon
-                        (megalodon calls must inlcude only CpG methylation),
+                        (megalodon calls must include only CpG methylation),
                         and deepsignal. For example, nanopolish:1.5 is when
                         methylation calling performed by nanopolish and a CpG
                         with llr >= 1.5 will be considered as methylated and
                         llr <= -1.5 as unmethylated, anything in between will
                         be considered as ambiguous call and ignored. For
-                        guppy, megalodon, and deepsignl call thresold will be
+                        guppy, megalodon, and deepsignl call threshold will be
                         delta probability (0-1). For example threshold 0.4
                         means any call >=0.7 is methylated and <=0.3 is not
                         and between 0.3-0.7 will be ignored. Default is
@@ -356,65 +357,65 @@ Optional arguments:
                         repo's patmat directory.
   --whatshap_vcf WHATSHAP_VCF, -wv WHATSHAP_VCF
                         Path to the WhatsHap phased vcf file that is produced
-                        from phasing input vcf file using nanopore reads via
-                        WhatsHap. This can be useful when the chromosome-scale
-                        phased variants are very sparce. File must be sorted
-                        and indexed using tabix.
+                        from phasing input vcf file using nanopore reads. This
+                        can be useful when the chromosome-scale phased
+                        variants are very sparse. File must be sorted and
+                        indexed using tabix.
   --whatshap_block WHATSHAP_BLOCK, -wb WHATSHAP_BLOCK
                         Path to the WhatsHap block file. This file can be
                         created using whatshap stats command. File must be
                         converted to a bed format with chromosome start end in
                         the first three columns (First row must be header). If
                         no block file is given then the assumption is that the
-                        last part after : sign in the 10th column is the phase
-                        set (PS) name and blocks will be calculated
+                        last part after ":" sign in the 10th column is the
+                        phase set (PS) name and blocks will be calculated
                         internally.
   --black_list BLACK_LIST, -bl BLACK_LIST
-                        List of regions to ignore phased varinats at them.
-                        Three first columns must be chromosome start end. If
+                        List of regions to ignore phased variants at them.
+                        Three first columns must be chromosome start end. If a
                         black list is given the vcf file must be indexed using
                         tabix.
   --hapratio HAPRATIO, -hr HAPRATIO
-                        0-1 . Minimmum ratio of variants a read must have from
-                        a haplotype to assign it to that haplotype. Default is
+                        0-1. Minimum ratio of variants a read must have from a
+                        haplotype to assign it to that haplotype. Default is
                         0.75. Note that if you also provide WhatsHap phased
                         vcf file this option will be also used to correct
                         phased-block switches using Strand-seq phased
-                        variants. In this case, it is minimum ratio of phased
-                        variants at a block that supports the dicision based
-                        on strand-seq phased varinats.
+                        variants. In this case, it is the minimum ratio of
+                        phased variants at a block that supports the decision
+                        based on strand-seq phased variants.
   --min_base_quality MIN_BASE_QUALITY, -mbq MIN_BASE_QUALITY
-                        Only include bases with phred score higher or equal
-                        than this option. Default is >=7. if your bam does not
-                        incude base quality data or cannot be read this option
-                        will not be use.
+                        Only include bases with phred score higher or equal to
+                        this option. The default is >=7. if your bam does not
+                        include base quality data or cannot be obtained this
+                        option will not be used.
   --mapping_quality MAPPING_QUALITY, -mq MAPPING_QUALITY
-                        An integer value to specify thereshold for filtering
-                        reads based om mapping quality. Default is >=20
+                        An integer value to specify threshold for filtering
+                        reads based on mapping quality. Default is >=20
   --min_variant MIN_VARIANT, -mv MIN_VARIANT
-                        minimum number of phased variants must a read have to
+                        Minimum number of phased variants must a read have to
                         be phased. Default= 1. Note that if you also provide
                         WhatsHap phased vcf file this option will be also used
                         to correct phased-block switches using Strand-seq
                         phased variants. In this case, it is the minimum
                         number of phased variants at a block that need to
-                        support the dicision based on strand-seq phased
-                        varinats.
+                        support the decision based on strand-seq phased
+                        variants.
   --min_read_number MIN_READ_NUMBER, -mr MIN_READ_NUMBER
-                        minimum number of reads to support a variant to assign
+                        Minimum number of reads to support a variant to assign
                         to each haplotype. Default= 2
   --min_cg MIN_CG, -mcg MIN_CG
-                        Minimmum number of CpGs an iDMR must have to consider
+                        Minimum number of CpGs an iDMR must have to consider
                         it for PofO assignment. Default is 5.
   --cpg_difference CPG_DIFFERENCE, -cd CPG_DIFFERENCE
                         Minimum cut off for the fraction of CpGs between
                         haplotypes must be differentially methylated at an
                         iDMR to consider it for PofO assignment. Default is
                         0.1.
-  --threads THREADS, -t THREADS
-                        Number of parallel processes. Default is 4.
-  --chunk_size CHUNK_SIZE, -cs CHUNK_SIZE
-                        Chunk per process. Default is 100
+  --include_all_variants, -iav
+                        By default, only variants that have "PASS" or "." in
+                        the FILTER column of the input vcf file will be used.
+                        Select this flag if you want to use all the variants.
   --include_supplementary, -is
                         Also include supplementary reads (Not recommended).
   --include_indels, -ind
@@ -431,11 +432,15 @@ Optional arguments:
                         block switches using strand-seq phased variants),
                         different dmr list, black list, include/exclude
                         indels, and include/exclude supp reads.
+  --threads THREADS, -t THREADS
+                        Number of parallel processes. Default is 4.
+  --chunk_size CHUNK_SIZE, -cs CHUNK_SIZE
+                        Chunk per process. Default is 100
 
-Optional arguments: The following options are DSS options for differential methylation analysis to find differentially methylated CpGs between haplotypes:
+Optional arguments. The following options are DSS options for differential methylation analysis to find differentially methylated CpGs between haplotypes:
   --delta_cutoff DELTA_CUTOFF, -dc DELTA_CUTOFF
                         0-1. A threshold for defining differentially
-                        methylated loci (DML) or CpGs.In DML testing
+                        methylated loci (DML) or CpGs. In DML testing
                         procedure, hypothesis test that the two groups means
                         are equal is conducted at each CpG site. Here if delta
                         is specified, the function will compute the posterior
@@ -455,14 +460,14 @@ Optional arguments: The following options are DSS options for differential methy
   --smoothing_flag SMOOTHING_FLAG, -smf SMOOTHING_FLAG
                         TRUE/FALSE. A flag to indicate whether to apply
                         smoothing in estimating mean methylation levels. For
-                        more instruction see DSS R package guide. Default is
-                        TRUE.
+                        more instructions see the DSS R package guide. Default
+                        is TRUE.
   --equal_disp EQUAL_DISP, -ed EQUAL_DISP
                         TRUE/FALSE. A flag to indicate whether the dispersion
                         in two groups are deemed equal or not. For more
-                        instruction see DSS R package guide. Default is FALSE.
-                        Because there is no biological replicate here, you
-                        should specify either equal_disp TRUE or
+                        instructions see the DSS R package guide. Default is
+                        FALSE Because there is no biological replicate here,
+                        you should specify either equal_disp TRUE or
                         smoothing_flag TRUE. Do not specify both as FALSE.
 
 Help and version options:
@@ -474,30 +479,22 @@ PatMat will generate multiple outputs.
 #### 3-1-1 NonPofO_HP1-HP2 results 
 These are a vcf and a tsv files. These files represent the results for phasing methylation and reads and re-phasing het variants (haplotype 1 or HP1 and haplotype 2 or HP2) before assigning parent-of-origin. In the vcf file, for phased 0/1 (0|1 or 1|0) variants the last column includes HP1|HP2 (Ref is HP1 and alt is HP2), or HP2|HP1 (Ref is HP2 and alt is HP1) and for the phased 1/2 variants (1|2) the last column includes Ref_HP1|HP2 (the part before comma on the 5th column is HP1 and the part after comma is HP2) or Ref_HP2|HP1 
 (the part before comma on the 5th column is HP2 and the part after comma is HP1).  
-Note: During re-phasing input vcf variants, if your input vcf is a phased vcf file and some of the varinats could not be re-phased, the phase sign "|" will be just replaced 
+Note: During re-phasing input vcf variants, if your input vcf is a phased vcf file and some of the variants could not be re-phased, the phase sign "|" will be just replaced 
 by "/" sign (e.g. 1|0 will be 1/0).  
 #### 3-1-2 PofO_Assignment results 
 These are a vcf and a tsv files. These files represent the results after assigning the parent-of-origin to HP1 and HP2 methylation data, reads, and variants. In the vcf file, for phased 0/1 (0|1 or 1|0) variants the last column includes Mat|Pat (Ref is maternal and alt is paternal), or Pat|Mat (Ref is paternal and alt is maternal) and for the phased 1/2 variants (1|2) the last column includes Ref_Mat|Pat (the part before comma on the 5th column is maternal and the part after comma is paternal) or Ref_Pat|Mat (the part before comma on the 5th column is paternal and the part after comma is maternal).  
 Note: During PofO assignment to the re-phased variants, the phase sign "|" will be just replaced by "/" sign (e.g. 1|0 will be 1/0) if PofO could not be inferred.  
 #### 3-1-3 CpG-Methylation-Status-at-DMRs 
-This file represents status of CpGs and their methylation at each DMR on each haplotype, including the number or common CpGs between haplotypes and their methylation 
-frequencies on each haplotypes, how many of them showed given methylation difference on each haplotype, and contribution or detection value of the DMR for each haplotype.  
+This file represents status of CpGs and their methylation at each DMR on each haplotype, including the number of CpGs at haplotypes and their methylation 
+frequencies on each haplotype, how many of them showed differential methylation on each haplotype, and if the iDMR included for PofO assignment and score calculation or not.  
 #### 3-1-4 DMLtest.tsv.gz and callDML.tsv.gz
-These are the files from DSS statisticall analysis for detection of differentially methylated CpGs. DMLtest stores statistical results for all the CpGs and callDML stores differentially methylated CpGs.
+These are the files from DSS statistical analysis for detection of differentially methylated CpGs. DMLtest stores statistical results for all the CpGs and callDML stores differentially methylated CpGs.
 #### 3-1-5 PofO_Scores.tsv 
-This file included PofO assignment scores for each chromosome.
+This file includes PofO assignment score for each chromosome.
 #### 3-1-6 HP1_HP2_PerReadInfo 
-This file includes per-read information including coordinates and strand of the reads on reference, read IDs, read flag and if the read is supplemenary or not, read mapping 
-quality, and finally the positions, phred score base quality and base(s) from the read at the input phased het variants from strand-seq (or strand-seq plus WhatsHap, if 
-given) for HP1 and HP2 and unphased variants in the input vcf file (1|2 varinats are considered as unphased). Base quality for indels represent the base quality of the 
-first base. Positions in the per-read file are zero-based.  
-**Note:** If you wish to try different criteria, the per-read file produced by PatMat >=v1.2.0 allows you to try different thresholds for options (**Note** that if you also 
-provided WhatsHap phased vcf in your first try, then you **cannot** use per-read to try different --min_variant or --hapratio because these options will be also used to 
-correct WhatsHap phased-block switches using strand-seq phased variants.), different dmr list, black list, include/exclude indels, and include/exclude supp reads much 
-faster. These are also true for previous versions and their per-read **except** that per-read from previous versions **cannot** be used for different black list or 
-include/exclude supp reads. NanoMethPhase phase module also produces a per-read file, however, per-read file from PatMat is NOT equivalent to the per-read file from 
-NanoMethPhase.  
-
+This file includes per-read information including coordinates and strand of the reads on reference, read flag and if the read is supplementary or not, read length and mapping quality, and finally the positions, phred score base quality and base(s) from the read at the input phased het variants from strand-seq (or strand-seq plus WhatsHap, if given) for HP1 and HP2 and unphased variants in the input vcf file (1|2 variants are considered as unphased). Base quality for indels represents the base quality of the first base. Positions in the per-read file are zero-based.  
+**Note:** If you wish to try different criteria, the per-read file produced by PatMat >=v1.2.0 allows you to try different thresholds for options (**Note** that if you also provided WhatsHap phased vcf in your first try, then you **cannot** use per-read to try different --min_variant or --hapratio because these options will be also used to correct WhatsHap phased-block switches using strand-seq phased variants.), different dmr list, black list, include/exclude indels, and include/exclude supp reads much 
+faster.  
 # More info about other methylation callers
 By default, we assume that you called methylation using guppy and your guppy bam also has methylation tag. However, patmat.py also supports other methylation callers including Nanopolish (Or f5c>=v0.7, which is a GPU implementation of nanopolish with the same output format), Megalodon, and DeepSignal. Here are some more information about their output per-read methylation call files and columns for compatibility with patmat.py:  
 nanopolish and f5c>=v0.7 produce the following columns and the CpG coordinates are zero-based and coordinates for both strands are based on positive strand (positions for the CpG from both strands are the same):
@@ -524,5 +521,4 @@ chr11	2669107	+	-1	19b5bd8e-0a50-449d-8dc1-ea2dc4e2fe2b	t	0.13432296	0.865677	1	
 chr11	2669074	-	-1	12652f63-7676-4ad8-b7bf-af1aec4b282d	t	0.13398732	0.8660127	1	CACTGATACGGCAGGGT
 chr11	2669108	-	-1	12652f63-7676-4ad8-b7bf-af1aec4b282d	t	0.12144542	0.87855464	1	GAGCCACACGTAGCCAG
 ```  
-
 

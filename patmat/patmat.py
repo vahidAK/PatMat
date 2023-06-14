@@ -44,8 +44,8 @@ def get_variant_info(feed_list,
                      alignment_file,
                      chrom):
     '''
-    This function maps each read to hetrezygout variants and returnes how 
-    many haplotype 1, haplotype 2, and unphased variants mapped to each read.
+    This function maps each read to heterozygous variants and returns a list of  
+    haplotype 1, haplotype 2, and unphased variants mapped to each read.
     '''
     read_HP_list= list()
     samfile = pysam.AlignmentFile(alignment_file, 'rb')
@@ -630,7 +630,7 @@ def strand_vcf2dict_phased(vcf_strand,
                            include_all_variants):
     '''
     Intersects input vcf and strand-seq vcf and stores phased 
-    and unphased hetrozygout variants into a dictionary for read phasing.
+    and unphased heterozygous variants into a dictionary for read phasing.
     '''
     check_vcfs(vcf, vcf_strand, None)
     final_dict= defaultdict(set)
@@ -682,9 +682,9 @@ def vcf2dict_phased(block_file,
                     include_all_variants):
     '''
     In case whatshap vcf file is also given, this function uses phased variants
-    from strand-seq to correct PofO phasing switches accross whathap blocks
-    . This fuction then intersects input vcf, strand-seq vcf, and whatshap vcf
-    and stores phased and unphased hetrozygout variants into a 
+    from strand-seq to correct PofO phasing switches across whatshap blocks
+    . This function then intersects input vcf, strand-seq vcf, and whatshap vcf
+    and stores phased and unphased heterozygous variants into a 
     dictionary for read phasing.
     '''
     check_vcfs(vcf, vcf_strand, vcf_whats)
@@ -863,7 +863,7 @@ def per_read_variant(vcf_dict,
 def get_block(vcf_whats):
     '''
     In case whatshap vcf is provided but the block file is not given, 
-    this fuction extracts phased blocks from whatshap vcf file.
+    this function extracts phased blocks from whatshap vcf file.
     '''
     blocks= defaultdict(set)
     final= list()
@@ -883,7 +883,7 @@ def get_block(vcf_whats):
 
 def get_indels(vcf):
     '''
-    Extracts hetrozygout indels from input vcf file. 
+    Extracts heterozygous indels from input vcf file. 
     '''
     indels= set()
     with openfile(vcf) as vcf_file:
@@ -904,8 +904,8 @@ def get_indels(vcf):
 
 def main(args):
     '''
-    The main function that uses user's inputs and other functions to phased and
-    PofO assign variants and methylation.
+    The main function that uses user's inputs and other functions to phase and
+    assign PofO to variants and methylation.
     '''
     hapRatio = args.hapratio
     minvariant= args.min_variant
@@ -987,7 +987,8 @@ def main(args):
         out_per_read = out + '_HP1'
         perReadinfo= open(out_per_read+"_HP2_PerReadInfo.tsv", 'w')
         perReadinfo.write("#Chromosome\tReadRefStart\tReadRefEnd\tReadID\t"
-                          "Strand\tReadFlag:Is_Supplementary\tReadMapQuality\t"
+                          "Strand\tReadFlag:Is_Supplementary\t"
+                          "ReadLength:ReadMapQuality\t"
                           "Position:BaseQuality:HP1-variants\t"
                           "Position:BaseQuality:HP2-variants\t"
                           "Position:BaseQuality:UnPhasedAndOtherHetvariants\n")
@@ -1496,7 +1497,7 @@ def main(args):
     out_scores.close()
     out_freqMaternal_non_pofo.close()
     out_freqPaternal_non_pofo.close()
-    warnings.warn("Out of {} and {} hetrozygous SNVs and indels in input vcf file"
+    warnings.warn("Out of {} and {} heterozygous SNVs and indels in input vcf file"
                   ", {} ({}%) and {} ({}%) could be rephased and "
                   "{} ({}%) and {} ({}%) could be PofO assigned."
                   "".format(all_het_snvs, all_het_indels,
@@ -1520,7 +1521,7 @@ required.add_argument("--bam", "-b",
                       action="store",
                       type=str,
                       required=True,
-                      help="The path to the cordinate sorted bam file.")
+                      help="The path to the coordinate sorted bam file.")
 required.add_argument("--output", "-o",
                       action="store",
                       type=str,
@@ -1538,7 +1539,7 @@ required.add_argument("--strand_vcf", "-sv",
                       type=str,
                       required=True,
                       help="The path to the chromosome-scale phased vcf file."
-                           "This is the input vcf file that has been phased "
+                           " This is the input vcf file that has been phased "
                            "using strand-seq data.")
 required.add_argument("--reference", "-ref",
                       action="store",
@@ -1551,7 +1552,7 @@ required.add_argument("--methylcallfile", "-mc",
                       type=str,
                       required=True,
                       help=("The path to the per-read methylation "
-                            "call file or the bam file with mthylation tag."))
+                            "call file or the bam file with methylation tag."))
 optional = parser.add_argument_group("Optional arguments")
 optional.add_argument("--tool_and_callthresh", "-tc",
                            action="store",
@@ -1562,14 +1563,14 @@ optional.add_argument("--tool_and_callthresh", "-tc",
                                  "calling:Call threshold. Supported tools "
                                  "include guppy (bam file with CpG methylation"
                                  " tags), nanoplish, megalodon (megalodon calls"
-                                 " must inlcude only CpG methylation), and deepsignal. "
+                                 " must include only CpG methylation), and deepsignal. "
                                  "For example, nanopolish:1.5 is when methylation"
                                  " calling performed by nanopolish and a CpG with"
                                  " llr >= 1.5 will be considered as methylated "
                                  "and llr <= -1.5 as unmethylated, anything "
                                  "in between will be considered as ambiguous"
                                  " call and ignored. For guppy, megalodon, and"
-                                 " deepsignl call thresold will be delta probability (0-1)"
+                                 " deepsignl call threshold will be delta probability (0-1)"
                                  ". For example threshold 0.4 means any call >=0.7"
                                  " is methylated and <=0.3 is not and between"
                                  " 0.3-0.7 will be ignored. Default is guppy:0.4"))
@@ -1594,9 +1595,9 @@ optional.add_argument("--whatshap_vcf", "-wv",
                       required=False,
                       default=None,
                       help=("Path to the WhatsHap phased vcf file that is produced from "
-                            "phasing input vcf file using nanopore reads via "
-                            "WhatsHap. This can be useful when the chromosome-scale"
-                            " phased variants are very sparce. "
+                            "phasing input vcf file using nanopore reads. "
+                            "This can be useful when the chromosome-scale"
+                            " phased variants are very sparse. "
                             "File must be sorted and indexed using tabix."))
 optional.add_argument("--whatshap_block", "-wb",
                       action="store",
@@ -1607,7 +1608,7 @@ optional.add_argument("--whatshap_block", "-wb",
                             "created using whatshap stats command. File must be " 
                             "converted to a bed format with chromosome\tstart\tend in "
                             "the first three columns (First row must be header). If no block file is given"
-                            " then the assumption is that the last part after : sign "
+                            " then the assumption is that the last part after \":\" sign "
                             "in the 10th column is the phase set (PS) name and blocks will be"
                             " calculated internally."))
 optional.add_argument("--black_list", "-bl",
@@ -1615,66 +1616,66 @@ optional.add_argument("--black_list", "-bl",
                       type=str,
                       required=False,
                       default= None,
-                      help="List of regions to ignore phased varinats at them."
+                      help="List of regions to ignore phased variants at them."
                       " Three first columns must be chromosome\tstart\tend."
-                      " If black list is given the vcf file must be indexed using tabix.")
+                      " If a black list is given the vcf file must be indexed using tabix.")
 optional.add_argument("--hapratio", "-hr",
                       action="store",
                       type=float,
                       required=False,
                       default=0.75,
-                      help=("0-1 . Minimmum ratio of variants a read must have "
+                      help=("0-1. Minimum ratio of variants a read must have "
                             "from a haplotype to assign it to that haplotype. "
                             "Default is 0.75. Note that if you also provide "
                             "WhatsHap phased vcf file this option will be "
                             "also used to correct phased-block switches"
                             " using Strand-seq phased variants. In this case,"
-                            " it is minimum ratio of phased variants "
-                            "at a block that supports the dicision based "
-                            "on strand-seq phased varinats."))
+                            " it is the minimum ratio of phased variants "
+                            "at a block that supports the decision based "
+                            "on strand-seq phased variants."))
 optional.add_argument("--min_base_quality", "-mbq",
                       action="store",
                       type=int,
                       required=False,
                       default=7,
                       help=("Only include bases with phred score higher or"
-                            " equal than this option. Default is >=7. if your bam "
-                            "does not incude base quality data or cannot be read "
-                            "this option will not be use."))
+                            " equal to this option. The default is >=7. if your bam "
+                            "does not include base quality data or cannot be obtained "
+                            "this option will not be used."))
 optional.add_argument("--mapping_quality", "-mq",
                       action="store",
                       type=int,
                       required=False,
                       default=20,
-                      help=("An integer value to specify thereshold for "
-                            "filtering reads based om mapping quality. "
+                      help=("An integer value to specify threshold for "
+                            "filtering reads based on mapping quality. "
                             "Default is >=20"))
 optional.add_argument("--min_variant", "-mv",
                       action="store",
                       type=int,
                       required=False,
                       default=1,
-                      help=("minimum number of phased variants must a read "
+                      help=("Minimum number of phased variants must a read "
                             "have to be phased. Default= 1. Note that if you also provide "
                             "WhatsHap phased vcf file this option will be also"
                             " used to correct phased-block switches"
                             " using Strand-seq phased variants. In this case,"
                             " it is the minimum number of phased "
                             "variants at a block that need to support the "
-                            "dicision based on strand-seq phased varinats."))
+                            "decision based on strand-seq phased variants."))
 optional.add_argument("--min_read_number", "-mr",
                       action="store",
                       type=int,
                       required=False,
                       default=2,
-                      help=("minimum number of reads to support a variant"
+                      help=("Minimum number of reads to support a variant"
                             " to assign to each haplotype. Default= 2"))
 optional.add_argument("--min_cg", "-mcg",
                       action="store",
                       type=int,
                       required=False,
                       default= 5,
-                      help=("Minimmum number of CpGs an iDMR must have to "
+                      help=("Minimum number of CpGs an iDMR must have to "
                             " consider it for PofO assignment. Default is 5."))
 optional.add_argument("--cpg_difference", "-cd",
                       action="store",
@@ -1687,7 +1688,7 @@ optional.add_argument("--cpg_difference", "-cd",
 optional.add_argument("--include_all_variants", "-iav",
                       action="store_true",
                       required=False,
-                      help="By default, only variant that have \"PASS\" or \".\" "
+                      help="By default, only variants that have \"PASS\" or \".\" "
                            " in the FILTER column of the input vcf file will be used."
                            " Select this flag if you want to use all the variants.")
 optional.add_argument("--include_supplementary", "-is",
@@ -1770,7 +1771,7 @@ optional.add_argument("--smoothing_flag", "-smf",
                         required=False,
                         help=("TRUE/FALSE. A flag to indicate whether to apply "
                               "smoothing in estimating mean methylation levels."
-                              " For more instruction see DSS R package guide. "
+                              " For more instructions see the DSS R package guide. "
                               "Default is TRUE."))
 optional.add_argument("--equal_disp", "-ed",
                         action="store",
@@ -1779,7 +1780,7 @@ optional.add_argument("--equal_disp", "-ed",
                         required=False,
                         help=("TRUE/FALSE. A flag to indicate whether the "
                               "dispersion in two groups are deemed equal or not. "
-                              "For more instruction see DSS R package guide. "
+                              "For more instructions see the DSS R package guide. "
                               "Default is FALSE Because there is no biological"
                               " replicate here, you should specify either "
                               "equal_disp TRUE or smoothing_flag TRUE. "
@@ -1794,3 +1795,4 @@ args = parser.parse_args()
 
 if __name__ == '__main__':
     main(args)
+
