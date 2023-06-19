@@ -1088,8 +1088,6 @@ def main(args):
                 re_assignment.write(line)
                 continue
             line= line.rstrip().split('\t')
-            if not args.include_all_variants and line[6] not in ["PASS","."]:
-                continue
             if 'PS' in line[8].split(":"):
                 ps_index= line[8].split(":").index('PS')
                 new_ps= line[8].split(":")
@@ -1099,6 +1097,11 @@ def main(args):
             else:
                 new_ps= line[8].split(":")
                 new_hp= line[9].split(":")
+            if not args.include_all_variants and line[6] not in ["PASS","."]:
+                re_assignment.write('\t'.join(line[0:8]+
+                                    [':'.join(new_ps)]+
+                                    [':'.join(new_hp).replace("|", "/")])+'\n')
+                continue
             if line[0] in chrom_list:
                 if (line[9].startswith("0/1") or
                     line[9].startswith("1/0") or
@@ -1689,8 +1692,9 @@ optional.add_argument("--include_all_variants", "-iav",
                       action="store_true",
                       required=False,
                       help="By default, only variants that have \"PASS\" or \".\" "
-                           " in the FILTER column of the input vcf file will be used."
-                           " Select this flag if you want to use all the variants.")
+                           " in the FILTER column of the input vcf file will be used"
+                           " during phasing and PofO assignment. Select this flag "
+                           "if you want to use all the variants.")
 optional.add_argument("--include_supplementary", "-is",
                       action="store_true",
                       required=False,
