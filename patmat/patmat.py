@@ -481,7 +481,7 @@ def out_freq(chromosome,
             try:
                 bamiter= bam.reads(chromosome, 0, len(chrom_seq))
             except:
-                warnings.warn("Chromosome {} from reference does no exist in "
+                warnings.warn("Chromosome {} from reference does not exist in "
                               "guppy bam file. Skipping it.".format(chromosome))
                 bamiter= None
             if bamiter is not None:
@@ -594,10 +594,10 @@ def check_vcfs(vcf,
                  line[1] in vcf_dict[line[0]])):
                 common_strand += 1
     if vcf_whats is None:
-        warnings.warn("Out of {} reference heterozygous phased variants in "
-                      "strand-seq vcf, {} ({})% variants had the same position "
-                      "in input vcf file."
-                      "".format(strand_vars, 
+        print("Out of {} reference heterozygous phased variants in "
+                "strand-seq vcf, {} ({})% variants had the same position "
+                "in input vcf file."
+                "".format(strand_vars, 
                                 common_strand,
                                 round((common_strand/strand_vars)*100,2)))
     if vcf_whats is not None:
@@ -614,15 +614,15 @@ def check_vcfs(vcf,
                     (line[0] in vcf_dict and 
                      line[1] in vcf_dict[line[0]])):
                     common_whats += 1
-        warnings.warn("Out of {} reference heterozygous phased variants in strand-seq vcf,"
-                      " {} ({})% variants had the same position in "
-                      "input vcf and {} ({})% variants "
-                      " had the same position in whatshap vcf file."
-                      "".format(strand_vars, 
-                                common_strand,
-                                round((common_strand/strand_vars)*100,2),
-                                common_whats,
-                                round((common_whats/strand_vars)*100,2)))
+        print("Out of {} reference heterozygous phased variants in strand-seq vcf,"
+              " {} ({})% variants had the same position in "
+              "input vcf and {} ({})% variants "
+              " had the same position in whatshap vcf file."
+              "".format(strand_vars, 
+                        common_strand,
+                        round((common_strand/strand_vars)*100,2),
+                        common_whats,
+                        round((common_whats/strand_vars)*100,2)))
     
         
 def strand_vcf2dict_phased(vcf_strand,
@@ -851,7 +851,7 @@ def per_read_variant(vcf_dict,
             if phred_check:
                 warnings.warn("Some or all bases in some or all reads from {} do "
                               "not have based qualities in the bam file."
-                              " Phred quality thereshold will be ignored "
+                              " Phred quality threshold will be ignored "
                               "for these bases.".format(chrom))
         else:
             warnings.warn("{} does not have any mapped reads in alignment "
@@ -951,14 +951,14 @@ def main(args):
         per_read_file= os.path.abspath(args.per_read)
     else:
         if args.strand_vcf is not None and args.whatshap_vcf is None:
-            warnings.warn("Using strand-seq phased vcf only with"
+            print("Using strand-seq phased vcf only with"
                           " {}.".format(known_dmr.split('/')[-1]))
             vcf_strand = os.path.abspath(args.strand_vcf)
             final_dict= strand_vcf2dict_phased(vcf_strand, 
                                                vcf, 
                                                args.include_all_variants)
         elif args.strand_vcf is not None and args.whatshap_vcf is not None:
-            warnings.warn("Using both strand-seq phased and WhatsHap phased "
+            print("Using both strand-seq phased and WhatsHap phased "
                           "vcf with {}.".format(known_dmr.split('/')[-1]))
             vcf_whats= os.path.abspath(args.whatshap_vcf)
             vcf_strand = os.path.abspath(args.strand_vcf)
@@ -1500,7 +1500,7 @@ def main(args):
     out_scores.close()
     out_freqMaternal_non_pofo.close()
     out_freqPaternal_non_pofo.close()
-    warnings.warn("Out of {} and {} heterozygous SNVs and indels in input vcf file"
+    print("Out of {} and {} heterozygous SNVs and indels in input vcf file"
                   ", {} ({}%) and {} ({}%) could be rephased and "
                   "{} ({}%) and {} ({}%) could be PofO assigned."
                   "".format(all_het_snvs, all_het_indels,
