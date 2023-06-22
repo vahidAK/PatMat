@@ -778,7 +778,7 @@ def vcf2dict_phased(block_file,
 def per_read_variant(vcf_dict,
                      bam_file,
                      chunk,
-                     threads,
+                     processes,
                      perReadinfo):
     '''
     This function extracts per-read information for variants and 
@@ -793,9 +793,9 @@ def per_read_variant(vcf_dict,
             feed_list = [feed_list[x:x+chunk]
                                  for x in range(0, len(feed_list),
                                                 chunk)]
-            feed_list = [feed_list[x:x+threads]
+            feed_list = [feed_list[x:x+processes]
                                  for x in range(0, len(feed_list),
-                                                threads)]
+                                                processes)]
             description= "Tagging variants to reads from {}: ".format(chrom)
             with tqdm(total=len(feed_list),
                 desc=description,
@@ -911,7 +911,10 @@ def main(args):
     minvariant= args.min_variant
     min_cg= args.min_cg
     bam_file = os.path.abspath(args.bam)
-    threads = args.threads
+    processes = args.processes
+    dss_processes= args.dss_processes
+    if dss_processes is None:
+        dss_processes= processes
     cpg_difference= args.cpg_difference
     MinBaseQuality = args.min_base_quality
     chunk = args.chunk_size
@@ -995,7 +998,7 @@ def main(args):
         per_read_variant(final_dict,
                          bam_file,
                          chunk,
-                         threads,
+                         processes,
                          perReadinfo)
         final_dict.clear()
         perReadinfo.close()
@@ -1267,7 +1270,7 @@ def main(args):
     freq_header= "Chromosome\tStart\tEnd\tCov\tMod\tFreq"
     out_freqhp1_non_pofo.write(freq_header+"\n")
     out_freqhp2_non_pofo.write(freq_header+"\n")
-    p= mp.Pool(threads)
+    p= mp.Pool(processes)
     freq_dicts= p.starmap(out_freq,
                           list(zip(set(list(read_dictHP1.keys())+
                                        list(read_dictHP2.keys())),
@@ -1315,7 +1318,7 @@ def main(args):
                                                     args.smoothing_span,
                                                     args.delta_cutoff,
                                                     args.pvalue,
-                                                    threads),
+                                                    dss_processes),
                        shell=True,
                        check=True)
         subprocess.run("bgzip -f {0} && tabix -f -S 1 -p bed {0}.gz"
@@ -1721,7 +1724,7 @@ optional.add_argument("--per_read", "-pr",
                       " WhatsHap phased-block switches using strand-seq "
                       "phased variants), different dmr list, black list, "
                       "include/exclude indels, and include/exclude supp reads.")
-optional.add_argument("--threads", "-t",
+optional.add_argument("--processes", "-p",
                       action="store",
                       type=int,
                       required=False,
@@ -1789,6 +1792,17 @@ optional.add_argument("--equal_disp", "-ed",
                               " replicate here, you should specify either "
                               "equal_disp TRUE or smoothing_flag TRUE. "
                               "Do not specify both as FALSE."))
+optional.add_argument("--dss_processes", "-dp",
+                      action="store",
+                      type=int,
+                      required=False,
+                      help="Number of parallel processes use for DSS "
+                            "differential methylation analysis. If not given, it will "
+                            "be the same as --processes option. Differential methylation "
+                            " analysis usually requires high memory and if there"
+                            " is not enough memory, specify less number processes"
+                            " using this flag for DSS to allocate available memory "
+                            "for less processes.")
 optional = parser.add_argument_group("Help and version options")
 optional.add_argument('--version', action='version', 
                       version='%(prog)s 1.3.0_dev',
