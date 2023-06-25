@@ -473,7 +473,7 @@ def out_freq(chromosome,
                                 hp2_freq[(chrom,str(position),str(position+1))].append(1)
                             else:
                                 hp2_freq[(chrom,str(position),str(position+1))].append(0)
-    elif tool=="guppy":
+    elif tool=="methbam":
         fasta= pysam.Fastafile(reference)
         chrom_seq= fasta.fetch(reference=chromosome)
         fasta.close()
@@ -482,7 +482,7 @@ def out_freq(chromosome,
                 bamiter= bam.reads(chromosome, 0, len(chrom_seq))
             except:
                 warnings.warn("Chromosome {} from reference does not exist in "
-                              "guppy bam file. Skipping it.".format(chromosome))
+                              "methylation bam file. Skipping it.".format(chromosome))
                 bamiter= None
             if bamiter is not None:
                 for read in bamiter:
@@ -549,10 +549,7 @@ def vcf2dict(vcf_strand):
         if line.startswith("#"):
             continue
         line_list = line.rstrip().split('\t')
-        if (line_list[9].startswith('.|0') or 
-            line_list[9].startswith('0|.') or
-            line_list[9].startswith('1|.') or
-            line_list[9].startswith('.|1')):
+        if line_list[9].startswith(('.|0','0|.','1|.','.|1')):
             line_list[9] = line_list[9].replace(".|0","1|0"
                                                 ).replace(".|1","0|1"
                                                           ).replace("1|.","1|0"
@@ -562,8 +559,7 @@ def vcf2dict(vcf_strand):
                           "will be interpreted as 1|0 or 0|1 or 0|1 or "
                           "1|0".format(line_list[0], line_list[1]))
         chrom = line_list[0]
-        if (line_list[9].startswith('1|0') or 
-            line_list[9].startswith('0|1')):
+        if line_list[9].startswith(('1|0','0|1')):
             strand_vars += 1
             vcf_dict[chrom][line_list[1]] = line_list[9].split(':')[0]
     vcf_file.close()
@@ -585,10 +581,7 @@ def check_vcfs(vcf,
             if line.startswith("#"):
                 continue
             line=line.rstrip().split('\t')
-            if ((line[9].startswith('0/1') or 
-                 line[9].startswith('1/0') or 
-                 line[9].startswith('0|1') or
-                 line[9].startswith('1|0'))
+            if (line[9].startswith(('0/1','1/0','0|1','1|0'))
                 and
                 (line[0] in vcf_dict and 
                  line[1] in vcf_dict[line[0]])):
@@ -606,10 +599,7 @@ def check_vcfs(vcf,
                 if line.startswith("#"):
                     continue
                 line=line.rstrip().split('\t')
-                if ((line[9].startswith('0/1') or 
-                     line[9].startswith('1/0') or 
-                     line[9].startswith('0|1') or
-                     line[9].startswith('1|0'))
+                if (line[9].startswith(('0/1','1/0','0|1','1|0'))
                     and
                     (line[0] in vcf_dict and 
                      line[1] in vcf_dict[line[0]])):
@@ -642,10 +632,7 @@ def strand_vcf2dict_phased(vcf_strand,
             line=line.rstrip().split('\t')
             if not include_all_variants and line[6] not in ["PASS","."]:
                 continue
-            if ((line[9].startswith('0/1') or 
-                 line[9].startswith('1/0') or 
-                 line[9].startswith('0|1') or
-                 line[9].startswith('1|0'))
+            if (line[9].startswith(('0/1','1/0','0|1','1|0'))
                 and
                 (line[0] in vcf_dict and 
                  line[1] in vcf_dict[line[0]])):
@@ -653,18 +640,12 @@ def strand_vcf2dict_phased(vcf_strand,
                                         int(line[1])-1,
                                         line[3].upper(),
                                         line[4].upper()))
-            elif (line[9].startswith('0/1') or 
-                  line[9].startswith('1/0') or 
-                  line[9].startswith('0|1') or
-                  line[9].startswith('1|0')):
+            elif line[9].startswith(('0/1','1/0','0|1','1|0')):
                 final_dict[line[0]].add(("0/1",
                                         int(line[1])-1,
                                         line[3].upper(),
                                         line[4].upper()))
-            elif (line[9].startswith('1/2') or 
-                  line[9].startswith('1|2') or
-                  line[9].startswith('2/1') or 
-                  line[9].startswith('2|1')):
+            elif line[9].startswith(('1/2','1|2','2/1','2|1')):
                 final_dict[line[0]].add(("1/2",
                                         int(line[1])-1,
                                         line[3].upper(),
@@ -722,8 +703,7 @@ def vcf2dict_phased(block_file,
             for vcf_line in records_whats:
                 if vcf_line[1] in vcf_dict[vcf_line[0]]:
                     continue
-                if (vcf_line[9].startswith('1|0') or 
-                    vcf_line[9].startswith('0|1')):
+                if vcf_line[9].startswith(('1|0','0|1')):
                     if (agreement_count > disagreement_count and
                         agreement_count >= minvariant and 
                         agreement_count/(agreement_count+disagreement_count) >= hapRatio and
@@ -742,10 +722,7 @@ def vcf2dict_phased(block_file,
             line=line.rstrip().split('\t')
             if not include_all_variants and line[6] not in ["PASS","."]:
                 continue
-            if ((line[9].startswith('0/1') or 
-                 line[9].startswith('1/0') or 
-                 line[9].startswith('0|1') or
-                 line[9].startswith('1|0'))
+            if (line[9].startswith(('0/1','1/0','0|1','1|0'))
                 and
                 (line[0] in vcf_dict and 
                  line[1] in vcf_dict[line[0]])):
@@ -753,18 +730,12 @@ def vcf2dict_phased(block_file,
                                         int(line[1])-1,
                                         line[3].upper(),
                                         line[4].upper()))
-            elif (line[9].startswith('0/1') or 
-                  line[9].startswith('1/0') or 
-                  line[9].startswith('0|1') or
-                  line[9].startswith('1|0')):
+            elif line[9].startswith(('0/1','1/0','0|1','1|0')):
                 final_dict[line[0]].add(("0/1",
                                         int(line[1])-1,
                                         line[3].upper(),
                                         line[4].upper()))
-            elif (line[9].startswith('1/2') or 
-                  line[9].startswith('1|2') or
-                  line[9].startswith('2/1') or 
-                  line[9].startswith('2|1')):
+            elif line[9].startswith(('1/2','1|2','2/1','2|1')):
                 final_dict[line[0]].add(("1/2",
                                         int(line[1])-1,
                                         line[3].upper(),
@@ -891,10 +862,7 @@ def get_indels(vcf):
             if line.startswith('#'):
                 continue
             line= line.rstrip().split('\t')
-            if (line[9].startswith("0|1") or
-                line[9].startswith("1|0") or
-                line[9].startswith("0/1") or
-                line[9].startswith("1/0")):
+            if line[9].startswith(("0|1","1|0","0/1","1/0")):
                 if len(line[3]) > 1 or len(line[4]) > 1:
                     indels.add((line[0],str(int(line[1])-1)))
             # Non-reference het indels (e.g. 1/2) are ignored as 
@@ -924,12 +892,18 @@ def main(args):
     vcf= os.path.abspath(args.vcf)
     known_dmr= os.path.abspath(args.known_dmr)
     MethylCallfile = os.path.abspath(args.methylcallfile)
-    ref_file= os.path.abspath(args.reference)
     tool,callthresh= args.tool_and_callthresh.split(':')
     tool= tool.lower()
     callthresh= float(callthresh)
-    if tool not in ["guppy","nanopolish","megalodon","deepsignal"]:
+    if tool not in ["methbam","nanopolish","megalodon","deepsignal"]:
         raise Exception("Select tool_and_callthresh option correctly.")
+    if tool=="methbam" and args.reference is None:
+        raise Exception("Methylation bam (methbam) is selected for "
+                        "--tool_and_callthresh option but no reference is"
+                        " provided. Please specify the path to the reference"
+                        " file using --reference option")
+    elif tool=="methbam" and args.reference is not None:
+        ref_file= os.path.abspath(args.reference)
     sites_to_ignore= set()                    
     if args.black_list is not None:
         if not os.path.isfile(vcf+".tbi"):
@@ -1079,12 +1053,7 @@ def main(args):
     reads_NonPofO= open(out_non_pofo_reads,'w')
     hp1s= set()
     hp2s= set()
-    all_het_snvs= 0
-    phased_het_snvs= 0
-    pofo_het_snvs= 0
-    all_het_indels= 0
-    phased_het_indels= 0
-    pofo_het_indels= 0
+    info_out_dict= defaultdict(lambda: defaultdict(int))
     with openfile(vcf) as vcf_file:
         for line in vcf_file:
             if line.startswith('#'):
@@ -1105,15 +1074,16 @@ def main(args):
                                     [':'.join(new_ps)]+
                                     [':'.join(new_hp).replace("|", "/")])+'\n')
                 continue
+            
+            if line[9].startswith(("0/1","1/0","0|1","1|0",
+                                   "1/2","1|2","2/1","2|1")):
+                if ((len(line[3]) == 1 and len(line[4]) == 1) or 
+                    (len(line[3]) == 1 and len(line[4]) == 3 and "," in line[4])):
+                    info_out_dict[line[0]]["all_het_snvs"] += 1
+                else:
+                    info_out_dict[line[0]]["all_het_indels"] += 1
             if line[0] in chrom_list:
-                if (line[9].startswith("0/1") or
-                    line[9].startswith("1/0") or
-                    line[9].startswith("0|1") or
-                    line[9].startswith("1|0")):
-                    if len(line[3]) == 1 and len(line[4]) == 1:
-                        all_het_snvs += 1
-                    else:
-                        all_het_indels += 1
+                if line[9].startswith(("0/1","1/0","0|1","1|0")):
                     hp1_count_alt= variant_dict_HP1[(line[0],str(int(line[1])-1))][line[4].upper()]
                     hp2_count_alt= variant_dict_HP2[(line[0],str(int(line[1])-1))][line[4].upper()]
                     hp1_count_ref= variant_dict_HP1[(line[0],str(int(line[1])-1))][line[3].upper()]
@@ -1135,9 +1105,9 @@ def main(args):
                                                       [':'.join(new_ps)+":PS"]+
                                                       ["1|0:"+':'.join(new_hp[1:])+":HP2|HP1"])+'\n')
                         if len(line[3]) == 1 and len(line[4]) == 1:
-                            phased_het_snvs += 1
+                            info_out_dict[line[0]]["phased_het_snvs"] += 1
                         else:
-                            phased_het_indels += 1
+                            info_out_dict[line[0]]["phased_het_indels"] += 1
                     elif ((hp2_count_alt > hp1_count_alt and
                            hp2_count_alt > hp2_count_ref and
                            hp2_count_alt >= min_read_reassignment) or
@@ -1155,24 +1125,17 @@ def main(args):
                                                       [':'.join(new_ps)+":PS"]+
                                                       ["0|1:"+':'.join(new_hp[1:])+":HP1|HP2"])+'\n')
                         if len(line[3]) == 1 and len(line[4]) == 1:
-                            phased_het_snvs += 1
+                            info_out_dict[line[0]]["phased_het_snvs"] += 1
                         else:
-                            phased_het_indels += 1
+                            info_out_dict[line[0]]["phased_het_indels"] += 1
                     else:
                         re_assignment.write('\t'.join(line[0:8]+
                                                       [':'.join(new_ps)]+
                                                       [':'.join(new_hp).replace("|", "/")])+'\n')
-                elif line[9].startswith("1/1") or line[9].startswith("1|1"):
+                elif line[9].startswith(("1/1","1|1")):
                     re_assignment.write('\t'.join(line)+'\n')
                 
-                elif (line[9].startswith('1/2') or 
-                      line[9].startswith('1|2') or
-                      line[9].startswith('2/1') or 
-                      line[9].startswith('2|1')):
-                    if len(line[3]) == 1 and len(line[4]) == 3:
-                        all_het_snvs += 1
-                    else:
-                        all_het_indels += 1
+                elif line[9].startswith(('1/2','1|2','2/1','2|1')):
                     hp1_count_alt= variant_dict_HP1[(line[0],str(int(line[1])-1))][line[4].split(',')[1].upper()]
                     hp2_count_alt= variant_dict_HP2[(line[0],str(int(line[1])-1))][line[4].split(',')[1].upper()]
                     hp1_count_ref= variant_dict_HP1[(line[0],str(int(line[1])-1))][line[4].split(',')[0].upper()]
@@ -1194,9 +1157,9 @@ def main(args):
                                             [':'.join(new_ps)+":PS"]+
                                             ["1|2:"+':'.join(new_hp[1:])+":Ref_HP2|HP1"])+'\n')
                         if len(line[3]) == 1 and len(line[4]) == 3:
-                            phased_het_snvs += 1
+                            info_out_dict[line[0]]["phased_het_snvs"] += 1
                         else:
-                            phased_het_indels += 1
+                            info_out_dict[line[0]]["phased_het_indels"] += 1
                     elif ((hp2_count_alt > hp1_count_alt and
                            hp2_count_alt > hp2_count_ref and
                            hp2_count_alt >= min_read_reassignment) or
@@ -1214,9 +1177,9 @@ def main(args):
                                             [':'.join(new_ps)+":PS"]+
                                             ["1|2:"+':'.join(new_hp[1:])+":Ref_HP1|HP2"])+'\n')
                         if len(line[3]) == 1 and len(line[4]) == 3:
-                            phased_het_snvs += 1
+                            info_out_dict[line[0]]["phased_het_snvs"] += 1
                         else:
-                            phased_het_indels += 1
+                            info_out_dict[line[0]]["phased_het_indels"] += 1
                     else:
                         re_assignment.write('\t'.join(line[0:8]+
                                             [':'.join(new_ps)]+
@@ -1407,16 +1370,12 @@ def main(args):
                     continue
                 line= line.rstrip().split('\t')
                 if line[0] in chrom_hp_origin:
-                    if line[9].startswith('0|1') or line[9].startswith('1|0'):
-                        if len(line[3]) == 1 and len(line[4]) == 1:
-                            pofo_het_snvs += 1
+                    if line[9].startswith(("0|1","1|0","1|2")):
+                        if ((len(line[3]) == 1 and len(line[4]) == 1) or 
+                            (len(line[3]) == 1 and len(line[4]) == 3 and "," in line[4])):
+                            info_out_dict[line[0]]["pofo_het_snvs"] += 1
                         else:
-                            pofo_het_indels += 1
-                    elif line[9].startswith('1|2'):
-                        if len(line[3]) == 1 and len(line[4]) == 3:
-                            pofo_het_snvs += 1
-                        else:
-                            pofo_het_indels += 1
+                            info_out_dict[line[0]]["pofo_het_indels"] += 1
                     if line[9].startswith('0|1'):
                         if chrom_hp_origin[line[0]]['HP1'][0] == 'maternal':
                             assignment_file.write('\t'.join(line[0:9])+'\t'+
@@ -1503,16 +1462,17 @@ def main(args):
     out_scores.close()
     out_freqMaternal_non_pofo.close()
     out_freqPaternal_non_pofo.close()
-    print("Out of {} and {} heterozygous SNVs and indels in input vcf file"
-                  ", {} ({}%) and {} ({}%) could be rephased and "
-                  "{} ({}%) and {} ({}%) could be PofO assigned."
-                  "".format(all_het_snvs, all_het_indels,
-                            phased_het_snvs, round((phased_het_snvs/all_het_snvs)*100,2), 
-                            phased_het_indels, round((phased_het_indels/all_het_indels)*100,2),
-                            pofo_het_snvs, round((pofo_het_snvs/all_het_snvs)*100,2),
-                            pofo_het_indels, round((pofo_het_indels/all_het_indels)*100,2)))
- 
-    
+    if not args.include_all_variants:
+        print("Per chromosome info for the variants with \"PASS\""
+              " or \".\" in FILTER column in the input vcf file:")
+    else:
+        print("Per chromosome info for the variants in the input vcf file:")
+    print("chrom\tall_het_snvs\tall_het_indels\tphased_het_snvs\t"
+          "phased_het_indels\tpofo_assigned_het_snvs\tpofo_assigned_het_indels")
+    for key,val in info_out_dict.items():
+        print('\t'.join(map(str,[key,val["all_het_snvs"],val["all_het_indels"],
+                            val["phased_het_snvs"],val["phased_het_indels"],
+                            val["pofo_het_snvs"],val["pofo_het_indels"]])))
 
 """
 Specific argument parser.
@@ -1547,12 +1507,6 @@ required.add_argument("--strand_vcf", "-sv",
                       help="The path to the chromosome-scale phased vcf file."
                            " This is the input vcf file that has been phased "
                            "using strand-seq data.")
-required.add_argument("--reference", "-ref",
-                      action="store",
-                      type=str,
-                      required=True,
-                      help=("The path to the reference file. File must be indexed"
-                            " using samtools faidx."))
 required.add_argument("--methylcallfile", "-mc",
                       action="store",
                       type=str,
@@ -1564,22 +1518,33 @@ optional.add_argument("--tool_and_callthresh", "-tc",
                            action="store",
                            type=str,
                            required=False,
-                           default="guppy:0.4",
+                           default="methbam:0.4",
                            help=("Software you have used for methylation "
-                                 "calling:Call threshold. Supported tools "
-                                 "include guppy (bam file with CpG methylation"
-                                 " tags), nanoplish, megalodon (megalodon calls"
-                                 " must include only CpG methylation), and deepsignal. "
+                                 "calling:Call threshold. Supported files "
+                                 "include methbam (bam file with CpG methylation"
+                                 " tags. For example, methylation bam produced by "
+                                 "guppy basecaller) and per-read CpG methylation calls from "
+                                 "nanoplish (or f5c>=v0.7), megalodon, and deepsignal. "
                                  "For example, nanopolish:1.5 is when methylation"
                                  " calling performed by nanopolish and a CpG with"
                                  " llr >= 1.5 will be considered as methylated "
                                  "and llr <= -1.5 as unmethylated, anything "
                                  "in between will be considered as ambiguous"
-                                 " call and ignored. For guppy, megalodon, and"
+                                 " call and ignored. For methbam, megalodon, and"
                                  " deepsignl call threshold will be delta probability (0-1)"
                                  ". For example threshold 0.4 means any call >=0.7"
                                  " is methylated and <=0.3 is not and between"
-                                 " 0.3-0.7 will be ignored. Default is guppy:0.4"))
+                                 " 0.3-0.7 will be ignored. Default is methbam:0.4."
+                                 " If methbam is selected you must also provide path"
+                                 " to the reference file using --reference option."))
+required.add_argument("--reference", "-ref",
+                      action="store",
+                      type=str,
+                      required=False,
+                      help=("If you have given a bam file with methylation tag"
+                            " for the --tool_and_callthresh option, then you "
+                            "must also give the path to the reference file. "
+                            "File must be indexed using samtools faidx."))
 optional.add_argument("--known_dmr", "-kd",
                   action="store",
                   type=str,
