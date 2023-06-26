@@ -1708,7 +1708,7 @@ optional = parser.add_argument_group("Optional arguments. The following options 
 optional.add_argument("--delta_cutoff", "-dc",
                             action="store",
                             type=float,
-                            default=0.1,
+                            default=0.05,
                             required=False,
                             help=("0-1. A threshold for defining differentially "
                                   "methylated loci (DML) or CpGs. In DML testing"
@@ -1717,7 +1717,7 @@ optional.add_argument("--delta_cutoff", "-dc",
                                   "Here if delta is specified, the function will "
                                   "compute the posterior probability that the "
                                   "difference of the means are greater than delta,"
-                                  " and then call DML based on that. Default is 0.1."))
+                                  " and then call DML based on that. Default is 0.05."))
 optional.add_argument("--pvalue", "-pv",
                       action="store",
                       type=float,
