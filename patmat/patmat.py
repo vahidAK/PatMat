@@ -269,6 +269,9 @@ def PofO_dmr(known_dmr,
                    "MethylationFrequency_HP1\tMethylationFrequency_HP2\t"
                    "Included_Or_Ignored_For_PofO_Assignment\n")
     chrom_hp_origin_count= defaultdict(lambda: defaultdict(int))
+    chrom_hp_origin_count_all_cg= defaultdict(lambda: defaultdict(int))
+    chrom_hp_origin_count_diff_cg= defaultdict(lambda: defaultdict(int))
+    chrom_hp_origin_count_dmr= defaultdict(lambda: defaultdict(int))
     for line in dmr_file:
         line= line.rstrip().split('\t')
         dmr_chrom= line[0]
@@ -347,25 +350,57 @@ def PofO_dmr(known_dmr,
                            '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + 
                            'Ignored:DifferentiallyMethylatedCpGsIsZeroInBothHaplotypes\n')
             continue
-        num_cg_to_add_hp1= diff_cg_hp1
-        num_cg_to_add_hp2= diff_cg_hp2
+        diff_cg_hp1= diff_cg_hp1
+        diff_cg_hp2= diff_cg_hp2
         out_meth.write('\t'.join(line)+'\t'+str(num_cg)+'\t'+
                        str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+
                        '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + 
                        'Included\n')  
         if origin == 'maternal':
-            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP1'] += num_cg_to_add_hp1
-            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP2'] += num_cg_to_add_hp2
-            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP2'] += num_cg_to_add_hp1
-            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP1'] += num_cg_to_add_hp2
+            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP1'] += diff_cg_hp1
+            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP2'] += diff_cg_hp2
+            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP2'] += diff_cg_hp1
+            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP1'] += diff_cg_hp2
+            if diff_cg_hp1 > diff_cg_hp2:
+                chrom_hp_origin_count_dmr[(dmr_chrom, 'maternal')]['HP1'] += 1
+                chrom_hp_origin_count_dmr[(dmr_chrom, 'paternal')]['HP2'] += 1
+                chrom_hp_origin_count_all_cg[(dmr_chrom, 'maternal')]['HP1'] += num_cg
+                chrom_hp_origin_count_all_cg[(dmr_chrom, 'paternal')]['HP2'] += num_cg
+                chrom_hp_origin_count_diff_cg[(dmr_chrom, 'maternal')]['HP1'] += diff_cg_hp1+diff_cg_hp2
+                chrom_hp_origin_count_diff_cg[(dmr_chrom, 'paternal')]['HP2'] += diff_cg_hp1+diff_cg_hp2
+            elif diff_cg_hp1 < diff_cg_hp2:
+                chrom_hp_origin_count_dmr[(dmr_chrom, 'maternal')]['HP2'] += 1
+                chrom_hp_origin_count_dmr[(dmr_chrom, 'paternal')]['HP1'] += 1
+                chrom_hp_origin_count_all_cg[(dmr_chrom, 'maternal')]['HP2'] += num_cg
+                chrom_hp_origin_count_all_cg[(dmr_chrom, 'paternal')]['HP1'] += num_cg
+                chrom_hp_origin_count_diff_cg[(dmr_chrom, 'maternal')]['HP2'] += diff_cg_hp1+diff_cg_hp2
+                chrom_hp_origin_count_diff_cg[(dmr_chrom, 'paternal')]['HP1'] += diff_cg_hp1+diff_cg_hp2
         if origin == 'paternal':
-            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP1'] += num_cg_to_add_hp2 
-            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP2'] += num_cg_to_add_hp1
-            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP2'] += num_cg_to_add_hp2 
-            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP1'] += num_cg_to_add_hp1
+            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP1'] += diff_cg_hp2 
+            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP2'] += diff_cg_hp1
+            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP2'] += diff_cg_hp2 
+            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP1'] += diff_cg_hp1
+            if diff_cg_hp1 > diff_cg_hp2:
+                chrom_hp_origin_count_dmr[(dmr_chrom, 'maternal')]['HP2'] += 1
+                chrom_hp_origin_count_dmr[(dmr_chrom, 'paternal')]['HP1'] += 1
+                chrom_hp_origin_count_all_cg[(dmr_chrom, 'maternal')]['HP2'] += num_cg
+                chrom_hp_origin_count_all_cg[(dmr_chrom, 'paternal')]['HP1'] += num_cg
+                chrom_hp_origin_count_diff_cg[(dmr_chrom, 'maternal')]['HP2'] += diff_cg_hp1+diff_cg_hp2
+                chrom_hp_origin_count_diff_cg[(dmr_chrom, 'paternal')]['HP1'] += diff_cg_hp1+diff_cg_hp2
+            elif diff_cg_hp1 < diff_cg_hp2:
+                chrom_hp_origin_count_dmr[(dmr_chrom, 'maternal')]['HP1'] += 1
+                chrom_hp_origin_count_dmr[(dmr_chrom, 'paternal')]['HP2'] += 1
+                chrom_hp_origin_count_all_cg[(dmr_chrom, 'maternal')]['HP1'] += num_cg
+                chrom_hp_origin_count_all_cg[(dmr_chrom, 'paternal')]['HP2'] += num_cg
+                chrom_hp_origin_count_diff_cg[(dmr_chrom, 'maternal')]['HP1'] += diff_cg_hp1+diff_cg_hp2
+                chrom_hp_origin_count_diff_cg[(dmr_chrom, 'paternal')]['HP2'] += diff_cg_hp1+diff_cg_hp2
     dmr_file.close()
     out_meth.close()
-    return chrom_hp_origin_count
+    return (chrom_hp_origin_count, 
+            chrom_hp_origin_count_all_cg, 
+            chrom_hp_origin_count_diff_cg,
+            chrom_hp_origin_count_dmr)
+
 
 
 def out_freq(chromosome,
@@ -1303,46 +1338,81 @@ def main(args):
     assignment_file= open(out_pofo, 'w')
     reads_PofO= open(out_pofo_reads,'w')
     chrom_list= sorted(chrom_list)
-    chrom_hp_origin_count= PofO_dmr(known_dmr, 
-                                        chrom_list,
-                                        out,
-                                        min_cg,
-                                        cpg_difference)
+    (chrom_hp_origin_count,
+     chrom_hp_origin_count_all_cg,
+     chrom_hp_origin_count_diff_cg,
+     chrom_hp_origin_count_dmr)= PofO_dmr(known_dmr, 
+                                          chrom_list,
+                                          out,
+                                          min_cg,
+                                          cpg_difference)
     chrom_hp_origin = defaultdict(dict)
     if chrom_hp_origin_count:
         for key, val in chrom_hp_origin_count.items():
             chrom, origin= key
-            hp1_mat_count= 0
-            hp2_mat_count= 0
-            hp1_pat_count= 0
-            hp2_pat_count= 0
             if origin.lower() == 'maternal':
-                hp1_mat_count= val['HP1']
-                hp2_mat_count= val['HP2']
-                if hp1_mat_count > hp2_mat_count:
-                    chrom_hp_origin[chrom]['HP1'] = ('maternal',
-                                                     hp1_mat_count/(hp1_mat_count + hp2_mat_count))
+                hp1_cg_count= val['HP1']
+                hp2_cg_count= val['HP2']
+                hp1_dmr_count= chrom_hp_origin_count_dmr[(chrom, 'maternal')]['HP1']
+                hp2_dmr_count= chrom_hp_origin_count_dmr[(chrom, 'maternal')]['HP2']
+                hp1_allcg_count= chrom_hp_origin_count_all_cg[(chrom, 'maternal')]['HP1']
+                hp2_allcg_count= chrom_hp_origin_count_all_cg[(chrom, 'maternal')]['HP2']
+                hp1_alldiffcg_count= chrom_hp_origin_count_diff_cg[(chrom, 'maternal')]['HP1']
+                hp2_alldiffcg_count= chrom_hp_origin_count_diff_cg[(chrom, 'maternal')]['HP2']
+                if hp1_cg_count > hp2_cg_count:
+                    chrom_hp_origin[chrom]['HP1'] = ['maternal',
+                                                     hp1_cg_count, hp2_cg_count,
+                                                     hp1_dmr_count, hp2_dmr_count,
+                                                     hp1_alldiffcg_count, hp2_alldiffcg_count,
+                                                     hp1_allcg_count, hp2_allcg_count]
                                                       
-                    chrom_hp_origin[chrom]['HP2'] = ('paternal',
-                                                     hp1_mat_count/(hp1_mat_count + hp2_mat_count))
-                elif hp2_mat_count > hp1_mat_count:
-                    chrom_hp_origin[chrom]['HP2'] = ('maternal',
-                                                     hp2_mat_count/(hp1_mat_count + hp2_mat_count))
-                    chrom_hp_origin[chrom]['HP1'] = ('paternal',
-                                                     hp2_mat_count/(hp1_mat_count + hp2_mat_count))
+                    chrom_hp_origin[chrom]['HP2'] = ['paternal',
+                                                     hp1_cg_count, hp2_cg_count,
+                                                     hp1_dmr_count, hp2_dmr_count,
+                                                     hp1_alldiffcg_count, hp2_alldiffcg_count,
+                                                     hp1_allcg_count, hp2_allcg_count]
+                elif hp2_cg_count > hp1_cg_count:
+                    chrom_hp_origin[chrom]['HP2'] = ['maternal',
+                                                     hp2_cg_count, hp1_cg_count,
+                                                     hp2_dmr_count, hp1_dmr_count,
+                                                     hp2_alldiffcg_count, hp1_alldiffcg_count,
+                                                     hp2_allcg_count, hp1_allcg_count]
+                    chrom_hp_origin[chrom]['HP1'] = ['paternal',
+                                                     hp2_cg_count, hp1_cg_count,
+                                                     hp2_dmr_count, hp1_dmr_count,
+                                                     hp2_alldiffcg_count, hp1_alldiffcg_count,
+                                                     hp2_allcg_count, hp1_allcg_count]
             elif origin.lower() == 'paternal':
-                hp1_pat_count= val['HP1']
-                hp2_pat_count= val['HP2']
-                if hp1_pat_count > hp2_pat_count:
-                    chrom_hp_origin[chrom]['HP1'] = ('paternal',
-                                                     hp1_pat_count/(hp1_pat_count + hp2_pat_count))
-                    chrom_hp_origin[chrom]['HP2'] = ('maternal',
-                                                     hp1_pat_count/(hp1_pat_count + hp2_pat_count))
-                elif hp2_pat_count > hp1_pat_count:
-                    chrom_hp_origin[chrom]['HP2'] = ('paternal',
-                                                     hp2_pat_count/(hp1_pat_count + hp2_pat_count))
-                    chrom_hp_origin[chrom]['HP1'] = ('maternal',
-                                                     hp2_pat_count/(hp1_pat_count + hp2_pat_count))
+                hp1_cg_count= val['HP1']
+                hp2_cg_count= val['HP2']
+                hp1_dmr_count= chrom_hp_origin_count_dmr[(chrom, 'paternal')]['HP1']
+                hp2_dmr_count= chrom_hp_origin_count_dmr[(chrom, 'paternal')]['HP2']
+                hp1_allcg_count= chrom_hp_origin_count_all_cg[(chrom, 'paternal')]['HP1']
+                hp2_allcg_count= chrom_hp_origin_count_all_cg[(chrom, 'paternal')]['HP2']
+                hp1_alldiffcg_count= chrom_hp_origin_count_diff_cg[(chrom, 'paternal')]['HP1']
+                hp2_alldiffcg_count= chrom_hp_origin_count_diff_cg[(chrom, 'paternal')]['HP2']
+                if hp1_cg_count > hp2_cg_count:
+                    chrom_hp_origin[chrom]['HP1'] = ['paternal',
+                                                     hp1_cg_count, hp2_cg_count,
+                                                     hp1_dmr_count, hp2_dmr_count,
+                                                     hp1_alldiffcg_count, hp2_alldiffcg_count,
+                                                     hp1_allcg_count, hp2_allcg_count]
+                    chrom_hp_origin[chrom]['HP2'] = ['maternal',
+                                                     hp1_cg_count, hp2_cg_count,
+                                                     hp1_dmr_count, hp2_dmr_count,
+                                                     hp1_alldiffcg_count, hp2_alldiffcg_count,
+                                                     hp1_allcg_count, hp2_allcg_count]
+                elif hp2_cg_count > hp1_cg_count:
+                    chrom_hp_origin[chrom]['HP2'] = ['paternal',
+                                                     hp2_cg_count, hp1_cg_count,
+                                                     hp2_dmr_count, hp1_dmr_count,
+                                                     hp2_alldiffcg_count, hp1_alldiffcg_count,
+                                                     hp2_allcg_count, hp1_allcg_count]
+                    chrom_hp_origin[chrom]['HP1'] = ['maternal',
+                                                     hp2_cg_count, hp1_cg_count,
+                                                     hp2_dmr_count, hp1_dmr_count,
+                                                     hp2_alldiffcg_count, hp1_alldiffcg_count,
+                                                     hp2_allcg_count, hp1_allcg_count]
     if chrom_hp_origin:
         for chrom, reads in read_dictHP1.items():
             if chrom not in chrom_hp_origin:
@@ -1429,7 +1499,15 @@ def main(args):
                                                   replace(":HP2/HP1","")])+'\n')
     assignment_file.close()
     out_scores= open(out + '_PofO_Scores.tsv','w')
-    out_scores.write("Chromosome\tOrigin_HP1\tOrigin_HP2\tPofO_Assignment_Score\n")
+    out_scores.write("Chromosome\tOrigin_HP1\tOrigin_HP2\tPofO_Assignment_Score\t"
+                     "Num_Differentially_Methylated_CGs_Supported_PofO_Assignment\t"
+                     "Num_Differentially_Methylated_CGs_Conflicted_PofO_Assignment\t"
+                     "Num_iDMRs_Supported_PofO_Assignment\t"
+                     "Num_iDMRs_Conflicted_PofO_Assignment\t"
+                     "Num_All_Differentially_Methylated_CGs_At_Supporting_iDMRs\t"
+                     "Num_All_Differentially_Methylated_CGs_At_Conflicting_iDMRs\t"
+                     "Num_All_CGs_At_Supporting_iDMRs\t"
+                     "Num_All_CGs_At_Conflicting_iDMRs\n")
     out_freqMaternal= out + '_PofO_Assignment_MethylationMaternal.tsv'
     out_freqPaternal= out + '_PofO_Assignment_MethylationPaternal.tsv'
     out_freqMaternal_non_pofo = open(out_freqMaternal,'w')
@@ -1458,7 +1536,9 @@ def main(args):
                                   out_freqMaternal_non_pofo)
                     origin_hp1= "Paternal"
                     origin_hp2= "Maternal"
-                out_scores.write('\t'.join([chrom,origin_hp1,origin_hp2,str(score[1]),'\n']))
+                out_scores.write('\t'.join([chrom,origin_hp1,origin_hp2,
+                                            str(score[1]/(score[1]+score[2]))] +
+                                           list(map(str,score[1:])))+'\n')
     out_scores.close()
     out_freqMaternal_non_pofo.close()
     out_freqPaternal_non_pofo.close()
@@ -1568,7 +1648,8 @@ optional.add_argument("--whatshap_vcf", "-wv",
                       help=("Path to the WhatsHap phased vcf file that is produced from "
                             "phasing input vcf file using nanopore reads. "
                             "This can be useful when the chromosome-scale"
-                            " phased variants are very sparse. "
+                            " phased variants are very sparse but be aware that"
+                            " this might also results in more errors. "
                             "File must be sorted and indexed using tabix."))
 optional.add_argument("--whatshap_block", "-wb",
                       action="store",
@@ -1708,7 +1789,7 @@ optional = parser.add_argument_group("Optional arguments. The following options 
 optional.add_argument("--delta_cutoff", "-dc",
                             action="store",
                             type=float,
-                            default=0.05,
+                            default=0.075,
                             required=False,
                             help=("0-1. A threshold for defining differentially "
                                   "methylated loci (DML) or CpGs. In DML testing"
@@ -1717,7 +1798,7 @@ optional.add_argument("--delta_cutoff", "-dc",
                                   "Here if delta is specified, the function will "
                                   "compute the posterior probability that the "
                                   "difference of the means are greater than delta,"
-                                  " and then call DML based on that. Default is 0.05."))
+                                  " and then call DML based on that. Default is 0.075."))
 optional.add_argument("--pvalue", "-pv",
                       action="store",
                       type=float,
