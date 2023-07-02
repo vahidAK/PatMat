@@ -1506,8 +1506,8 @@ def main(args):
                      "Num_iDMRs_Conflicted_PofO_Assignment\t"
                      "Num_All_Differentially_Methylated_CGs_At_Supporting_iDMRs\t"
                      "Num_All_Differentially_Methylated_CGs_At_Conflicting_iDMRs\t"
-                     "Num_All_CGs_At_Supporting_iDMRs\t"
-                     "Num_All_CGs_At_Conflicting_iDMRs\n")
+                     "Num_All_CGs_CouldBeExaminedInBothHaplotypes_At_Supporting_iDMRs\t"
+                     "Num_All_CGs_CouldBeExaminedInBothHaplotypes_At_Conflicting_iDMRs\n")
     out_freqMaternal= out + '_PofO_Assignment_MethylationMaternal.tsv'
     out_freqPaternal= out + '_PofO_Assignment_MethylationPaternal.tsv'
     out_freqMaternal_non_pofo = open(out_freqMaternal,'w')
