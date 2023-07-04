@@ -39,6 +39,7 @@ import re
 import math
 from tqdm import tqdm
 from modbampy import ModBam
+import collections
 
 def get_variant_info(feed_list,
                      alignment_file,
@@ -49,7 +50,6 @@ def get_variant_info(feed_list,
     '''
     read_HP_list= list()
     samfile = pysam.AlignmentFile(alignment_file, 'rb')
-    NA_phred= False
     for info in feed_list:
         HP,position,ref,alt= info
         try:
@@ -84,8 +84,6 @@ def get_variant_info(feed_list,
                                                     pileupread.query_position]
                     except:
                         phred= "NA"
-                        NA_phred= True
-                        
                     if pileupread.alignment.is_supplementary:
                         suppl_flag= str(flag)+":yes"
                     else:
@@ -200,7 +198,7 @@ def get_variant_info(feed_list,
                         elif HP == '1/2' and read_base2 == alt2:
                             read_HP_list.append([(*key_per_read,"unphased"),
                                             ':'.join(map(str,val + [alt2]))])
-    return read_HP_list, NA_phred
+    return read_HP_list
 
 
 
@@ -509,7 +507,7 @@ def out_freq(chromosome,
                             else:
                                 hp2_freq[(chrom,str(position),str(position+1))].append(0)
     elif tool=="methbam":
-        fasta= pysam.Fastafile(reference)
+        fasta= pysam.Fastafile(os.path.abspath(reference))
         chrom_seq= fasta.fetch(reference=chromosome)
         fasta.close()
         with ModBam(methfile) as bam:
@@ -807,7 +805,6 @@ def per_read_variant(vcf_dict,
                 desc=description,
                 bar_format="{l_bar}{bar} [ Estimated time left: {remaining} ]"
                                   ) as pbar:
-                phred_check= False
                 for vcf_info_list in feed_list:
                     p= mp.Pool(len(vcf_info_list))
                     results= p.starmap(get_variant_info,
@@ -818,9 +815,7 @@ def per_read_variant(vcf_dict,
                     p.join()
                     for result in results:
                         if result is not None:
-                            if result[1]:
-                                phred_check= True
-                            for read_info in result[0]:
+                            for read_info in result:
                                 key,val= read_info
                                 per_read_hp[key[0:-1]][key[-1]].append(val)
                     pbar.update(1)
@@ -854,11 +849,6 @@ def per_read_variant(vcf_dict,
                                                     ','.join(sorted(unphased_variants))]
                 
                 perReadinfo.write('\t'.join(out_to_write)+'\n')
-            if phred_check:
-                warnings.warn("Some or all bases in some or all reads from {} do "
-                              "not have based qualities in the bam file."
-                              " Phred quality threshold will be ignored "
-                              "for these bases.".format(chrom))
         else:
             warnings.warn("{} does not have any mapped reads in alignment "
                           "file Or alignment is truncated or corrupt indexed. "
@@ -937,8 +927,6 @@ def main(args):
                         "--tool_and_callthresh option but no reference is"
                         " provided. Please specify the path to the reference"
                         " file using --reference option")
-    elif tool=="methbam" and args.reference is not None:
-        ref_file= os.path.abspath(args.reference)
     sites_to_ignore= set()                    
     if args.black_list is not None:
         if not os.path.isfile(vcf+".tbi"):
@@ -1000,7 +988,7 @@ def main(args):
         perReadinfo= open(out_per_read+"_HP2_PerReadInfo.tsv", 'w')
         perReadinfo.write("#Chromosome\tReadRefStart\tReadRefEnd\tReadID\t"
                           "Strand\tReadFlag:Is_Supplementary\t"
-                          "ReadLength:ReadMapQuality\t"
+                          "ReadAlignmentLength:ReadMapQuality\t"
                           "Position:BaseQuality:HP1-variants\t"
                           "Position:BaseQuality:HP2-variants\t"
                           "Position:BaseQuality:UnPhasedAndOtherHetvariants\n")
@@ -1018,6 +1006,7 @@ def main(args):
     read_dictHP1 = defaultdict(set)
     read_dictHP2 = defaultdict(set)
     ignore_indels= set()
+    check_read= list()
     if not args.include_indels:
         ignore_indels= get_indels(vcf)
     for line in per_read:
@@ -1028,6 +1017,8 @@ def main(args):
             continue
         if not args.include_supplementary and line[5].split(':')[1]=="yes":
             continue
+        if args.include_supplementary:
+            check_read.append(line[3])
         chrom_list.add(line[0])
         key= (line[0],line[3],line[4])
         hp1s= [(line[0],i.split(":")[0],i.split(':')[2]) for i in line[7].split(',') if i != 'NA' and 
@@ -1044,11 +1035,11 @@ def main(args):
             hp1_count/(hp1_count+hp2_count) >= hapRatio and 
             hp1_count >= minvariant):
             read_dictHP1[line[0]].add(key)
-            
         elif (hp2_count > hp1_count and 
               hp2_count/(hp1_count+hp2_count) >= hapRatio and 
               hp2_count >= minvariant):
             read_dictHP2[line[0]].add(key)
+    check_read=set([read for read, count in collections.Counter(check_read).items() if count > 1])
     per_read.close()
     variant_dict_HP1= defaultdict(lambda: defaultdict(int))
     variant_dict_HP2= defaultdict(lambda: defaultdict(int))
@@ -1062,7 +1053,8 @@ def main(args):
         line= line.rstrip().split('\t')
         if int(line[6].split(':')[1]) < MappingQuality:
             continue
-        if not args.include_supplementary and line[5].split(':')[1]=="yes":
+        if ((not args.include_supplementary or line[3] in check_read) and 
+            line[5].split(':')[1]=="yes"):
             continue
         key= (line[0],line[3],line[4])
         variants= [(line[0],i.split(":")[0],i.split(':')[2]) for i in 
@@ -1086,6 +1078,7 @@ def main(args):
     out_non_pofo_reads = out + '_NonPofO_HP1-HP2_reads.tsv'
     re_assignment= open(out_non_pofo,'w')
     reads_NonPofO= open(out_non_pofo_reads,'w')
+    reads_NonPofO.write("Chromosome\tReadID\tStrand\tOrigin\n")
     hp1s= set()
     hp2s= set()
     info_out_dict= defaultdict(lambda: defaultdict(int))
@@ -1107,7 +1100,9 @@ def main(args):
             if not args.include_all_variants and line[6] not in ["PASS","."]:
                 re_assignment.write('\t'.join(line[0:8]+
                                     [':'.join(new_ps)]+
-                                    [':'.join(new_hp).replace("|", "/")])+'\n')
+                                    [':'.join(new_hp).replace("1|0", "0/1").
+                                                      replace("2|1", "1/2").
+                                                      replace("|", "/")])+'\n')
                 continue
             
             if line[9].startswith(("0/1","1/0","0|1","1|0",
@@ -1166,7 +1161,9 @@ def main(args):
                     else:
                         re_assignment.write('\t'.join(line[0:8]+
                                                       [':'.join(new_ps)]+
-                                                      [':'.join(new_hp).replace("|", "/")])+'\n')
+                                                      [':'.join(new_hp).replace("1|0", "0/1").
+                                                        replace("2|1", "1/2").
+                                                        replace("|", "/")])+'\n')
                 elif line[9].startswith(("1/1","1|1")):
                     re_assignment.write('\t'.join(line)+'\n')
                 
@@ -1218,11 +1215,15 @@ def main(args):
                     else:
                         re_assignment.write('\t'.join(line[0:8]+
                                             [':'.join(new_ps)]+
-                                            [':'.join(new_hp).replace("|", "/")])+'\n')
+                                            [':'.join(new_hp).replace("1|0", "0/1").
+                                              replace("2|1", "1/2").
+                                              replace("|", "/")])+'\n')
             else:
                 re_assignment.write('\t'.join(line[0:8]+
                                               [':'.join(new_ps)]+
-                                              [':'.join(new_hp).replace("|", "/")])+'\n')
+                                              [':'.join(new_hp).replace("1|0", "0/1").
+                                                replace("2|1", "1/2").
+                                                replace("|", "/")])+'\n')
         re_assignment.close()
     read_dictHP1 = defaultdict(set)
     read_dictHP2 = defaultdict(set)    
@@ -1236,7 +1237,8 @@ def main(args):
         line= line.rstrip().split('\t')
         if int(line[6].split(':')[1]) < MappingQuality:
             continue
-        if not args.include_supplementary and line[5].split(':')[1]=="yes":
+        if ((not args.include_supplementary or line[3] in check_read) and 
+            line[5].split(':')[1]=="yes"):
             continue
         key= (line[0],line[3],line[4])
         variants= [(line[0],str(int(i.split(":")[0])+1),i.split(':')[2]) for i in 
@@ -1277,7 +1279,7 @@ def main(args):
                                    repeat(read_dictHP1),
                                    repeat(read_dictHP2),
                                    repeat(callthresh), 
-                                   repeat(ref_file))))
+                                   repeat(args.reference))))
     p.close()
     p.join()
     for freq_dict in freq_dicts:
@@ -1328,15 +1330,18 @@ def main(args):
            shell=True,
            check=True)
     except:
-        raise Exception("python subprocess failed."
-                        " Make sure you have R, DSS R package, bgzip and"
-                        " tabix installed. Moreover, it might be caused because you"
-                        " specified both --smoothing_flag and --equal_disp options as FALSE.")
+        raise Exception("python subprocess failed. This can be due to some reasons including:"
+                        " 1- You do not have R, DSS R package, bgzip and"
+                        " tabix installed. 2- It might be caused because you"
+                        " specified both --smoothing_flag and --equal_disp options as FALSE."
+                        " 3- It might be caused because the MethylationHP1.tsv and/or MethylationHP2.tsv"
+                        " files are empty or have very few sites and differential methylation failed.")
         
     out_pofo = out + '_PofO_Assignment.vcf'
     out_pofo_reads = out + '_PofO_Assignment_reads.tsv'
     assignment_file= open(out_pofo, 'w')
     reads_PofO= open(out_pofo_reads,'w')
+    reads_PofO.write("Chromosome\tReadID\tStrand\tOrigin\n")
     chrom_list= sorted(chrom_list)
     (chrom_hp_origin_count,
      chrom_hp_origin_count_all_cg,
@@ -1484,7 +1489,9 @@ def main(args):
                     else:
                         assignment_file.write('\t'.join(line[0:8]+
                                                 [line[8].replace(":PS", "")]+
-                                                [line[9].replace("|", "/").
+                                                [line[9].replace("1|0", "0/1").
+                                                  replace("2|1", "1/2").
+                                                  replace("|", "/").
                                                   replace(":Ref_HP1/HP2","").
                                                   replace(":Ref_HP2/HP1","").
                                                   replace(":HP1/HP2","").
@@ -1492,7 +1499,9 @@ def main(args):
                 else:
                     assignment_file.write('\t'.join(line[0:8]+
                                                 [line[8].replace(":PS", "")]+
-                                                [line[9].replace("|", "/").
+                                                [line[9].replace("1|0", "0/1").
+                                                  replace("2|1", "1/2").
+                                                  replace("|", "/").
                                                   replace(":Ref_HP1/HP2","").
                                                   replace(":Ref_HP2/HP1","").
                                                   replace(":HP1/HP2","").
@@ -1510,10 +1519,10 @@ def main(args):
                      "Num_All_CGs_CouldBeExaminedInBothHaplotypes_At_Conflicting_iDMRs\n")
     out_freqMaternal= out + '_PofO_Assignment_MethylationMaternal.tsv'
     out_freqPaternal= out + '_PofO_Assignment_MethylationPaternal.tsv'
-    out_freqMaternal_non_pofo = open(out_freqMaternal,'w')
-    out_freqPaternal_non_pofo = open(out_freqPaternal,'w')
-    out_freqMaternal_non_pofo.write(freq_header+"\n")
-    out_freqPaternal_non_pofo.write(freq_header+"\n")
+    out_freqMaternal_pofo = open(out_freqMaternal,'w')
+    out_freqPaternal_pofo = open(out_freqPaternal,'w')
+    out_freqMaternal_pofo.write(freq_header+"\n")
+    out_freqPaternal_pofo.write(freq_header+"\n")
     for chrom,val in chrom_hp_origin.items():
         for hp,score in val.items():
             if hp=="HP1":
@@ -1521,27 +1530,27 @@ def main(args):
                 if origin_hp1 == "maternal":
                     out_pofo_freq(out_freqhp1,
                                   chrom,
-                                  out_freqMaternal_non_pofo)
+                                  out_freqMaternal_pofo)
                     out_pofo_freq(out_freqhp2,
                                   chrom,
-                                  out_freqPaternal_non_pofo)
+                                  out_freqPaternal_pofo)
                     origin_hp1= "Maternal"
                     origin_hp2= "Paternal"
                 elif origin_hp1 == "paternal":
                     out_pofo_freq(out_freqhp1,
                                   chrom,
-                                  out_freqPaternal_non_pofo)
+                                  out_freqPaternal_pofo)
                     out_pofo_freq(out_freqhp2,
                                   chrom,
-                                  out_freqMaternal_non_pofo)
+                                  out_freqMaternal_pofo)
                     origin_hp1= "Paternal"
                     origin_hp2= "Maternal"
                 out_scores.write('\t'.join([chrom,origin_hp1,origin_hp2,
                                             str(score[1]/(score[1]+score[2]))] +
                                            list(map(str,score[1:])))+'\n')
     out_scores.close()
-    out_freqMaternal_non_pofo.close()
-    out_freqPaternal_non_pofo.close()
+    out_freqMaternal_pofo.close()
+    out_freqPaternal_pofo.close()
     if not args.include_all_variants:
         print("Per chromosome info for the variants with \"PASS\""
               " or \".\" in FILTER column in the input vcf file:")
@@ -1691,9 +1700,11 @@ optional.add_argument("--min_base_quality", "-mbq",
                       required=False,
                       default=7,
                       help=("Only include bases with phred score higher or"
-                            " equal to this option. The default is >=7. if your bam "
-                            "does not include base quality data or cannot be obtained "
-                            "this option will not be used."))
+                            " equal to this option. The default is >=7. if "
+                            "any read/base in alignment file does not have base"
+                            " quality data or cannot be obtained, this option"
+                            " will be ignored for such reads/bases and all "
+                            "the bases will be used."))
 optional.add_argument("--mapping_quality", "-mq",
                       action="store",
                       type=int,
@@ -1747,7 +1758,7 @@ optional.add_argument("--include_all_variants", "-iav",
 optional.add_argument("--include_supplementary", "-is",
                       action="store_true",
                       required=False,
-                      help="Also include supplementary reads (Not recommended).")
+                      help="Also include supplementary reads.")
 optional.add_argument("--include_indels", "-ind",
                       action="store_true",
                       required=False,
