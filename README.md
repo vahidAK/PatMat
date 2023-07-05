@@ -294,9 +294,10 @@ Here is the full list of options:
 patmat.py -h
 
 usage: patmat.py --bam BAM --output OUTPUT --vcf VCF --strand_vcf STRAND_VCF
-                 --reference REFERENCE --methylcallfile METHYLCALLFILE
+                 --methylcallfile METHYLCALLFILE
                  [--tool_and_callthresh TOOL_AND_CALLTHRESH]
-                 [--known_dmr KNOWN_DMR] [--whatshap_vcf WHATSHAP_VCF]
+                 [--reference REFERENCE] [--known_dmr KNOWN_DMR]
+                 [--whatshap_vcf WHATSHAP_VCF]
                  [--whatshap_block WHATSHAP_BLOCK] [--black_list BLACK_LIST]
                  [--hapratio HAPRATIO] [--min_base_quality MIN_BASE_QUALITY]
                  [--mapping_quality MAPPING_QUALITY]
@@ -304,11 +305,11 @@ usage: patmat.py --bam BAM --output OUTPUT --vcf VCF --strand_vcf STRAND_VCF
                  [--min_read_number MIN_READ_NUMBER] [--min_cg MIN_CG]
                  [--cpg_difference CPG_DIFFERENCE] [--include_all_variants]
                  [--include_supplementary] [--include_indels]
-                 [--per_read PER_READ] [--threads THREADS]
+                 [--per_read PER_READ] [--processes PROCESSES]
                  [--chunk_size CHUNK_SIZE] [--delta_cutoff DELTA_CUTOFF]
                  [--pvalue PVALUE] [--smoothing_span SMOOTHING_SPAN]
                  [--smoothing_flag SMOOTHING_FLAG] [--equal_disp EQUAL_DISP]
-                 [--version] [-h]
+                 [--dss_processes DSS_PROCESSES] [--version] [-h]
 
 Phasing reads and Methylation using strand-seq and nanopore to determine PofO
 of each homologous chromosome in a single sample.
@@ -323,29 +324,34 @@ Required arguments:
                         The path to the chromosome-scale phased vcf file. This
                         is the input vcf file that has been phased using
                         strand-seq data.
-  --reference REFERENCE, -ref REFERENCE
-                        The path to the reference file. File must be indexed
-                        using samtools faidx.
   --methylcallfile METHYLCALLFILE, -mc METHYLCALLFILE
                         The path to the per-read methylation call file or the
                         bam file with methylation tag.
+  --reference REFERENCE, -ref REFERENCE
+                        If you have given a bam file with methylation tag for
+                        the --tool_and_callthresh option, then you must also
+                        give the path to the reference file. File must be
+                        indexed using samtools faidx.
 
 Optional arguments:
   --tool_and_callthresh TOOL_AND_CALLTHRESH, -tc TOOL_AND_CALLTHRESH
                         Software you have used for methylation calling:Call
-                        threshold. Supported tools include guppy (bam file
-                        with CpG methylation tags), nanoplish, megalodon
-                        (megalodon calls must include only CpG methylation),
-                        and deepsignal. For example, nanopolish:1.5 is when
-                        methylation calling performed by nanopolish and a CpG
-                        with llr >= 1.5 will be considered as methylated and
-                        llr <= -1.5 as unmethylated, anything in between will
-                        be considered as ambiguous call and ignored. For
-                        guppy, megalodon, and deepsignl call threshold will be
-                        delta probability (0-1). For example threshold 0.4
-                        means any call >=0.7 is methylated and <=0.3 is not
-                        and between 0.3-0.7 will be ignored. Default is
-                        guppy:0.4
+                        threshold. Supported files include methbam (bam file
+                        with CpG methylation tags. For example, methylation
+                        bam produced by guppy basecaller) and per-read CpG
+                        methylation calls from nanoplish (or f5c>=v0.7),
+                        megalodon, and deepsignal. For example, nanopolish:1.5
+                        is when methylation calling performed by nanopolish
+                        and a CpG with llr >= 1.5 will be considered as
+                        methylated and llr <= -1.5 as unmethylated, anything
+                        in between will be considered as ambiguous call and
+                        ignored. For methbam, megalodon, and deepsignl call
+                        threshold will be delta probability (0-1). For example
+                        threshold 0.4 means any call >=0.7 is methylated and
+                        <=0.3 is not and between 0.3-0.7 will be ignored.
+                        Default is methbam:0.4. If methbam is selected you
+                        must also provide path to the reference file using
+                        --reference option.
   --known_dmr KNOWN_DMR, -kd KNOWN_DMR
                         The path to the input file for known imprinted DMRs.
                         File must have the following information in the
@@ -358,7 +364,8 @@ Optional arguments:
                         Path to the WhatsHap phased vcf file that is produced
                         from phasing input vcf file using nanopore reads. This
                         can be useful when the chromosome-scale phased
-                        variants are very sparse. File must be sorted and
+                        variants are very sparse but be aware that this might
+                        also results in more errors. File must be sorted and
                         indexed using tabix.
   --whatshap_block WHATSHAP_BLOCK, -wb WHATSHAP_BLOCK
                         Path to the WhatsHap block file. This file can be
@@ -385,9 +392,10 @@ Optional arguments:
                         based on strand-seq phased variants.
   --min_base_quality MIN_BASE_QUALITY, -mbq MIN_BASE_QUALITY
                         Only include bases with phred score higher or equal to
-                        this option. The default is >=7. if your bam does not
-                        include base quality data or cannot be obtained this
-                        option will not be used.
+                        this option. The default is >=7. if any read/base in
+                        alignment file does not have base quality data or
+                        cannot be obtained, this option will be ignored for
+                        such reads/bases and all the bases will be used.
   --mapping_quality MAPPING_QUALITY, -mq MAPPING_QUALITY
                         An integer value to specify threshold for filtering
                         reads based on mapping quality. Default is >=20
@@ -413,10 +421,11 @@ Optional arguments:
                         0.1.
   --include_all_variants, -iav
                         By default, only variants that have "PASS" or "." in
-                        the FILTER column of the input vcf file will be used.
-                        Select this flag if you want to use all the variants.
+                        the FILTER column of the input vcf file will be used
+                        during phasing and PofO assignment. Select this flag
+                        if you want to use all the variants.
   --include_supplementary, -is
-                        Also include supplementary reads (Not recommended).
+                        Also include supplementary reads.
   --include_indels, -ind
                         Also include indels for read phasing to haplotypes.
   --per_read PER_READ, -pr PER_READ
@@ -431,7 +440,7 @@ Optional arguments:
                         block switches using strand-seq phased variants),
                         different dmr list, black list, include/exclude
                         indels, and include/exclude supp reads.
-  --threads THREADS, -t THREADS
+  --processes PROCESSES, -p PROCESSES
                         Number of parallel processes. Default is 4.
   --chunk_size CHUNK_SIZE, -cs CHUNK_SIZE
                         Chunk per process. Default is 100
@@ -445,7 +454,7 @@ Optional arguments. The following options are DSS options for differential methy
                         is specified, the function will compute the posterior
                         probability that the difference of the means are
                         greater than delta, and then call DML based on that.
-                        Default is 0.1.
+                        Default is 0.075.
   --pvalue PVALUE, -pv PVALUE
                         0-1. When delta is not specified, this is the
                         threshold of p-value for defining DML and loci with
@@ -468,6 +477,14 @@ Optional arguments. The following options are DSS options for differential methy
                         FALSE Because there is no biological replicate here,
                         you should specify either equal_disp TRUE or
                         smoothing_flag TRUE. Do not specify both as FALSE.
+  --dss_processes DSS_PROCESSES, -dp DSS_PROCESSES
+                        Number of parallel processes use for DSS differential
+                        methylation analysis. If not given, it will be the
+                        same as --processes option. Differential methylation
+                        analysis usually requires high memory and if there is
+                        not enough memory, specify less number processes using
+                        this flag for DSS to allocate available memory for
+                        less processes.
 
 Help and version options:
   --version             Print program's version and exit
@@ -476,22 +493,18 @@ Help and version options:
 ### 3-1 Outputs
 PatMat will generate multiple outputs.
 #### 3-1-1 NonPofO_HP1-HP2 results 
-These are a vcf and a tsv files. These files represent the results for phasing methylation and reads and re-phasing het variants (haplotype 1 or HP1 and haplotype 2 or HP2) before assigning parent-of-origin. In the vcf file, for phased 0/1 (0|1 or 1|0) variants the last column includes HP1|HP2 (Ref is HP1 and alt is HP2), or HP2|HP1 (Ref is HP2 and alt is HP1) and for the phased 1/2 variants (1|2) the last column includes Ref_HP1|HP2 (the part before comma on the 5th column is HP1 and the part after comma is HP2) or Ref_HP2|HP1 
-(the part before comma on the 5th column is HP2 and the part after comma is HP1).  
-Note: During re-phasing input vcf variants, if your input vcf is a phased vcf file and some of the variants could not be re-phased, the phase sign "|" will be just replaced 
-by "/" sign (e.g. 1|0 will be 1/0).  
+These are vcf and tsv files. These files represent the results for phasing methylation and reads and re-phasing het variants (haplotype 1 or HP1 and haplotype 2 or HP2) before assigning parent-of-origin. In the vcf file, for phased 0/1 (0|1 or 1|0) variants the last column includes HP1|HP2 (Ref is HP1 and alt is HP2), or HP2|HP1 (Ref is HP2 and alt is HP1) and for the phased 1/2 variants (1|2) the last column includes Ref_HP1|HP2 (the part before comma on the 5th column is HP1 and the part after comma is HP2) or Ref_HP2|HP1 (the part before comma on the 5th column is HP2 and the part after comma is HP1).   
 #### 3-1-2 PofO_Assignment results 
-These are a vcf and a tsv files. These files represent the results after assigning the parent-of-origin to HP1 and HP2 methylation data, reads, and variants. In the vcf file, for phased 0/1 (0|1 or 1|0) variants the last column includes Mat|Pat (Ref is maternal and alt is paternal), or Pat|Mat (Ref is paternal and alt is maternal) and for the phased 1/2 variants (1|2) the last column includes Ref_Mat|Pat (the part before comma on the 5th column is maternal and the part after comma is paternal) or Ref_Pat|Mat (the part before comma on the 5th column is paternal and the part after comma is maternal).  
-Note: During PofO assignment to the re-phased variants, the phase sign "|" will be just replaced by "/" sign (e.g. 1|0 will be 1/0) if PofO could not be inferred.  
+These are vcf and tsv files. These files represent the results after assigning the parent-of-origin to HP1 and HP2 methylation data, reads, and variants. In the vcf file, for phased 0/1 (0|1 or 1|0) variants the last column includes Mat|Pat (Ref is maternal and alt is paternal), or Pat|Mat (Ref is paternal and alt is maternal) and for the phased 1/2 variants (1|2) the last column includes Ref_Mat|Pat (the part before comma on the 5th column is maternal and the part after comma is paternal) or Ref_Pat|Mat (the part before comma on the 5th column is paternal and the part after comma is maternal).  
 #### 3-1-3 CpG-Methylation-Status-at-DMRs 
-This file represents status of CpGs and their methylation at each DMR on each haplotype, including the number of CpGs at haplotypes and their methylation 
+This file represents the status of CpGs and their methylation at each DMR on each haplotype, including the number of CpGs at haplotypes and their methylation 
 frequencies on each haplotype, how many of them showed differential methylation on each haplotype, and if the iDMR included for PofO assignment and score calculation or not.  
 #### 3-1-4 DMLtest.tsv.gz and callDML.tsv.gz
-These are the files from DSS statistical analysis for detection of differentially methylated CpGs. DMLtest stores statistical results for all the CpGs and callDML stores differentially methylated CpGs.
+These are the files from DSS statistical analysis for the detection of differentially methylated CpGs. DMLtest stores statistical results for all the CpGs and callDML stores differentially methylated CpGs.
 #### 3-1-5 PofO_Scores.tsv 
-This file includes PofO assignment score for each chromosome.
+This file includes the PofO assignment score along with some more information for each chromosome. As of version 1.3.0 PofO assignment scoring is changed and for each chromosome it represents (# of all differentially methylated CGs in chromosome supporting PofO assignment) / (# of all differentially methylated CGs in chromosome).  
 #### 3-1-6 HP1_HP2_PerReadInfo 
-This file includes per-read information including coordinates and strand of the reads on reference, read flag and if the read is supplementary or not, read length and mapping quality, and finally the positions, phred score base quality and base(s) from the read at the input phased het variants from strand-seq (or strand-seq plus WhatsHap, if given) for HP1 and HP2 and unphased variants in the input vcf file (1|2 variants are considered as unphased). Base quality for indels represents the base quality of the first base. Positions in the per-read file are zero-based.  
+This file includes per-read information including coordinates and strand of the reads on reference, read flag and if the read is supplementary or not, read alignment length and mapping quality, and finally the positions, phred score base quality and base(s) from the read at the input phased het variants from strand-seq (or strand-seq plus WhatsHap, if given) for HP1 and HP2 and unphased variants in the input vcf file (1|2 variants are considered as unphased). Base quality for indels represents the base quality of the first base. Positions in the per-read file are zero-based.  
 **Note:** If you wish to try different criteria, the per-read file produced by PatMat >=v1.2.0 allows you to try different thresholds for options (**Note** that if you also provided WhatsHap phased vcf in your first try, then you **cannot** use per-read to try different --min_variant or --hapratio because these options will be also used to correct WhatsHap phased-block switches using strand-seq phased variants.), different dmr list, black list, include/exclude indels, and include/exclude supp reads much 
 faster.  
 # More info about other methylation callers
