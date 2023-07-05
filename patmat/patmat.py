@@ -348,8 +348,6 @@ def PofO_dmr(known_dmr,
                            '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + 
                            'Ignored:DifferentiallyMethylatedCpGsIsZeroInBothHaplotypes\n')
             continue
-        diff_cg_hp1= diff_cg_hp1
-        diff_cg_hp2= diff_cg_hp2
         out_meth.write('\t'.join(line)+'\t'+str(num_cg)+'\t'+
                        str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+
                        '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + 
