@@ -1601,7 +1601,9 @@ required.add_argument("--methylcallfile", "-mc",
                       type=str,
                       required=True,
                       help=("The path to the per-read methylation "
-                            "call file or the bam file with methylation tag."))
+                            "call file or the bam file with methylation tag. "
+                            "If your input bam file includes methylation tags "
+                            "you just need to specify your input bam file again for this option."))
 optional = parser.add_argument_group("Optional arguments")
 optional.add_argument("--tool_and_callthresh", "-tc",
                            action="store",
@@ -1610,8 +1612,7 @@ optional.add_argument("--tool_and_callthresh", "-tc",
                            default="methbam:0.4",
                            help=("Software you have used for methylation "
                                  "calling:Call threshold. Supported files "
-                                 "include methbam (bam file with CpG methylation"
-                                 " tags. For example, methylation bam produced by "
+                                 "include methbam (Methylation bam format produced by "
                                  "guppy basecaller) and per-read CpG methylation calls from "
                                  "nanoplish (or f5c>=v0.7), megalodon, and deepsignal. "
                                  "For example, nanopolish:1.5 is when methylation"
