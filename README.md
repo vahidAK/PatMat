@@ -326,7 +326,9 @@ Required arguments:
                         strand-seq data.
   --methylcallfile METHYLCALLFILE, -mc METHYLCALLFILE
                         The path to the per-read methylation call file or the
-                        bam file with methylation tag.
+                        bam file with methylation tag. If your input bam file
+                        includes methylation tags you just need to specify
+                        your input bam file again for this option.
   --reference REFERENCE, -ref REFERENCE
                         If you have given a bam file with methylation tag for
                         the --tool_and_callthresh option, then you must also
@@ -336,22 +338,21 @@ Required arguments:
 Optional arguments:
   --tool_and_callthresh TOOL_AND_CALLTHRESH, -tc TOOL_AND_CALLTHRESH
                         Software you have used for methylation calling:Call
-                        threshold. Supported files include methbam (bam file
-                        with CpG methylation tags. For example, methylation
-                        bam produced by guppy basecaller) and per-read CpG
-                        methylation calls from nanoplish (or f5c>=v0.7),
-                        megalodon, and deepsignal. For example, nanopolish:1.5
-                        is when methylation calling performed by nanopolish
-                        and a CpG with llr >= 1.5 will be considered as
-                        methylated and llr <= -1.5 as unmethylated, anything
-                        in between will be considered as ambiguous call and
-                        ignored. For methbam, megalodon, and deepsignl call
-                        threshold will be delta probability (0-1). For example
-                        threshold 0.4 means any call >=0.7 is methylated and
-                        <=0.3 is not and between 0.3-0.7 will be ignored.
-                        Default is methbam:0.4. If methbam is selected you
-                        must also provide path to the reference file using
-                        --reference option.
+                        threshold. Supported files include methbam
+                        (Methylation bam format produced by guppy basecaller)
+                        and per-read CpG methylation calls from nanoplish (or
+                        f5c>=v0.7), megalodon, and deepsignal. For example,
+                        nanopolish:1.5 is when methylation calling performed
+                        by nanopolish and a CpG with llr >= 1.5 will be
+                        considered as methylated and llr <= -1.5 as
+                        unmethylated, anything in between will be considered
+                        as ambiguous call and ignored. For methbam, megalodon,
+                        and deepsignl call threshold will be delta probability
+                        (0-1). For example threshold 0.4 means any call >=0.7
+                        is methylated and <=0.3 is not and between 0.3-0.7
+                        will be ignored. Default is methbam:0.4. If methbam is
+                        selected you must also provide path to the reference
+                        file using --reference option.
   --known_dmr KNOWN_DMR, -kd KNOWN_DMR
                         The path to the input file for known imprinted DMRs.
                         File must have the following information in the
