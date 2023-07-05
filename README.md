@@ -498,8 +498,8 @@ These are vcf and tsv files. These files represent the results for phasing methy
 #### 3-1-2 PofO_Assignment results 
 These are vcf and tsv files. These files represent the results after assigning the parent-of-origin to HP1 and HP2 methylation data, reads, and variants. In the vcf file, for phased 0/1 (0|1 or 1|0) variants the last column includes Mat|Pat (Ref is maternal and alt is paternal), or Pat|Mat (Ref is paternal and alt is maternal) and for the phased 1/2 variants (1|2) the last column includes Ref_Mat|Pat (the part before comma on the 5th column is maternal and the part after comma is paternal) or Ref_Pat|Mat (the part before comma on the 5th column is paternal and the part after comma is maternal).  
 #### 3-1-3 CpG-Methylation-Status-at-DMRs 
-This file represents the status of CpGs and their methylation at each DMR on each haplotype, including the number of CpGs at haplotypes and their methylation 
-frequencies on each haplotype, how many of them showed differential methylation on each haplotype, and if the iDMR included for PofO assignment and score calculation or not.  
+This file represents the status of methylation at iDMRs on each haplotype, including the number of CpGs at haplotypes and their methylation frequencies on each haplotype, how many of them showed differential methylation on each haplotype, and if the iDMR included for PofO assignment and score calculation or not.  
+If a chromosome could not be assigned a PofO or the PofO score for a chromosome is low you can manually inspect this file to better understand the methylation status at the iDMRs for the chromosome and manually assign PofO to the chromosome or ignore the chromosome.  
 #### 3-1-4 DMLtest.tsv.gz and callDML.tsv.gz
 These are the files from DSS statistical analysis for the detection of differentially methylated CpGs. DMLtest stores statistical results for all the CpGs and callDML stores differentially methylated CpGs.
 #### 3-1-5 PofO_Scores.tsv 
