@@ -1333,7 +1333,9 @@ def main(args):
                         " tabix installed. 2- It might be caused because you"
                         " specified both --smoothing_flag and --equal_disp options as FALSE."
                         " 3- It might be caused because the MethylationHP1.tsv and/or MethylationHP2.tsv"
-                        " files are empty or have very few sites and differential methylation failed.")
+                        " files are empty or have very few sites and differential methylation failed."
+                        " 4- DMA_UsingDSS.R script does not exist in the installed PatMat directory or"
+                        " directory that contains patmat.py script.")
         
     out_pofo = out + '_PofO_Assignment.vcf'
     out_pofo_reads = out + '_PofO_Assignment_reads.tsv'
