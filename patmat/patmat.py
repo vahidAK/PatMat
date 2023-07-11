@@ -1863,7 +1863,7 @@ optional.add_argument("--dss_processes", "-dp",
                             "for less processes.")
 optional = parser.add_argument_group("Help and version options")
 optional.add_argument('--version', action='version', 
-                      version='%(prog)s 1.3.0',
+                      version='%(prog)s 1.3.1_dev',
                       help= "Print program's version and exit")
 optional.add_argument('-h', '--help', action='help', default=argparse.SUPPRESS,
                       help="Print this help and exit.")
