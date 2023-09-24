@@ -94,7 +94,7 @@ guppy_basecaller  \
     --index \
     --align_ref ${reference_fasta} \
     --disable_pings \
-    --data_path /gsc/software/linux-x86_64-ubuntu20/ont-guppy_6.3.8/ont-guppy/data/ \
+    --data_path <Path to use for loading any data files the application requires (e.g., config file). This is needed when your given config file is not among the default configs shipped by the tool> \ 
     --trim_strategy dna
 ```
 After basecalling if you have multiple bam files you need to merge them all into a single bam file. Bam file must be reference coordinate sorted and indexed.  
