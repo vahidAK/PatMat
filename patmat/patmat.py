@@ -258,16 +258,11 @@ def PofO_dmr(known_dmr,
     This function maps differentially methylated CpGs 
     to the known iDMRs for PofO assignment 
     '''
-    tb_calldml= tabix.open(out+"_callDML.tsv.gz")
-    tb_dmltest= tabix.open(out+"_DMLtest.tsv.gz")
-    out_meth= open(out+"_CpG-Methylation-Status-at-DMRs.tsv",'w')
+    tb_calldml= tabix.open(out+"_temp_callDML.tsv.gz")
+    tb_dmltest= tabix.open(out+"_temp_DMLtest.tsv.gz")
+    out_meth= open(out+"_CpG-Methylation-Status-at-DMRs.tsv",'a')
     dmr_file= openfile(known_dmr)
     header= next(dmr_file).rstrip()
-    out_meth.write(header+"\tAll_CpGs_At_iDMR_CouldBeExaminedInBothHaplotypes\t"
-                   "DifferentiallyMethylatedCpGs_HypermethylatedOnHP1\t"
-                   "DifferentiallyMethylatedCpGs_HypermethylatedOnHP2\t"
-                   "MethylationFrequency_HP1\tMethylationFrequency_HP2\t"
-                   "Included_Or_Ignored_For_PofO_Assignment\n")
     chrom_hp_origin_count= defaultdict(lambda: defaultdict(int))
     chrom_hp_origin_count_all_cg= defaultdict(lambda: defaultdict(int))
     chrom_hp_origin_count_diff_cg= defaultdict(lambda: defaultdict(int))
@@ -404,8 +399,8 @@ def out_freq_methbam(out,
                      processes,
                      reference,
                      pbcg):
-    out_freqhp1= out + '_NonPofO_HP1-HP2_MethylationHP1.tsv'
-    out_freqhp2= out + '_NonPofO_HP1-HP2_MethylationHP2.tsv'
+    out_freqhp1= out + '_temp_NonPofO_HP1-HP2_MethylationHP1.tsv'
+    out_freqhp2= out + '_temp_NonPofO_HP1-HP2_MethylationHP2.tsv'
     out_dir=os.path.dirname(out)
     out_pref= os.path.basename(out)
     if pbcg is None:
@@ -485,7 +480,7 @@ def vcf2dict(vcf_strand,
     Process and converts the strand-seq vcf file to a dictionary
     for downstream use.
     """
-    strand_vars= 0
+    strand_phased_vars= 0
     vcf_dict= defaultdict(dict)
     vcf_file = openfile(vcf_strand)
     for line in vcf_file:
@@ -502,10 +497,10 @@ def vcf2dict(vcf_strand,
                           "will be interpreted as 1|0 or 0|1 or 0|1 or "
                           "1|0".format(line[0], line[1]))
         if line[9].startswith(('1|0','0|1')):
-            strand_vars += 1
+            strand_phased_vars += 1
             vcf_dict[line[0]][line[1]] = line[9].split(':')[0]
     vcf_file.close()
-    return vcf_dict, strand_vars
+    return vcf_dict, strand_phased_vars
 
 
 def check_vcfs(vcf,
@@ -518,7 +513,7 @@ def check_vcfs(vcf,
     '''
     common_strand= 0
     common_whats= 0
-    vcf_dict, strand_vars= vcf2dict(vcf_strand, chrom)
+    vcf_dict, strand_phased_vars= vcf2dict(vcf_strand, chrom)
     with openfile(vcf) as vf:
         for line in vf:
             line=line.rstrip().split('\t')
@@ -533,7 +528,7 @@ def check_vcfs(vcf,
         print("Out of {} reference heterozygous phased variants in {} in "
                 "strand-seq vcf, {} variants had the same position "
                 "in input vcf file."
-                "".format(strand_vars, chrom,
+                "".format(strand_phased_vars, chrom,
                                 common_strand))
     if vcf_prephased is not None:
         with openfile(vcf_prephased) as vp:
@@ -550,7 +545,7 @@ def check_vcfs(vcf,
               "strand-seq vcf, {} variants had the same position in "
               "input vcf and {} variants "
               " had the same position in phased_vcf_block vcf file."
-              "".format(strand_vars, chrom,
+              "".format(strand_phased_vars, chrom,
                         common_strand,
                         common_whats))
     
@@ -566,7 +561,7 @@ def strand_vcf2dict_phased(vcf_strand,
     '''
     check_vcfs(vcf, vcf_strand, None, chrom)
     final_dict= defaultdict(set)
-    vcf_dict, strand_vars= vcf2dict(vcf_strand,chrom)
+    vcf_dict, strand_phased_vars= vcf2dict(vcf_strand,chrom)
     with openfile(vcf) as vf:
         for line in vf:
             line=line.rstrip().split('\t')
@@ -593,7 +588,7 @@ def strand_vcf2dict_phased(vcf_strand,
                                         line[3].upper(),
                                         (line[4].split(',')[0].upper(),
                                         line[4].split(',')[1].upper())))
-    return final_dict
+    return final_dict, strand_phased_vars
                 
 
 def vcf2dict_phased(block_file, 
@@ -613,7 +608,7 @@ def vcf2dict_phased(block_file,
     '''
     check_vcfs(vcf, vcf_strand, vcf_prephased,chrom)
     final_dict= defaultdict(set)
-    vcf_dict, strand_vars= vcf2dict(vcf_strand,chrom)
+    vcf_dict, strand_phased_vars= vcf2dict(vcf_strand,chrom)
     tb_whatsvcf= tabix.open(os.path.abspath(vcf_prephased))
     for blocks in block_file:
         b_chrom, b_start, b_end= blocks
@@ -688,7 +683,7 @@ def vcf2dict_phased(block_file,
                                         line[4].split(',')[1].upper())))
 
     vcf_dict.clear()
-    return final_dict
+    return final_dict, strand_phased_vars
 
 
 
@@ -842,11 +837,36 @@ def main(args):
     chroms= set()
     with openfile(vcf) as vf_file:
         for line in vf_file:
-            if not line.startswith("#"):
-                chroms.add(line.rstrip().split('\t')[0])
-            else:
+            if line.startswith("##"):
                 assignment_file.write(line)
+            elif line.startswith("#"):
+                assignment_file.write(line.rstrip()+"\tNumAllReads\t"
+                                       "NumReadsHP1\nNumReadsHP2\tNumReadsHP1RefAllele"
+                                       "\tNumReadsHP2RefAllele\tNumReadsHP1AltAllele"
+                                       "\tNumReadsHP2AltAllele\tNumReadsMaternalRefAllele"
+                                       "\tNumReadsPaternalRefAllele\tNumReadsMaternalAltAllele"
+                                       "\tNumReadsPaternalAltAllele")
+            else:
+                chroms.add(line.rstrip().split('\t')[0])
     assignment_file.close()
+    out_meth= open(out+"_CpG-Methylation-Status-at-DMRs.tsv",'w')
+    dmr_file= openfile(known_dmr)
+    header= next(dmr_file).rstrip()
+    out_meth.write(header+"\tAll_CpGs_At_iDMR_CouldBeExaminedInBothHaplotypes\t"
+                   "DifferentiallyMethylatedCpGs_HypermethylatedOnHP1\t"
+                   "DifferentiallyMethylatedCpGs_HypermethylatedOnHP2\t"
+                   "MethylationFrequency_HP1\tMethylationFrequency_HP2\t"
+                   "Included_Or_Ignored_For_PofO_Assignment\n")
+    dmr_file.close()
+    out_meth.close()
+    out_dmltest= open(out+"_DMLtest.tsv",'w')
+    out_dmltest.write("chr\tstart\tend\tmu1\tmu2\tdiffdiff.se\t"
+                      "statphi1phi2pvalfdr\n")
+    out_dmltest.close()
+    out_calldml= open(out+"_temp_callDML.tsv",'w')
+    out_calldml.write("chr\tstart\tend\tmu1\tmu2\tdiffdiff.se\t"
+                      "statphi1phi2pvalfdr\tpostprob.overThreshold\n")
+    out_calldml.close()
     if args.sv_vcf is not None:
         all_sv_files=args.sv_vcf.split(',')
         for sv_file in all_sv_files:
@@ -856,20 +876,23 @@ def main(args):
                 for line in vf:
                     if line.startswith("##"):
                         sv_assignment_file.write(line)
-                    if line.startswith("#"):
-                        sv_assignment_file.write(line.rstrip()+"\tNumReadsFromColumn8ThatSuppostedMaternal\t"
-                                           "NumReadsFromColumn8ThatSuppostedPaternal"+'\n')
+                    elif line.startswith("#"):
+                        sv_assignment_file.write(line.rstrip()+"\tNumHp1ReadsFromColumn8\t"
+                                                 "NumHp2ReadsFromColumn8"
+                                                 "\tNumMaternalReadsFromColumn8"
+                                                 "\tNumPaternalReadsFromColumn8\n")
             sv_assignment_file.close()
+    
     for chrom in sorted(chroms):
         print("#############  Processing chromosome {}  #############".format(chrom))
         if args.strand_vcf is not None and args.phased_vcf_block is None:
             # print("Using strand-seq phased vcf only with"
             #               " {}.".format(known_dmr.split('/')[-1]))
             vcf_strand = os.path.abspath(args.strand_vcf)
-            final_dict= strand_vcf2dict_phased(vcf_strand, 
-                                               vcf, 
-                                               args.include_all_variants,
-                                               chrom)
+            final_dict, strand_phased_vars= strand_vcf2dict_phased(vcf_strand, 
+                                                           vcf, 
+                                                           args.include_all_variants,
+                                                           chrom)
         elif args.strand_vcf is not None and args.phased_vcf_block is not None:
             # print("Using both strand-seq phased and phased_vcf_block phased "
             #               "vcf with {}.".format(known_dmr.split('/')[-1]))
@@ -879,17 +902,68 @@ def main(args):
                 raise Exception("It seems that phased_vcf_block "
                                 "is not index by tabix.")
             block_file= get_block(vcf_prephased)
-            final_dict= vcf2dict_phased(block_file, 
-                                        vcf_prephased, 
-                                        vcf_strand,
-                                        hapRatio,
-                                        minvariant,
-                                        vcf,
-                                        args.include_all_variants,
-                                        chrom)
+            final_dict, strand_phased_vars= vcf2dict_phased(block_file, 
+                                                            vcf_prephased, 
+                                                            vcf_strand,
+                                                            hapRatio,
+                                                            minvariant,
+                                                            vcf,
+                                                            args.include_all_variants,
+                                                            chrom)
         else:
             raise Exception("No strand-seq vcf is given.")
-
+        
+        if strand_phased_vars==0:
+            warnings.warn("No phased strand-seq variant in {}. Skipping it.".format(chrom))
+            assignment_file= open(out + '_PofO_Assignment.vcf', 'a')
+            with openfile(vcf) as vcf_file:
+                for line in vcf_file:
+                    line= line.rstrip().split('\t')
+                    if line[0]==chrom:
+                        if 'PS' in line[8].split(":"):
+                            ps_index= line[8].split(":").index('PS')
+                            new_ps= line[8].split(":")
+                            new_hp= line[9].split(":")
+                            new_ps.pop(ps_index)
+                            new_hp.pop(ps_index)
+                        else:
+                            new_ps= line[8].split(":")
+                            new_hp= line[9].split(":")
+                        assignment_file.write('\t'.join(line[0:8]+
+                                                      [':'.join(new_ps)]+
+                                                      [':'.join(new_hp).replace("|", "/").
+                                                                        replace("1/0", "0/1").
+                                                                        replace("2/1", "1/2")]+
+                                                      ["NA","NA","NA","NA","NA","NA","NA"])+'\n')
+            assignment_file.close()
+            if args.sv_vcf is not None:
+                all_sv_files=args.sv_vcf.split(',')
+                for sv_file in all_sv_files:
+                    sv_assignment_file= open(out +"_"+os.path.basename(sv_file) + 
+                                             '_PofO_Assignment_SVs.vcf', 'a')
+                    with openfile(sv_file) as vf:
+                        for line in vf:
+                            line=line.rstrip().split("\t")
+                            if line[0]==chrom:
+                                gt=line[9].split(":")[0]
+                                if 'PS' in line[8].split(":"):
+                                    ps_index= line[8].split(":").index('PS')
+                                    new_ps= line[8].split(":")
+                                    new_hp= line[9].split(":")
+                                    new_ps.pop(ps_index)
+                                    new_hp.pop(ps_index)
+                                else:
+                                    new_ps= line[8].split(":")
+                                    new_hp= line[9].split(":")
+                                sv_assignment_file.write('\t'.join(line[0:8]+
+                                                              [':'.join(new_ps)]+
+                                                              [line[9].replace("|", "/").
+                                                                       replace("1/0", "0/1").
+                                                                       replace("2/1", "1/2")]+
+                                                              ["NA","NA"])+'\n')
+                    sv_assignment_file.close()
+            continue
+        
         (variant_dict,
          read_dict_HP1, 
          read_dict_HP2,
@@ -915,48 +989,6 @@ def main(args):
                 reads_hap[key]= 2
         read_dict_HP1.clear()
         read_dict_HP2.clear()
-        if not reads_hap:
-            warnings.warn("No reads could be phased in {}. Skipping it.".format(chrom))
-            assignment_file= open(out + '_PofO_Assignment.vcf', 'a')
-            with openfile(vcf) as vcf_file:
-                for line in vcf_file:
-                    line= line.rstrip().split('\t')
-                    if line[0]==chrom:
-                        if 'PS' in line[8].split(":"):
-                            ps_index= line[8].split(":").index('PS')
-                            new_ps= line[8].split(":")
-                            new_hp= line[9].split(":")
-                            new_ps.pop(ps_index)
-                            new_hp.pop(ps_index)
-                        else:
-                            new_ps= line[8].split(":")
-                            new_hp= line[9].split(":")
-                        if not args.include_all_variants and line[6] not in ["PASS","."]:
-                            assignment_file.write('\t'.join(line[0:8]+
-                                                  [':'.join(new_ps)]+
-                                                  [':'.join(new_hp).replace("|", "/").
-                                                                   replace("1/0", "0/1").
-                                                                   replace("2/1", "1/2")]+
-                                                  ["NA","NA","NA","NA","NA","NA","NA"])+'\n')
-                            continue
-                        if line[9].startswith(("0/1","1/0","0|1","1|0",
-                                               '1/2','1|2','2/1','2|1')):
-                            all_cov= str(per_var_cov[(line[0],int(line[1])-1)])
-                            assignment_file.write('\t'.join(line[0:8]+
-                                                          [':'.join(new_ps)]+
-                                                          [':'.join(new_hp).replace("|", "/").
-                                                                           replace("1/0", "0/1").
-                                                                           replace("2/1", "1/2")]+
-                                                          [all_cov,"0","0",
-                                                           "0", "0",
-                                                           "0","0"])+'\n')
-                        else:
-                            assignment_file.write('\t'.join(line[0:8]+
-                                                          [':'.join(new_ps)]+
-                                                          [':'.join(new_hp).replace("|", "/")]+
-                                                          ["NA","NA","NA","NA","NA","NA","NA"])+'\n')
-            assignment_file.close()       
-            continue
         for key,val in variant_dict.items():
             for read in val:
                 if (key[0],read) in reads_hap:
@@ -1080,8 +1112,8 @@ def main(args):
                         variant_dict_HP2_all[(key[0],key[1])] += 1
         variant_dict.clear()
         
-        out_freqhp1= out + '_NonPofO_HP1-HP2_MethylationHP1.tsv'
-        out_freqhp2= out + '_NonPofO_HP1-HP2_MethylationHP2.tsv'
+        out_freqhp1= out + '_temp_NonPofO_HP1-HP2_MethylationHP1.tsv'
+        out_freqhp2= out + '_temp_NonPofO_HP1-HP2_MethylationHP2.tsv'
         out_freq_methbam(out, processes, reference,args.pb_cpg_tools)
     
         #try:
@@ -1092,7 +1124,7 @@ def main(args):
                                                               "DMA_UsingDSS.R"),
                                                     out_freqhp1,
                                                     out_freqhp2,
-                                                    out,
+                                                    out+"_temp",
                                                     args.equal_disp,
                                                     args.smoothing_flag,
                                                     args.smoothing_span,
@@ -1101,30 +1133,16 @@ def main(args):
                                                     dss_processes),
                        shell=True,
                        check=True)
-        subprocess.run("bgzip -f {0} && tabix -f -S 1 -p bed {0}.gz"
-                       "".format(out+"_DMLtest.tsv"),
+        subprocess.run("sed '1d' {0} >> {1} && "
+                       "bgzip -f {0} && tabix -f -S 1 -p bed {0}.gz"
+                       "".format(out+"_temp_DMLtest.tsv", out+"_DMLtest.tsv"),
            shell=True,
            check=True)
-        subprocess.run("bgzip -f {0} && tabix -f -S 1 -p bed {0}.gz"
-                       "".format(out+"_callDML.tsv"),
+        subprocess.run("sed '1d' {0} >> {1} && "
+                       "bgzip -f {0} && tabix -f -S 1 -p bed {0}.gz"
+                       "".format(out+"_temp_callDML.tsv",out+"_callDML.tsv"),
            shell=True,
            check=True)
-        # except:
-        #     raise Exception("python subprocess failed. This can be due to some reasons including:"
-        #                     " 1- You do not have R, DSS R package, bgzip and"
-        #                     " tabix installed. 2- It might be caused because you"
-        #                     " specified both --smoothing_flag and --equal_disp options as FALSE."
-        #                     " 3- It might be caused because the MethylationHP1.tsv and/or MethylationHP2.tsv"
-        #                     " files are empty or have very few sites and differential methylation failed."
-        #                     " 4- DMA_UsingDSS.R script does not exist in the installed PatMat directory or"
-        #                     " directory that contains patmat.py script.")
-            
-        
-        
-        # out_pofo = out + '_PofO_Assignment.vcf'
-        # out_pofo_reads = out + '_PofO_Assignment_reads.tsv'
-        # reads_PofO= open(out_pofo_reads,'w')
-        # reads_PofO.write("Chromosome\tReadID\tStrand\tOrigin\n")
         (chrom_hp_origin_count,
          chrom_hp_origin_count_all_cg,
          chrom_hp_origin_count_diff_cg,
@@ -1258,10 +1276,8 @@ def main(args):
                              hp2_ref_ratio > hp1_ref_ratio and
                              hp2_count_ref >= min_read_reassignment)):
                             if len(line[3]) == 1 and len(line[4]) == 1:
-                                # info_out_dict[line[0]]["phased_het_snvs"] += 1
                                 info_out_dict[line[0]]["pofo_het_snvs"] += 1
                             else:
-                                # info_out_dict[line[0]]["phased_het_indels"] += 1
                                 info_out_dict[line[0]]["pofo_het_indels"] += 1
                             if chrom_hp_origin[line[0]]['HP2'][0] == 'maternal':
                                 assignment_file.write('\t'.join(line[0:8]+
@@ -1269,13 +1285,17 @@ def main(args):
                                                           ["0|1:"+':'.join(new_hp[1:])+":Mat|Pat"]+
                                                           [all_cov,hp1_cov,hp2_cov,
                                                            str(hp1_count_ref), str(hp2_count_ref),
-                                                           str(hp1_count_alt),str(hp2_count_alt)])+'\n')
+                                                           str(hp1_count_alt),str(hp2_count_alt),
+                                                           str(hp1_count_ref), str(hp2_count_ref),
+                                                           str(hp2_count_alt),str(hp1_count_alt)])+'\n')
                             if chrom_hp_origin[line[0]]['HP2'][0] == 'paternal':
                                 assignment_file.write('\t'.join(line[0:8]+
                                                           [':'.join(new_ps)+":PS"]+
                                                           ["1|0:"+':'.join(new_hp[1:])+":Pat|Mat"]+
                                                           [all_cov,hp1_cov,hp2_cov,
                                                            str(hp1_count_ref), str(hp2_count_ref),
+                                                           str(hp1_count_alt),str(hp2_count_alt),
+                                                           str(hp2_count_ref), str(hp1_count_ref),
                                                            str(hp1_count_alt),str(hp2_count_alt)])+'\n')
                         elif ((hp2_count_alt > hp1_count_alt and
                                hp2_alt_ratio > hp1_alt_ratio and
@@ -1284,10 +1304,8 @@ def main(args):
                                hp1_ref_ratio > hp2_ref_ratio and
                                hp1_count_ref >= min_read_reassignment)):
                             if len(line[3]) == 1 and len(line[4]) == 1:
-                                # info_out_dict[line[0]]["phased_het_snvs"] += 1
                                 info_out_dict[line[0]]["pofo_het_snvs"] += 1
                             else:
-                                # info_out_dict[line[0]]["phased_het_indels"] += 1
                                 info_out_dict[line[0]]["pofo_het_indels"] += 1
                             if chrom_hp_origin[line[0]]['HP1'][0] == 'maternal':
                                 assignment_file.write('\t'.join(line[0:8]+
@@ -1295,6 +1313,8 @@ def main(args):
                                                               ["0|1:"+':'.join(new_hp[1:])+":Mat|Pat"]+
                                                               [all_cov,hp1_cov,hp2_cov,
                                                                str(hp1_count_ref), str(hp2_count_ref),
+                                                               str(hp1_count_alt),str(hp2_count_alt),
+                                                               str(hp2_count_ref), str(hp1_count_ref),
                                                                str(hp1_count_alt),str(hp2_count_alt)])+'\n')
                             if chrom_hp_origin[line[0]]['HP1'][0] == 'paternal':
                                 assignment_file.write('\t'.join(line[0:8]+
@@ -1302,7 +1322,9 @@ def main(args):
                                                               ["1|0:"+':'.join(new_hp[1:])+":Pat|Mat"]+
                                                               [all_cov,hp1_cov,hp2_cov,
                                                                str(hp1_count_ref), str(hp2_count_ref),
-                                                               str(hp1_count_alt),str(hp2_count_alt)])+'\n')
+                                                               str(hp1_count_alt),str(hp2_count_alt),
+                                                               str(hp1_count_ref), str(hp2_count_ref),
+                                                               str(hp2_count_alt),str(hp1_count_alt)])+'\n')
                         else:
                             assignment_file.write('\t'.join(line[0:8]+
                                                           [':'.join(new_ps)]+
@@ -1310,7 +1332,8 @@ def main(args):
                                                                            replace("1/0", "0/1")]+
                                                           [all_cov,hp1_cov,hp2_cov,
                                                            str(hp1_count_ref), str(hp2_count_ref),
-                                                           str(hp1_count_alt),str(hp2_count_alt)])+'\n')
+                                                           str(hp1_count_alt),str(hp2_count_alt),
+                                                           "NA","NA","NA","NA"])+'\n')
                     
                     elif line[9].startswith(('1/2','1|2','2/1','2|1')):
                         hp1_count_alt= variant_dict_HP1[(line[0],int(line[1])-1)][line[4].split(',')[1].upper()]
@@ -1339,10 +1362,8 @@ def main(args):
                              hp2_ref_ratio > hp1_ref_ratio and
                              hp2_count_ref >= min_read_reassignment)):
                             if len(line[3]) == 1 and len(line[4]) == 3:
-                                # info_out_dict[line[0]]["phased_het_snvs"] += 1
                                 info_out_dict[line[0]]["pofo_het_snvs"] += 1
                             else:
-                                # info_out_dict[line[0]]["phased_het_indels"] += 1
                                 info_out_dict[line[0]]["pofo_het_indels"] += 1
                             
                             if chrom_hp_origin[line[0]]['HP2'][0] == 'maternal':
@@ -1351,13 +1372,17 @@ def main(args):
                                                     ["1|2:"+':'.join(new_hp[1:])+":Ref_Mat|Pat"]+
                                                     [all_cov,hp1_cov,hp2_cov,
                                                      str(hp1_count_ref), str(hp2_count_ref),
-                                                     str(hp1_count_alt),str(hp2_count_alt)])+'\n')
+                                                     str(hp1_count_alt),str(hp2_count_alt),
+                                                     str(hp1_count_ref), str(hp2_count_ref),
+                                                     str(hp2_count_alt),str(hp1_count_alt)])+'\n')
                             if chrom_hp_origin[line[0]]['HP2'][0] == 'paternal':
                                 assignment_file.write('\t'.join(line[0:8]+
                                                     [':'.join(new_ps)+":PS"]+
                                                     ["1|2:"+':'.join(new_hp[1:])+":Ref_Pat|Mat"]+
                                                     [all_cov,hp1_cov,hp2_cov,
                                                      str(hp1_count_ref), str(hp2_count_ref),
+                                                     str(hp1_count_alt),str(hp2_count_alt),
+                                                     str(hp2_count_ref), str(hp1_count_ref),
                                                      str(hp1_count_alt),str(hp2_count_alt)])+'\n')
                                 
                         elif ((hp2_count_alt > hp1_count_alt and
@@ -1367,10 +1392,8 @@ def main(args):
                                hp1_ref_ratio > hp2_ref_ratio and
                                hp1_count_ref >= min_read_reassignment)):
                             if len(line[3]) == 1 and len(line[4]) == 3:
-                                # info_out_dict[line[0]]["phased_het_snvs"] += 1
                                 info_out_dict[line[0]]["pofo_het_snvs"] += 1
                             else:
-                                # info_out_dict[line[0]]["phased_het_indels"] += 1
                                 info_out_dict[line[0]]["pofo_het_indels"] += 1
                             if chrom_hp_origin[line[0]]['HP2'][0] == 'maternal':
                                 assignment_file.write('\t'.join(line[0:8]+
@@ -1378,13 +1401,17 @@ def main(args):
                                                     ["1|2:"+':'.join(new_hp[1:])+":Ref_Pat|Mat"]+
                                                     [all_cov,hp1_cov,hp2_cov,
                                                      str(hp1_count_ref), str(hp2_count_ref),
-                                                     str(hp1_count_alt),str(hp2_count_alt)])+'\n')
+                                                     str(hp1_count_alt),str(hp2_count_alt),
+                                                     str(hp1_count_ref), str(hp2_count_ref),
+                                                     str(hp2_count_alt),str(hp1_count_alt)])+'\n')
                             if chrom_hp_origin[line[0]]['HP2'][0] == 'paternal':
                                 assignment_file.write('\t'.join(line[0:8]+
                                                     [':'.join(new_ps)+":PS"]+
                                                     ["1|2:"+':'.join(new_hp[1:])+":Ref_Mat|Pat"]+
                                                     [all_cov,hp1_cov,hp2_cov,
                                                      str(hp1_count_ref), str(hp2_count_ref),
+                                                     str(hp1_count_alt),str(hp2_count_alt),
+                                                     str(hp2_count_ref), str(hp1_count_ref),
                                                      str(hp1_count_alt),str(hp2_count_alt)])+'\n')
                             
                         else:
@@ -1399,7 +1426,8 @@ def main(args):
                         assignment_file.write('\t'.join(line[0:8]+
                                                       [':'.join(new_ps)]+
                                                       [':'.join(new_hp).replace("|", "/")]+
-                                                      ["NA","NA","NA","NA","NA","NA","NA"])+'\n')
+                                                      ["NA","NA","NA","NA","NA","NA"
+                                                       ,"NA","NA","NA","NA","NA"])+'\n')
                 else:
                     if line[9].startswith(("0/1","1/0","0|1","1|0",
                                            '1/2','1|2','2/1','2|1')):
@@ -1409,14 +1437,14 @@ def main(args):
                                                       [':'.join(new_hp).replace("|", "/").
                                                                        replace("1/0", "0/1").
                                                                        replace("2/1", "1/2")]+
-                                                      [all_cov,"0","0",
-                                                       "0", "0",
-                                                       "0","0"])+'\n')
+                                                      [all_cov,"0","0","0", "0",
+                                                       "0","0","0","0","0", "0"])+'\n')
                     else:
                         assignment_file.write('\t'.join(line[0:8]+
                                                       [':'.join(new_ps)]+
                                                       [':'.join(new_hp).replace("|", "/")]+
-                                                      ["NA","NA","NA","NA","NA","NA","NA"])+'\n')
+                                                      ["NA","NA","NA","NA","NA","NA",
+                                                       "NA","NA","NA","NA","NA"])+'\n')
         assignment_file.close()                
         if args.sv_vcf is not None:
             print("Assigning PofO to SVs from {}".format(chrom))
@@ -1439,6 +1467,14 @@ def main(args):
                         else:
                             new_ps= line[8].split(":")
                             new_hp= line[9].split(":")
+                        if not args.include_all_variants and line[6] not in ["PASS","."]:
+                            sv_assignment_file.write('\t'.join(line[0:8]+
+                                                  [':'.join(new_ps)]+
+                                                  [':'.join(new_hp).replace("|", "/").
+                                                                   replace("1/0", "0/1").
+                                                                   replace("2/1", "1/2")]+
+                                                  ["NA","NA","NA","NA"])+'\n')
+                            continue
                         if line[0] in chrom_hp_origin:
                             if gt in ["0/1","1/0","0|1","1|0"] and "RNAMES=" in line[7]:
                                 hp1_count= 0
@@ -1455,51 +1491,52 @@ def main(args):
                                         sv_assignment_file.write('\t'.join(line[0:8]+
                                                                   [':'.join(new_ps)+":PS"]+
                                                                   ["0|1:"+':'.join(new_hp[1:])+":Mat|Pat"]+
-                                                                  [str(hp1_count), str(hp2_count)])+'\n')
+                                                                  [str(hp1_count), str(hp2_count),
+                                                                   str(hp2_count), str(hp1_count)])+'\n')
                                     if chrom_hp_origin[line[0]]['HP2'][0] == 'paternal':
                                         sv_assignment_file.write('\t'.join(line[0:8]+
                                                                   [':'.join(new_ps)+":PS"]+
                                                                   ["1|0:"+':'.join(new_hp[1:])+":Pat|Mat"]+
-                                                                  [all_cov,hp1_cov,hp2_cov,
-                                                                   str(hp1_count_ref), str(hp2_count_ref),
-                                                                   str(hp1_count_alt),str(hp2_count_alt)])+'\n')
+                                                                  [str(hp1_count), str(hp2_count),
+                                                                   str(hp1_count), str(hp2_count)])+'\n')
                                 elif (hp2_count > hp1_count and
-                                    hp2_count >= min_read_reassignment):
+                                      hp2_count >= min_read_reassignment):
                                     if chrom_hp_origin[line[0]]['HP1'][0] == 'maternal':
                                         sv_assignment_file.write('\t'.join(line[0:8]+
                                                                       [':'.join(new_ps)+":PS"]+
                                                                       ["0|1:"+':'.join(new_hp[1:])+":Mat|Pat"]+
-                                                                      [all_cov,hp1_cov,hp2_cov,
-                                                                       str(hp1_count_ref), str(hp2_count_ref),
-                                                                       str(hp1_count_alt),str(hp2_count_alt)])+'\n')
+                                                                      [str(hp1_count), str(hp2_count),
+                                                                       str(hp1_count), str(hp2_count)])+'\n')
                                     if chrom_hp_origin[line[0]]['HP1'][0] == 'paternal':
                                         sv_assignment_file.write('\t'.join(line[0:8]+
                                                                       [':'.join(new_ps)+":PS"]+
                                                                       ["1|0:"+':'.join(new_hp[1:])+":Pat|Mat"]+
-                                                                      [all_cov,hp1_cov,hp2_cov,
-                                                                       str(hp1_count_ref), str(hp2_count_ref),
-                                                                       str(hp1_count_alt),str(hp2_count_alt)])+'\n')
+                                                                      [str(hp1_count), str(hp2_count),
+                                                                       str(hp2_count), str(hp1_count)])+'\n')
                                 else:
                                     sv_assignment_file.write('\t'.join(line[0:8]+
                                                                   [':'.join(new_ps)]+
                                                                   [line[9].replace("|", "/").
-                                                                            replace("1/0", "0/1")])+'\n')
+                                                                            replace("1/0", "0/1")]+
+                                                                  [str(hp1_count), str(hp2_count),
+                                                                   "NA","NA"])+'\n')
                                         
                             else:
                                 sv_assignment_file.write('\t'.join(line[0:8]+
                                                               [':'.join(new_ps)]+
                                                               [line[9].replace("|", "/").
                                                                replace("1/0", "0/1").
-                                                               replace("2/1", "1/2")])+'\n')
+                                                               replace("2/1", "1/2")]+
+                                                              ["NA","NA","NA","NA"])+'\n')
                         else:
                             sv_assignment_file.write('\t'.join(line[0:8]+
                                                           [':'.join(new_ps)]+
                                                           [line[9].replace("|", "/").
                                                            replace("1/0", "0/1").
-                                                           replace("2/1", "1/2")])+'\n')
+                                                           replace("2/1", "1/2")]+
+                                                          ["NA","NA","NA","NA"])+'\n')
                 sv_assignment_file.close()
     reads_hap.clear()
-    assignment_file.close()
     subprocess.run("rm {}*".format(out+"_temp"),
                     shell=True,
                     check=True)
