@@ -160,6 +160,17 @@ def get_variant_info(feed_list,
 
 
 
+def getChromsFromBAM(filename):
+    chroms = set()
+    stats = pysam.idxstats(filename)
+    for row in stats.split("\n"):
+        fields = row.split("\t")
+        if fields[0] != '*' and fields[0] != '':
+            chroms.add(fields[0])
+    return chroms
+
+
+
 def get_sv_pofo(feed_list,
                    alignment_file):
     '''
@@ -427,10 +438,10 @@ def out_freq_methbam(out,
         
         subprocess.run("{} --bam {} --output-prefix {}"
                        " --model {} --threads {} --modsites-mode reference "
-                       "--ref {}".format(pbcg.split(',')[0],
+                       "--ref {}".format(pbcg[0],
                                          out+"_temp-NonPofO.bam",
                                          out+"_temp-NonPofO_CpGModFreq",
-                                         pbcg.split(',')[1],
+                                         pbcg[1],
                                          processes,reference),
                        shell=True,
                        check=True)
@@ -841,11 +852,11 @@ def main(args):
                 assignment_file.write(line)
             elif line.startswith("#"):
                 assignment_file.write(line.rstrip()+"\tNumAllReads\t"
-                                       "NumReadsHP1\nNumReadsHP2\tNumReadsHP1RefAllele"
-                                       "\tNumReadsHP2RefAllele\tNumReadsHP1AltAllele"
-                                       "\tNumReadsHP2AltAllele\tNumReadsMaternalRefAllele"
-                                       "\tNumReadsPaternalRefAllele\tNumReadsMaternalAltAllele"
-                                       "\tNumReadsPaternalAltAllele")
+                                       "NumReadsHP1\nNumReadsHP2\tNumReads_HP1_Ref/Left_Allele"
+                                       "\tNumReads_HP2_Ref/Left_Allele\tNumReads_HP1_Alt/Right_Allele"
+                                       "\tNumReads_HP2_Alt/Right_Allele\tNumReads_Maternal_Ref/Left_Allele"
+                                       "\tNumReads_Paternal_Ref/Left_Allele\tNumReads_Maternal_Alt/Right_Allele"
+                                       "\tNumReads_Paternal_Alt/Right_Allele")
             else:
                 chroms.add(line.rstrip().split('\t')[0])
     assignment_file.close()
@@ -860,15 +871,21 @@ def main(args):
     dmr_file.close()
     out_meth.close()
     out_dmltest= open(out+"_DMLtest.tsv",'w')
-    out_dmltest.write("chr\tstart\tend\tmu1\tmu2\tdiffdiff.se\t"
-                      "statphi1phi2pvalfdr\n")
+    out_dmltest.write("chr\tstart\tend\tmu1\tmu2\tdiff\tdiff.se\tstat\tphi1\t"
+                      "phi2\tpval\tfdr\n")
     out_dmltest.close()
-    out_calldml= open(out+"_temp_callDML.tsv",'w')
-    out_calldml.write("chr\tstart\tend\tmu1\tmu2\tdiffdiff.se\t"
-                      "statphi1phi2pvalfdr\tpostprob.overThreshold\n")
+    out_calldml= open(out+"_callDML.tsv",'w')
+    out_calldml.write("chr\tstart\tend\tmu1\tmu2\tdiff\tdiff.se\tstat\tphi1\t"
+                      "phi2\tpval\tfdr\tpostprob.overThreshold\n")
     out_calldml.close()
+    subprocess.run("samtools view -H {} | sed '/^@PG/d'"
+                   " | bgzip > {}".format(bam_file,
+                                          out+"_Temp_PofO_Tagged.sam.gz"),
+                   shell=True,
+                   check=True)
+    bam_choms= getChromsFromBAM(bam_file)
     if args.sv_vcf is not None:
-        all_sv_files=args.sv_vcf.split(',')
+        all_sv_files=args.sv_vcf
         for sv_file in all_sv_files:
             sv_assignment_file= open(out +"_"+os.path.basename(sv_file) + 
                                      '_PofO_Assignment_SVs.vcf', 'w')
@@ -883,6 +900,11 @@ def main(args):
                                                  "\tNumPaternalReadsFromColumn8\n")
             sv_assignment_file.close()
     
+    subprocess.run("samtools version | grep ^samtools"
+                   " && echo whatshap `whatshap --version`",
+                   shell=True,
+                   check=True)
+    bam_chrom_check= set()
     for chrom in sorted(chroms):
         print("#############  Processing chromosome {}  #############".format(chrom))
         if args.strand_vcf is not None and args.phased_vcf_block is None:
@@ -937,7 +959,7 @@ def main(args):
                                                       ["NA","NA","NA","NA","NA","NA","NA"])+'\n')
             assignment_file.close()
             if args.sv_vcf is not None:
-                all_sv_files=args.sv_vcf.split(',')
+                all_sv_files=args.sv_vcf
                 for sv_file in all_sv_files:
                     sv_assignment_file= open(out +"_"+os.path.basename(sv_file) + 
                                              '_PofO_Assignment_SVs.vcf', 'a')
@@ -1109,6 +1131,7 @@ def main(args):
                         variant_dict_HP1[(key[0],key[1])][key[2]] += 1 
                         variant_dict_HP1_all[(key[0],key[1])] += 1
                     elif reads_hap[(key[0],read)] == 2:
+                        variant_dict_HP2[(key[0],key[1])][key[2]] += 1 
                         variant_dict_HP2_all[(key[0],key[1])] += 1
         variant_dict.clear()
         
@@ -1116,7 +1139,6 @@ def main(args):
         out_freqhp2= out + '_temp_NonPofO_HP1-HP2_MethylationHP2.tsv'
         out_freq_methbam(out, processes, reference,args.pb_cpg_tools)
     
-        #try:
         subprocess.run("{} {} {} {} {} {} {} {} {} {} {}".format("Rscript",
                                                     os.path.join(os.path.dirname(
                                                                 os.path.realpath(__file__)
@@ -1217,6 +1239,23 @@ def main(args):
                                                          hp2_dmr_count, hp1_dmr_count,
                                                          hp2_alldiffcg_count, hp1_alldiffcg_count,
                                                          hp2_allcg_count, hp1_allcg_count]
+        if chrom in chrom_hp_origin:
+            if chrom_hp_origin[chrom]['HP1'][0] == 'maternal':
+                bam_chrom_check.add(chrom)
+                subprocess.run("samtools view -@ {} {}"
+                               " | bgzip >> {}".format(processes, out+"_temp-NonPofO.bam",
+                                                      out+"_Temp_PofO_Tagged.sam.gz"),
+                               shell=True,
+                               check=True)
+            elif chrom_hp_origin[chrom]['HP2'][0] == 'maternal':
+                bam_chrom_check.add(chrom)
+                subprocess.run("samtools view -@ {} {} | "
+                               "sed 's/HP:i:1/HP:i:paternal/g;s/HP:i:2/HP:i:1/g;s/HP:i:paternal/HP:i:2/g'"
+                               " | bgzip >> {}".format(processes, out+"_temp-NonPofO.bam",
+                                                      out+"_Temp_PofO_Tagged.sam.gz"),
+                               shell=True,
+                               check=True)
+            
         assignment_file= open(out + '_PofO_Assignment.vcf', 'a')
         with openfile(vcf) as vcf_file:
             for line in vcf_file:
@@ -1448,7 +1487,7 @@ def main(args):
         assignment_file.close()                
         if args.sv_vcf is not None:
             print("Assigning PofO to SVs from {}".format(chrom))
-            all_sv_files=args.sv_vcf.split(',')
+            all_sv_files=args.sv_vcf
             for sv_file in all_sv_files:
                 sv_assignment_file= open(out +"_"+os.path.basename(sv_file) + 
                                          '_PofO_Assignment_SVs.vcf', 'a')
@@ -1536,8 +1575,28 @@ def main(args):
                                                            replace("2/1", "1/2")]+
                                                           ["NA","NA","NA","NA"])+'\n')
                 sv_assignment_file.close()
+        subprocess.run("rm {}*".format(out+"_temp"),
+                        shell=True,
+                        check=True)
     reads_hap.clear()
-    subprocess.run("rm {}*".format(out+"_temp"),
+    subprocess.run("samtools view --remove-tag HP -f4 -@ {} {} {}"
+                        " | bgzip >> {}".format(processes, bam_file, chrom,
+                                                out+"_Temp_PofO_Tagged.sam.gz"),
+                        shell=True,
+                        check=True)
+    for chrom in bam_choms - bam_chrom_check:
+        subprocess.run("samtools view --remove-tag HP -@ {} {} {}"
+                            " | bgzip >> {}".format(processes, bam_file, chrom,
+                                                    out+"_Temp_PofO_Tagged.sam.gz"),
+                            shell=True,
+                            check=True)
+    subprocess.run("gunzip -c {} | samtools sort -@ {} -O CRAM --write-index "
+                   "--reference {} -o {}".format(out+"_Temp_PofO_Tagged.sam.gz",
+                                                 processes, reference,
+                                                 out+"_PofO_Tagged.cram"),
+                   shell=True,
+                   check=True)
+    subprocess.run("rm {}*".format(out+"_Temp"),
                     shell=True,
                     check=True)
                         
@@ -1673,24 +1732,26 @@ optional.add_argument("--phased_vcf_block", "-pvb",
 optional.add_argument("--pb_cpg_tools", "-pbcg",
                       action="store",
                       type=str,
+                      nargs='+',
                       required=False,
                       default=None,
                       help=("If the data is from PacBio and you want to perform "
                             "enhanced methylation detection, specify the absolute"
                             " path to the executable pb-CpG-tools "
                             "aligned_bam_to_cpg_scores tool and also absolute path"
-                            " to the model file seperated by comma (e.g. "
-                            "/path/to/aligned_bam_to_cpg_scores,/path/to/model)."))
+                            " to the model file seperated by space (e.g. "
+                            "/path/to/aligned_bam_to_cpg_scores /path/to/model)."))
 
 optional.add_argument("--sv_vcf", "-sv_vcf",
                       action="store",
                       type=str,
+                      nargs='+',
                       required=False,
                       default=None,
                       help=("Path to the Structural variation (SV) call"
                             " file if you wish to also add PofO to SVs."
-                            " if multiple files are gived, they must be comma"
-                            " separated and give the absolute path to each file."
+                            " if multiple files are gived, they must be separated by"
+                            " space and give the absolute path to each file."
                             " File(s) must include read names (e.g.RNAMES=read1,"
                             "read2,read3) in the 8th column of vcf ."))
 optional.add_argument("--black_list", "-bl",
@@ -1850,7 +1911,7 @@ optional.add_argument("--dss_processes", "-dp",
                             "for less processes.")
 optional = parser.add_argument_group("Help and version options")
 optional.add_argument('--version', action='version', 
-                      version='%(prog)s 1.3.0_dev',
+                      version='%(prog)s 1.4.0_dev',
                       help= "Print program's version and exit")
 optional.add_argument('-h', '--help', action='help', default=argparse.SUPPRESS,
                       help="Print this help and exit.")
@@ -1858,3 +1919,4 @@ args = parser.parse_args()
 
 if __name__ == '__main__':
     main(args)
+
