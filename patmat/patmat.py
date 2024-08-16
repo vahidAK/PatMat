@@ -1579,8 +1579,8 @@ def main(args):
                         shell=True,
                         check=True)
     reads_hap.clear()
-    subprocess.run("samtools view --remove-tag HP -f4 -@ {} {} {}"
-                        " | bgzip >> {}".format(processes, bam_file, chrom,
+    subprocess.run("samtools view --remove-tag HP -f4 -@ {} {}"
+                        " | bgzip >> {}".format(processes, bam_file,
                                                 out+"_Temp_PofO_Tagged.sam.gz"),
                         shell=True,
                         check=True)
