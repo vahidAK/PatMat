@@ -42,34 +42,31 @@ The workflow is basically two parts, the nanopore analysis part and the Strand-s
 **Note 4**: For the quality control of Strand-seq libraries you need [ASHLEYS QC](https://github.com/friendsofstrandseq/ashleys-qc). It needs to be installed in its own dedicated conda environment. Follow their instructions on [ASHLEYS QC GitHub](https://github.com/friendsofstrandseq/ashleys-qc) to install this tool.  
 
 To use the tools in this repository and run the workflow you can download the latest release or clone the repository and install the required dependencies in the [env.yml](https://github.com/vahidAK/PatMat/blob/main/env.yml) as follow:  
+
+**NOTE:** You must have conda and mamba installed before installation.
+
 To clone and install:
 ```
 git clone https://github.com/vahidAK/PatMat.git
 cd PatMat
-chmod -x */* && chmod +x */{patmat.py,strandseq_phase.R}
-conda env create -f env.yml
+bash -l ./install.sh
+# Now we need to open R and install InvertypeR:
 conda activate patmat
-env_path=$(conda info | grep -i 'active env location' | cut -d'/' -f2- | awk '{print "/"$0"/bin"}')
-ln -s $PWD/{patmat,Strand-seq}/* $env_path 
-# Now we need to open R and install the required R packages as follows:
 R
-install.packages("pak", type="source")
-pak::pkg_install(c("argparse", "BSgenome.Hsapiens.UCSC.hg38", "vincent-hanlon/InvertypeR", "sys", "R.utils", "DSS", "tibble"))
+devtools::install_github("vincent-hanlon/InvertypeR")
+
 ``` 
 OR to download the latest release and install:
 ```
 VERSION=1.3.0
 wget https://github.com/vahidAK/PatMat/archive/refs/tags/v"$VERSION".tar.gz && tar -xzf v"$VERSION".tar.gz
 cd PatMat-"$VERSION"/
-chmod -x */* && chmod +x */{patmat.py,strandseq_phase.R}
-conda env create -f env.yml
+bash -l ./install.sh
+# Now we need to open R and install InvertypeR:
 conda activate patmat
-env_path=$(conda info | grep -i 'active env location' | cut -d'/' -f2- | awk '{print "/"$0"/bin"}')
-ln -s $PWD/{patmat,Strand-seq}/* $env_path 
-# Now we need to open R and install the required R packages as follows:
 R
-install.packages("pak")
-pak::pkg_install(c("argparse", "BSgenome.Hsapiens.UCSC.hg38", "vincent-hanlon/InvertypeR", "sys", "R.utils", "DSS", "tibble"))
+devtools::install_github("vincent-hanlon/InvertypeR")
+
 ```
 The above commands will clone/download the repository and install all the dependencies in the patmat environment. You need to first activate the environment to be able to run the tools  ```conda activate patmat```.
 

@@ -409,13 +409,14 @@ def PofO_dmr(known_dmr,
 def out_freq_methbam(out,
                      processes,
                      reference,
-                     pbcg):
+                     pbcg,
+                     pb_tech):
     out_freqhp1= out + '_temp_NonPofO_HP1-HP2_MethylationHP1.tsv'
     out_freqhp2= out + '_temp_NonPofO_HP1-HP2_MethylationHP2.tsv'
     out_dir=os.path.dirname(out)
     out_pref= os.path.basename(out)
-    if pbcg is None:
-        subprocess.run("modkit pileup --only-tabs -t {} --prefix {} "
+    if not pb_tech:
+        subprocess.run("modkit pileup -t {} --prefix {} "
                        "--partition-tag HP --combine-strands --cpg -r {} "
                        "{} {}".format(processes,out_pref+"_temp-NonPofO_CpGModFreq",
                                       reference,out+"_temp-NonPofO.bam",out_dir),
@@ -436,12 +437,11 @@ def out_freq_methbam(out,
                         check=True)
     else:
         
-        subprocess.run("{} --bam {} --output-prefix {}"
+        subprocess.run("aligned_bam_to_cpg_scores --bam {} --output-prefix {}"
                        " --model {} --threads {} --modsites-mode reference "
-                       "--ref {}".format(pbcg[0],
-                                         out+"_temp-NonPofO.bam",
+                       "--ref {}".format(out+"_temp-NonPofO.bam",
                                          out+"_temp-NonPofO_CpGModFreq",
-                                         pbcg[1],
+                                         pbcg,
                                          processes,reference),
                        shell=True,
                        check=True)
@@ -807,6 +807,7 @@ def main(args):
     The main function that uses user's inputs and other functions to phase and
     assign PofO to variants and methylation.
     '''
+    print(os.path.abspath(args.pb_cpg_tools_model))
     hapRatio = args.hapratio
     minvariant= args.min_variant
     min_cg= args.min_cg
@@ -1137,7 +1138,8 @@ def main(args):
         
         out_freqhp1= out + '_temp_NonPofO_HP1-HP2_MethylationHP1.tsv'
         out_freqhp2= out + '_temp_NonPofO_HP1-HP2_MethylationHP2.tsv'
-        out_freq_methbam(out, processes, reference,args.pb_cpg_tools)
+        out_freq_methbam(out, processes, reference,
+                         os.path.abspath(args.pb_cpg_tools_model), args.pacbio)
     
         subprocess.run("{} {} {} {} {} {} {} {} {} {} {}".format("Rscript",
                                                     os.path.join(os.path.dirname(
@@ -1678,6 +1680,7 @@ required.add_argument("--reference", "-ref",
                             "must also give the path to the reference file. "
                             "File must be indexed using samtools faidx."))
 optional = parser.add_argument_group("Optional arguments")
+
 # optional.add_argument("--callthresh", "-tc",
 #                            action="store",
 #                            type=str,
@@ -1700,6 +1703,10 @@ optional = parser.add_argument_group("Optional arguments")
 #                                  " 0.3-0.7 will be ignored. Default is methbam:0.4."
 #                                  " If methbam is selected you must also provide path"
 #                                  " to the reference file using --reference option."))
+optional.add_argument("--pacbio", "-pb",
+                            action="store_true",
+                            required=False,
+                            help="Select this if the reads are from PacBio HiFi.")
 
 optional.add_argument("--known_dmr", "-kd",
                   action="store",
@@ -1729,18 +1736,20 @@ optional.add_argument("--phased_vcf_block", "-pvb",
                             " this can result in PofO assignment of more variants"
                             " but also may results in slightly more errors. "
                             "File must be sorted and indexed using tabix."))
-optional.add_argument("--pb_cpg_tools", "-pbcg",
+optional.add_argument("--pb_cpg_tools_model", "-pbcg",
                       action="store",
-                      type=str,
-                      nargs='+',
-                      required=False,
-                      default=None,
-                      help=("If the data is from PacBio and you want to perform "
-                            "enhanced methylation detection, specify the absolute"
-                            " path to the executable pb-CpG-tools "
-                            "aligned_bam_to_cpg_scores tool and also absolute path"
-                            " to the model file seperated by space (e.g. "
-                            "/path/to/aligned_bam_to_cpg_scores /path/to/model)."))
+                            type=str,
+                            required=False,
+                            default=os.path.join('/'.join(os.path.dirname(
+                                                    os.path.realpath(__file__)
+                                                        ).split('/')[0:-1]),
+                                                 "third_parties",
+                                                 "pb-CpG-tools-v2.3.2-x86_64-unknown-linux-gnu",
+                                                 "models/pileup_calling_model.v1.tflite"),
+                      help=("If the data is from PacBio HiFi and you want to perform "
+                            "enhanced methylation detection, specify the"
+                            " path to the model file . By default "
+                            "pileup_calling_model.v1.tflite will be used"))
 
 optional.add_argument("--sv_vcf", "-sv_vcf",
                       action="store",
@@ -1840,8 +1849,8 @@ optional.add_argument("--chunk_size", "-cs",
                       action="store",
                       type=int,
                       required=False,
-                      default=100,
-                      help=("Chunk per process. Default is 100"))
+                      default=500,
+                      help=("Chunk per process. Default is 500"))
 optional = parser.add_argument_group("Optional arguments. The following options "
                                      "are DSS options for differential methylation"
                                      " analysis to find differentially methylated "
