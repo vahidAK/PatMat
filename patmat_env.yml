@@ -12,6 +12,7 @@ dependencies:
   - pytabix
   - tabix
   - tqdm
+  - singularity=3.5.2
   - picard=3.2.0
   - samtools=1.15
   - nanoporetech::longphase=1.7.3
