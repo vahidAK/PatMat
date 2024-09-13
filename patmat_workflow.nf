@@ -3,27 +3,26 @@ nextflow.enable.dsl=2
 
 def help_message() {
     log.info"""
-    ==================================================================================
+    ======================================================================================================================
     Nextflow workflow to get PofO assigned variants using long-read and Strand-seq.
     This nextflow pipeline is a comprehensive workflow to run all the steps 
     when long-read bam (with methylation tag) and Strand-seq fastqs are available.
     This workflow performs:
-    1- Small variant calling using clair3 and phasing of them using whatshap or longphase.
+    1- Small variant calling using deepvariant or clair3 and phasing of them using whatshap or longphase.
     2- Large variant calling using sniffles.
     3- Adapter trimming, alignment, and QC of strand-seq data using cutadapt, 
         bowtie2, and ashleys-qc, respectively.
     4- Phasing clair3 variants via strand-seq data using StrandPhaseR.
     5- Phasing and PofO assignment by also using LongPhase/WhatsHap phased blocks using patmat.py.
-    ==================================================================================
+    ======================================================================================================================
     Usage:
-    To rune the next flow: nextflow run patmat_workflow.nf -with-report -with-conda <specified optiones below>
+    To rune the next flow: nextflow run patmat_workflow.nf -with-report -with-conda -with-singularity <specified optiones below>
 
     Mandatory arguments:
       --reference       Absolute path to reference genome. must be indexed by samtools faidx and bowtie2-build.
                         For bowtie2 indexing you must the reference name as base name (e.g. run bowtie2-build ref.fa ref.fa).
       --bam             Absolute Path to the long-read bam file with methylation tag.
       --output          Absolute Path to output directory
-      --clair3_model    Absolute Path to clair3 model directory
       --ashleys_model   Absolute Path to ashleys model pkl file.
       --strandseq_fq    Absolute path to the folder with strand-seq fastqs
     Optional arguments:
@@ -32,6 +31,11 @@ def help_message() {
       --processes       Number of processes. Default is 10.
       --single          Select this if strand-seq is single-end and not paired
       --whatshap        Slelect this if you want to use whatshap instead of longphase
+      --deepvar_model   <WGS|WES|PACBIO|ONT_R104|HYBRID_PACBIO_ILLUMINA>. Type of model to use 
+                        for variant calling using deepvariant. Default is ONT_R104. 
+      --clair3          Slelect this if you want to use clair3 instead of deepvariant
+      --clair3_model    Specify the abs path to clair3 model using this option if you want 
+                        to use clair3 instead of deepvariant.
       --adapter_3R1     3 prime adapter of R1 for adapter trimming step. Default is
                         AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNNNATCTCGTATGCCGTCTTCTGCTTG
       --adapter_5R1     5 prime adapter of R1 for adapter trimming step. Default is
@@ -54,8 +58,8 @@ if (params.help){
 params.reference = "reference genome"
 params.bam= "bam file"
 params.output= "output directory"
-params.clair3_model= "clair3 model"
 params.ashleys_model= "ashleys model"
+params.deepvar_model= "ONT_R104"
 params.strandseq_fq= "strand-seq fastqs folder"
 params.sample_id= "Sample"
 params.processes= 10
@@ -68,35 +72,60 @@ params.adapter_5R2= "CAAGCAGAAGACGGCATACGAGATNNNNNNNNGTGACTGGAGTTCAGACGTGTGCTCTT
 process small_variant_calling{
     tag "${params.sample_id}"
     conda '/projects/vakbari_prj/anaconda3/envs/clair3_patmat-wf'
-    publishDir "${params.output}/clair_results_${params.sample_id}", mode: 'copy'
+    publishDir "${params.output}/small_variant_results_${params.sample_id}", mode: 'copy'
     input:
         path(bam)
         path(bai)
         path(ref)
         path(fai)
-        path(model)
     output:
-        tuple path("*_clair3_passed_variants.vcf.gz"),
-            path("merge_output.vcf.gz")
+        tuple path("*_passed_variants.vcf.gz"),
+            path("{merge_output.vcf.gz,*_DeepVariant.vcf}")
     script:
-        if ( params.hifi ) {
-            """
-            run_clair3.sh --bam_fn="$bam" \
-            --ref_fn="${ref}" --output="." \
-            --threads="${params.processes}" \
-            --platform="hifi" --model_path="${model}"
-            gunzip -c merge_output.vcf.gz | awk '\$1~/^#/ || \$7=="PASS"' \
-            | bgzip > "${params.sample_id}"_clair3_passed_variants.vcf.gz
-            """
+        if ( params.clair3 ) {
+            if ( params.hifi ) {
+                """
+                run_clair3.sh --bam_fn="$bam" \
+                    --ref_fn="${ref}" --output="." \
+                    --threads="${params.processes}" \
+                    --platform="hifi" --model_path="${params.clair3_model}"
+                gunzip -c merge_output.vcf.gz | awk '\$1~/^#/ || \$7=="PASS"' \
+                | bgzip > "${params.sample_id}"_clair3_passed_variants.vcf.gz
+                """
+            }
+            else {
+                """
+                    run_clair3.sh --bam_fn="$bam" \
+                        --ref_fn="${ref}" --output="." \
+                        --threads="${params.processes}" \
+                        --platform="ont" --model_path="${params.clair3_model}"
+                    gunzip -c merge_output.vcf.gz | awk '\$1~/^#/ || \$7=="PASS"' \
+                    | bgzip > "${params.sample_id}"_clair3_passed_variants.vcf.gz
+                    """
+            }
         }
         else {
             """
-            run_clair3.sh --bam_fn="$bam" \
-            --ref_fn="${ref}" --output="." \
-            --threads="${params.processes}" \
-            --platform="ont" --model_path="${model}"
-            gunzip -c merge_output.vcf.gz | awk '\$1~/^#/ || \$7=="PASS"' \
-            | bgzip > "${params.sample_id}"_clair3_passed_variants.vcf.gz
+            dir_b=\$(dirname "${ref}" | xargs realpath)
+            dir_br=\$(realpath "${ref}" | rev | cut -d'/' -f2- | rev)
+            dir_bb=\$(realpath "${bam}" | rev | cut -d'/' -f2- | rev)
+            export SINGULARITY_CACHEDIR="\$dir_b"
+            export SINGULARITY_TMPDIR="\$dir_b"
+            BIN_VERSION="1.6.1"
+            singularity pull docker://google/deepvariant:"\$BIN_VERSION"
+            singularity run -B "\$dir_b":"\$dir_b" -B "\$dir_br":"\$dir_br" -B "\$dir_bb":"\$dir_bb" \
+                docker://google/deepvariant:"\$BIN_VERSION" \
+                /opt/deepvariant/bin/run_deepvariant \
+                    --model_type="${params.deepvar_model}" \
+                    --ref="${ref}" \
+                    --reads="${bam}" \
+                    --output_vcf="${params.sample_id}"_DeepVariant.vcf \
+                    --num_shards="${params.processes}" \
+                    --logging_dir="\$dir_b" \
+                    --intermediate_results_dir="\$dir_b" \
+                    --dry_run=false
+            awk '\$1~/^#/ || \$7=="PASS"' "${params.sample_id}"_DeepVariant.vcf | \
+            bgzip > "${params.sample_id}"_DeepVariant_passed_variants.vcf.gz
             """
         }
 }
@@ -411,7 +440,7 @@ workflow {
         .fromPath("${params.reference}.*").collect()
         .set{ref_indexes}
     small_variant_calling(params.bam,"${params.bam}.bai",params.reference,
-                            "${params.reference}.fai",params.clair3_model)
+                            "${params.reference}.fai")
     large_variant_calling(params.bam,"${params.bam}.bai",params.reference,
                             "${params.reference}.fai",
                             small_variant_calling.out)
