@@ -155,12 +155,7 @@ process large_variant_calling{
 process phase_long_reads{
     tag "${params.sample_id}"
     conda '/projects/vakbari_prj/anaconda3/envs/patmat'
-    if ( params.whatshap ) {
-         publishDir "${params.output}/whatshap_${params.sample_id}", mode: 'copy'
-    }
-    else {
-        publishDir "${params.output}/longphase_${params.sample_id}", mode: 'copy'
-    }
+    publishDir "${params.output}/LongReadPhased_${params.sample_id}", mode: 'copy'
     input:
         tuple path(pass_vcf), path(vcf)
         path(bam)
@@ -172,7 +167,7 @@ process phase_long_reads{
         tuple path("${params.sample_id}_*.vcf.gz"),
             path("${params.sample_id}_*.vcf.gz.tbi")
     script:
-        if ( params.whatshap == "longphase" ) {
+        if ( params.whatshap ) {
             """
             whatshap phase --ignore-read-groups \
                 -o "${params.sample_id}"_WhatsHap.vcf \
