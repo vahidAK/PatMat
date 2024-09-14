@@ -434,12 +434,15 @@ workflow {
     Channel
         .fromPath("${params.reference}.*").collect()
         .set{ref_indexes}
-    small_variant_calling(params.bam,"${params.bam}.{bai,crai}",params.reference,
+    Channel
+        .fromPath("${params.bam}.{bai,crai}")
+        .set{bam_index}
+    small_variant_calling(params.bam,bam_index,params.reference,
                             "${params.reference}.fai")
-    large_variant_calling(params.bam,"${params.bam}.{bai,crai}",params.reference,
+    large_variant_calling(params.bam,bam_index,params.reference,
                             "${params.reference}.fai",
                             small_variant_calling.out)
-    phase_long_reads(small_variant_calling.out,params.bam,"${params.bam}.{bai,crai}",
+    phase_long_reads(small_variant_calling.out,params.bam,bam_index,
                             params.reference,"${params.reference}.fai", 
                             large_variant_calling.out)
     if ( params.single ) {
@@ -460,7 +463,7 @@ workflow {
     }
     strandseq_phase(ashley_qc.out,
                     small_variant_calling.out)
-    patmat(params.bam, "${params.bam}.{bai,crai}", phase_long_reads.out,
+    patmat(params.bam, bam_index, phase_long_reads.out,
             large_variant_calling.out, strandseq_phase.out, 
             params.reference,"${params.reference}.fai")
 }
