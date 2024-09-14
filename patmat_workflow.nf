@@ -12,29 +12,30 @@ def help_message() {
     2- Large variant calling using sniffles.
     3- Adapter trimming, alignment, and QC of strand-seq data using cutadapt, 
         bowtie2, and ashleys-qc, respectively.
-    4- Phasing clair3 variants via strand-seq data using StrandPhaseR.
+    4- Phasing small variants via strand-seq data using StrandPhaseR.
     5- Phasing and PofO assignment by also using LongPhase/WhatsHap phased blocks using patmat.py.
     ======================================================================================================================
     Usage:
-    To rune the next flow: nextflow run patmat_workflow.nf -with-report -with-conda -with-singularity <specified optiones below>
+    To run the nextflow: nextflow run patmat_workflow.nf -with-report -with-conda <specified optiones below>
 
     Mandatory arguments:
       --reference       Absolute path to reference genome. must be indexed by samtools faidx and bowtie2-build.
-                        For bowtie2 indexing you must the reference name as base name (e.g. run bowtie2-build ref.fa ref.fa).
+                        For bowtie2 indexing, you must use the reference name as base name 
+                        (e.g. run bowtie2-build ref.fa ref.fa).
       --bam             Absolute Path to the long-read bam file with methylation tag.
       --output          Absolute Path to output directory
       --ashleys_model   Absolute Path to ashleys model pkl file.
       --strandseq_fq    Absolute path to the folder with strand-seq fastqs
     Optional arguments:
       --sample_id       Sample id. Will be also used as output prefix. Default is Sample
-      --hifi            Select this option if long-read data is from PacBio and not ONT
+      --hifi            Select this option if long-read data is from PacBio
       --processes       Number of processes. Default is 10.
       --single          Select this if strand-seq is single-end and not paired
       --whatshap        Slelect this if you want to use whatshap instead of longphase
       --deepvar_model   <WGS|WES|PACBIO|ONT_R104|HYBRID_PACBIO_ILLUMINA>. Type of model to use 
                         for variant calling using deepvariant. Default is ONT_R104. 
       --clair3          Slelect this if you want to use clair3 instead of deepvariant
-      --clair3_model    Specify the abs path to clair3 model using this option if you want 
+      --clair3_model    Specify the absolute path to clair3 model using this option if you want 
                         to use clair3 instead of deepvariant.
       --adapter_3R1     3 prime adapter of R1 for adapter trimming step. Default is
                         AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNNNATCTCGTATGCCGTCTTCTGCTTG
