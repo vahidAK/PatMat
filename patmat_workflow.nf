@@ -69,7 +69,7 @@ params.adapter_5R1= "AATGATACGGCGACCACCGAGATCTACACNNNNNNNNACACTCTTTCCCTACACGACGC
 params.adapter_3R2= "AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTNNNNNNNNGTGTAGATCTCGGTGGTCGCCGTATCATT"
 params.adapter_5R2= "CAAGCAGAAGACGGCATACGAGATNNNNNNNNGTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT"
 
-// Variant calling process using clair3
+// Small Variant Calling
 process small_variant_calling{
     tag "${params.sample_id}"
     conda '/projects/vakbari_prj/anaconda3/envs/clair3_patmat-wf'
@@ -132,6 +132,8 @@ process small_variant_calling{
 }
 
 
+
+// SV Calling
 process large_variant_calling{
     tag "${params.sample_id}"
     conda '/projects/vakbari_prj/anaconda3/envs/patmat'
@@ -153,6 +155,7 @@ process large_variant_calling{
 }
 
 
+// Phasing Long Reads
 process phase_long_reads{
     tag "${params.sample_id}"
     conda '/projects/vakbari_prj/anaconda3/envs/patmat'
@@ -200,6 +203,7 @@ process phase_long_reads{
 }
 
 
+// Adapter Trimming Of Strand-Seq Paired-End Reads
 process strandseq_cutadapt_pair {
     tag "${params.sample_id}"
     conda '/projects/vakbari_prj/anaconda3/envs/patmat'
@@ -228,6 +232,8 @@ process strandseq_cutadapt_pair {
         """
 }
 
+
+// Adapter Trimming Of Strand-Seq Single-End Reads
 process strandseq_cutadapt_single {
     tag "${params.sample_id}"
     conda '/projects/vakbari_prj/anaconda3/envs/patmat'
@@ -251,6 +257,7 @@ process strandseq_cutadapt_single {
 }
 
 
+// Alignment Of Strand-Seq Paired-End Reads
 process strandseq_bowtie_pair {
     tag "${params.sample_id}"
     conda '/projects/vakbari_prj/anaconda3/envs/patmat'
@@ -287,6 +294,7 @@ process strandseq_bowtie_pair {
 }
 
 
+// Alignment Of Strand-Seq Single-End Reads
 process strandseq_bowtie_single {
     tag "${params.sample_id}"
     conda '/projects/vakbari_prj/anaconda3/envs/patmat'
@@ -320,6 +328,8 @@ process strandseq_bowtie_single {
         """
 }
 
+
+// QC Strand-Seq Data
 process ashley_qc{
     tag "${params.sample_id}"
     conda '/projects/vakbari_prj/anaconda3/envs/ashleys_patmat-wf'
@@ -354,6 +364,7 @@ process ashley_qc{
 }
 
 
+// Phasing Of Strand-Seq Reads
 process strandseq_phase {
     tag "${params.sample_id}"
     conda '/projects/vakbari_prj/anaconda3/envs/patmat'
@@ -388,6 +399,8 @@ process strandseq_phase {
         }
 }
 
+
+// Phasing Of Nanopore Reads and PofO Assignment
 process patmat {
     tag "${params.sample_id}"
     conda '/projects/vakbari_prj/anaconda3/envs/patmat'
@@ -406,7 +419,7 @@ process patmat {
         if (params.hifi){
             """
             patmat.py \
-                -v ${longphase_vcf} -pvb ${longphase_vcf} \
+                -v ${longphase_vcf} -ph \
                 -b ${bam_file} -stv ${strandseq_phased_vcf} \
                 -o "${params.sample_id}" \
                 -p ${params.processes} -sv_vcf ${sniffles_vcf} \
@@ -416,7 +429,7 @@ process patmat {
         else{
             """
             patmat.py \
-                -v ${longphase_vcf} -pvb ${longphase_vcf} \
+                -v ${longphase_vcf} -ph \
                 -b ${bam_file} -stv ${strandseq_phased_vcf} \
                 -o "${params.sample_id}" \
                 -p ${params.processes} -sv_vcf ${sniffles_vcf} \
@@ -435,15 +448,12 @@ workflow {
     Channel
         .fromPath("${params.reference}.*").collect()
         .set{ref_indexes}
-    Channel
-        .fromPath("${params.bam}.{bai,crai}")
-        .set{bam_index}
-    small_variant_calling(params.bam,bam_index,params.reference,
+    small_variant_calling(params.bam,file("${params.bam}.{bai,crai}"),params.reference,
                             "${params.reference}.fai")
-    large_variant_calling(params.bam,bam_index,params.reference,
+    large_variant_calling(params.bam,file("${params.bam}.{bai,crai}"),params.reference,
                             "${params.reference}.fai",
                             small_variant_calling.out)
-    phase_long_reads(small_variant_calling.out,params.bam,bam_index,
+    phase_long_reads(small_variant_calling.out,params.bam,file("${params.bam}.{bai,crai}"),
                             params.reference,"${params.reference}.fai", 
                             large_variant_calling.out)
     if ( params.single ) {
@@ -464,7 +474,7 @@ workflow {
     }
     strandseq_phase(ashley_qc.out,
                     small_variant_calling.out)
-    patmat(params.bam, bam_index, phase_long_reads.out,
+    patmat(params.bam, file("${params.bam}.{bai,crai}"), phase_long_reads.out,
             large_variant_calling.out, strandseq_phase.out, 
             params.reference,"${params.reference}.fai")
 }
