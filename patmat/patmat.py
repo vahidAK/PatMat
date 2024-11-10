@@ -1273,7 +1273,7 @@ def main(args):
                 else:
                     hp2_alt_ratio= 0
                     hp2_ref_ratio= 0
-                if (line[0],block_id,"agreement") in phase_block_stat:
+                if args.phased and (line[0],block_id,"agreement") in phase_block_stat:
                     additional_info= [all_cov,hp1_cov,hp2_cov,
                                      str(hp1_count_ref), str(hp2_count_ref),
                                      str(hp1_count_alt),str(hp2_count_alt),
@@ -1357,7 +1357,7 @@ def main(args):
                 else:
                     hp2_alt_ratio= 0
                     hp2_ref_ratio= 0
-                if (line[0],block_id,"agreement") in phase_block_stat:
+                if args.phased and (line[0],block_id,"agreement") in phase_block_stat:
                     additional_info= [all_cov,hp1_cov,hp2_cov,
                                      str(hp1_count_ref), str(hp2_count_ref),
                                      str(hp1_count_alt),str(hp2_count_alt),

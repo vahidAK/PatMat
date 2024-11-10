@@ -25,7 +25,10 @@ def help_message() {
       --bam             Absolute Path to the long-read bam file with methylation tag.
       --output          Absolute Path to output directory
       --ashleys_model   Absolute Path to ashleys model pkl file.
-      --strandseq_fq    Absolute path to the folder with strand-seq fastqs
+      --strandseq_fq    Absolute path to the folder with strand-seq fastqs. NOTE: if your data are paired end, 
+                        the paired reads must be in two different fastq files and the files must be named like 
+                        UniqueID_R1.fastq and UniqueID_R2.fastq OR *_R1.fq and *_R2.fq (zipped .gz files are 
+                        allowed. e.g. *_R1.fastq.gz). Unique ID will be a unique ID of each seqeunced cell.
     Optional arguments:
       --sample_id       Sample id. Will be also used as output prefix. Default is Sample
       --hifi            Select this option if long-read data is from PacBio
@@ -56,18 +59,53 @@ if (params.help){
 }
 
 // Parameters
-params.reference = "reference genome"
-params.bam= "bam file"
-params.output= "output directory"
-params.ashleys_model= "ashleys model"
+params.reference = "reference file: not specified"
+params.bam= "bam file: not specified"
+params.output= "output directory: not specified"
+params.ashleys_model= "ashleys model: not specified"
 params.deepvar_model= "ONT_R104"
-params.strandseq_fq= "strand-seq fastqs folder"
+params.strandseq_fq= "strand-seq fastqs folder: not specified"
 params.sample_id= "Sample"
 params.processes= 10
 params.adapter_3R1= "AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNNNATCTCGTATGCCGTCTTCTGCTTG"
 params.adapter_5R1= "AATGATACGGCGACCACCGAGATCTACACNNNNNNNNACACTCTTTCCCTACACGACGCTCTTCCGATCT"
 params.adapter_3R2= "AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTNNNNNNNNGTGTAGATCTCGGTGGTCGCCGTATCATT"
 params.adapter_5R2= "CAAGCAGAAGACGGCATACGAGATNNNNNNNNGTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT"
+params.clair3_model = "clair3 model: not specified"
+params.clair3 = false
+params.single = false
+params.whatshap = false
+params.hifi = false
+
+def selected_params() {
+    log.info"""
+    --reference ${params.reference}
+    --bam ${params.bam}
+    --output ${params.output}
+    --ashleys_model ${params.ashleys_model}
+    --strandseq_fq ${params.strandseq_fq}
+    --deepvar_model ${params.deepvar_model}
+    --sample_id ${params.sample_id}
+    --processes ${params.processes}
+    --clair3 ${params.clair3}
+    --clair3_model ${params.clair3_model}
+    --single ${params.single}
+    --whatshap ${params.whatshap}
+    --hifi ${params.hifi}
+    --adapter_3R1 ${params.adapter_3R1}
+    --adapter_5R1 ${params.adapter_5R1}
+    """.stripIndent()
+}
+
+println "\n\nParmateres For Running The Workflow (to see the help run the nextflow script with --help):"
+if ( params.single ) {
+    selected_params()
+}
+else {
+    selected_params()
+    println "--adapter_3R2 ${params.adapter_3R2}"
+    println "--adapter_5R2 ${params.adapter_5R2}\n\n"
+}
 
 // Small Variant Calling
 process small_variant_calling{
@@ -301,7 +339,7 @@ process strandseq_bowtie_single {
     publishDir "${params.output}/bowtie2_${params.sample_id}", mode: 'copy'
     cpus "${params.processes}"
     input:
-        path(fastq),
+        path(fastq)
         path(bowtie_ref)
         path(bowtie_ref_index)
     output:
@@ -310,7 +348,7 @@ process strandseq_bowtie_single {
         """
         chrs=\$(printf "chr%s " {1..22} X Y)
         name=\$(echo "${fastq}" | rev | cut -d'/' -f1 | rev | sed 's/.fastq//g;s/.fq//g;s/.gz//g')
-        bowtie2 --rg-id ${id} --rg "SM:${params.sample_id}" -x ${bowtie_ref} -p "${params.processes}" -U ${fastq} | \
+        bowtie2 --rg-id "\$name" --rg "SM:${params.sample_id}" -x ${bowtie_ref} -p "${params.processes}" -U ${fastq} | \
             samtools sort -@ "${params.processes}" -o "\$name"temp.bam
         samtools index -@ "${params.processes}" "\$name"temp.bam
         samtools view -h -F2052 -q10 "\$name"temp.bam \$chrs | \
@@ -440,7 +478,7 @@ process patmat {
 
 workflow {
     Channel
-        .fromFilePairs("${params.strandseq_fq}/*_{R1,R2}_*")
+        .fromFilePairs("${params.strandseq_fq}/*_{R1,R2}.{fastq,fq,fastq.gz,fq.gz}")
         .set{strandseq_fqs_pair}
     Channel
         .fromPath("${params.strandseq_fq}/*")
