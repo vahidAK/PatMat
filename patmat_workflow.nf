@@ -353,8 +353,6 @@ process strandseq_bowtie_single {
         samtools index -@ "${params.processes}" "\$name"temp.bam
         samtools view -h -F2052 -q10 "\$name"temp.bam \$chrs | \
             grep -v -E '@SQ.*chrUn|@SQ.*random|@SQ.*_alt|@SQ.*chrM|@SQ.*chrEBV' | \
-            samtools sort -@ "${params.processes}" -n | \
-            samtools fixmate -@ "${params.processes}" -O bam - - | samtools view -h -f1 | \
             samtools sort -@ "${params.processes}" -o "\$name".bam
         samtools index -@ "${params.processes}" "\$name".bam
         rm "\$name"temp.bam* 
