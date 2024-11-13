@@ -459,7 +459,7 @@ process patmat {
                 -b ${bam_file} -stv ${strandseq_phased_vcf} \
                 -o "${params.sample_id}" \
                 -p ${params.processes} -sv_vcf ${sniffles_vcf} \
-                -ref ${reference_genome} -pb
+                -ref ${reference_genome} -pb -is
             """
         }
         else{
@@ -469,7 +469,7 @@ process patmat {
                 -b ${bam_file} -stv ${strandseq_phased_vcf} \
                 -o "${params.sample_id}" \
                 -p ${params.processes} -sv_vcf ${sniffles_vcf} \
-                -ref ${reference_genome}
+                -ref ${reference_genome} -is
             """
         }
 }

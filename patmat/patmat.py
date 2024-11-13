@@ -39,9 +39,7 @@ from tqdm import tqdm
 
 def get_variant_info(feed_list,
                      alignment_file,
-                     chrom,
-                     MappingQuality,
-                     IncludeSupplementary):
+                     chrom):
     '''
     This function maps each read to heterozygous variants and returns a list of  
     haplotype 1, haplotype 2, and unphased variants mapped to each read.
@@ -69,9 +67,9 @@ def get_variant_info(feed_list,
             if pileupcolumn.pos == position:
                 for pileupread in pileupcolumn.pileups:
                     read_mq = pileupread.alignment.mapping_quality
-                    if read_mq < MappingQuality:
+                    if read_mq < args.mapping_quality:
                         continue
-                    if pileupread.alignment.is_supplementary and not IncludeSupplementary:
+                    if pileupread.alignment.is_supplementary and not args.include_supplementary:
                         continue
                     read_var_cov[(chrom,position)]+=1
                     read_id= pileupread.alignment.query_name
@@ -523,6 +521,12 @@ def alignment_writer(bam,
     bamiter = bam.fetch(chrom)
     if chrom in chrom_hp_origin and chrom_hp_origin[chrom]['HP1'][0] == 'maternal':
         for read in bamiter:
+            if (read.mapping_quality < args.mapping_quality or 
+                read.is_secondary or read.is_qcfail or 
+                read.is_duplicate or read.is_unmapped or
+                (read.is_supplementary and not args.include_supplementary)):
+                outfile.write(read)
+                continue
             read.set_tag("HP", None)
             read.set_tag("PS", None)
             read_id = read.query_name
@@ -532,6 +536,12 @@ def alignment_writer(bam,
             outfile.write(read)
     elif chrom in chrom_hp_origin and chrom_hp_origin[chrom]['HP2'][0] == 'maternal':
         for read in bamiter:
+            if (read.mapping_quality < args.mapping_quality or 
+                read.is_secondary or read.is_qcfail or 
+                read.is_duplicate or read.is_unmapped or
+                (read.is_supplementary and not args.include_supplementary)):
+                outfile.write(read)
+                continue
             read.set_tag("HP", None)
             read.set_tag("PS", None)
             read_id = read.query_name
@@ -544,6 +554,12 @@ def alignment_writer(bam,
             outfile.write(read)
     else:
         for read in bamiter:
+            if (read.mapping_quality < args.mapping_quality or 
+                read.is_secondary or read.is_qcfail or 
+                read.is_duplicate or read.is_unmapped or
+                (read.is_supplementary and not args.include_supplementary)):
+                outfile.write(read)
+                continue
             read.set_tag("HP", None)
             read.set_tag("PS", None)
             outfile.write(read)
@@ -836,9 +852,7 @@ def write_sam_phase(in_file,
 def per_read_variant(vcf_dict,
                      bam_file,
                      chunk,
-                     processes,
-                     MappingQuality,
-                     IncludeSupplementary):
+                     processes):
     '''
     This function extracts per-read information for variants.
     '''
@@ -865,9 +879,7 @@ def per_read_variant(vcf_dict,
                     results= p.starmap(get_variant_info,
                                         list(zip(vcf_info_list,
                                                 repeat(bam_file),
-                                                repeat(chrom),
-                                                repeat(MappingQuality),
-                                                repeat(IncludeSupplementary))))
+                                                repeat(chrom))))
                     p.close()
                     p.join()
                     for result in results:
@@ -991,25 +1003,6 @@ def get_block(vcf):
         blocks_dict[key]= (str(val[0]), str(val[-1]))
     return final, blocks_dict
 
-
-# def get_indels(vcf):
-#     '''
-#     Extracts heterozygous indels from input vcf file. 
-#     '''
-#     indels= set()
-#     with openfile(vcf) as vcf_file:
-#         for line in vcf_file:
-#             if line.startswith('#'):
-#                 continue
-#             line= line.rstrip().split('\t')
-#             if line[9].startswith(("0|1","1|0","0/1","1/0")):
-#                 if len(line[3]) > 1 or len(line[4]) > 1:
-#                     indels.add((line[0],str(int(line[1])-1)))
-#             # Non-reference het indels (e.g. 1/2) are ignored as 
-#             #they will be in unphased column of per-read info file
-#     return indels
-
-
 def main(args):
     '''
     The main function that uses user's inputs and other functions to phase and
@@ -1065,31 +1058,17 @@ def main(args):
                 line=line.rstrip().split('\t')
                 chroms[line[0]]= int(line[1])
     
-    # out_dmltest= open(out+"_DMLtest.tsv",'w')
-    # out_dmltest.write("chr\tstart\tend\tmu1\tmu2\tdiff\tdiff.se\tstat\tphi1\t"
-    #                   "phi2\tpval\tfdr\n")
-    # out_dmltest.close()
-    # out_calldml= open(out+"_callDML.tsv",'w')
-    # out_calldml.write("chr\tstart\tend\tmu1\tmu2\tdiff\tdiff.se\tstat\tphi1\t"
-    #                   "phi2\tpval\tfdr\tpostprob.overThreshold\n")
-    # out_calldml.close()
-    
     bam_choms= getChromsFromBAM(bam_file)
-    # bam_chrom_check= set()
     reads_hap= dict()
     for chrom in sorted(chroms.keys()):
         print("#############  Processing chromosome {}  #############".format(chrom))
         if args.strand_vcf is not None and not args.phased:
-            # print("Using strand-seq phased vcf only with"
-            #               " {}.".format(known_dmr.split('/')[-1]))
             vcf_strand = os.path.abspath(args.strand_vcf)
             final_dict, strand_phased_vars= strand_vcf2dict_phased(vcf_strand, 
                                                            vcf, 
                                                            args.include_all_variants,
                                                            chrom)
         elif args.strand_vcf is not None and args.phased:
-            # print("Using both strand-seq phased and phased blocks in"
-            #               "vcf with {}.".format(known_dmr.split('/')[-1]))
             vcf_strand = os.path.abspath(args.strand_vcf)
             blocks_phased, blocks_dict= get_block(vcf)
             (final_dict,
@@ -1104,43 +1083,17 @@ def main(args):
         else:
             raise Exception("No strand-seq vcf is given.")
         
-        # if strand_phased_vars==0:
-        #     warnings.warn("No phased strand-seq variant in {}. Skipping it.".format(chrom))
-        #     re_assignment_file= open(out + '_Temp_NonPofO_Assignment.vcf', 'a')
-        #     records_chrom= vcf_tb.query(chrom, 0, chroms[chrom]+1)
-        #     for line in records_chrom:
-        #         if 'PS' in line[8].split(":"):
-        #             ps_index= line[8].split(":").index('PS')
-        #             new_ps= line[8].split(":")
-        #             new_hp= line[9].split(":")
-        #             new_ps.pop(ps_index)
-        #             new_hp.pop(ps_index)
-        #         else:
-        #             new_ps= line[8].split(":")
-        #             new_hp= line[9].split(":")
-        #         assignment_file.write('\t'.join(line[0:8]+
-        #                                 [':'.join(new_ps)]+
-        #                                 [':'.join(new_hp).replace("|", "/").
-        #                                                   replace("1/0", "0/1").
-        #                                                   replace("2/1", "1/2")]+
-        #                                 ["NA"]*17)+'\n')
-        #     assignment_file.close()
-        
         (variant_dict,
          read_dict_HP1, 
          read_dict_HP2,
          per_var_cov)= per_read_variant(final_dict,
                                         bam_file,
                                         chunk,
-                                        processes,
-                                        args.mapping_quality,
-                                        args.include_supplementary)
+                                        processes)
         if not read_dict_HP1 and not read_dict_HP1:
             continue
         reads_hap_temp= dict()
         read_hap_reassign= defaultdict(lambda: defaultdict(int))
-        # variant_dict_HP1= defaultdict(lambda: defaultdict(int))
-        # variant_dict_HP2= defaultdict(lambda: defaultdict(int))
         variant_dict_HP1_ave= defaultdict(lambda: defaultdict(int))
         variant_dict_HP2_ave= defaultdict(lambda: defaultdict(int))
         for key,val in read_dict_HP1.items():
@@ -1163,12 +1116,8 @@ def main(args):
                 if (key[0],*read) in reads_hap_temp:
                     if reads_hap_temp[(key[0],*read)] == 1:
                         hp1_count += 1
-                        # variant_dict_HP1[(key[0],key[1])][key[2]] += 1 
-                        # variant_dict_HP2[(key[0],key[1])][key[2]] += 0 
                     elif reads_hap_temp[(key[0],*read)] == 2:
                         hp2_count += 1
-                        # variant_dict_HP1[(key[0],key[1])][key[2]] += 0
-                        # variant_dict_HP2[(key[0],key[1])][key[2]] += 1
             variant_dict_HP1_ave[(key[0],key[1])] = round(hp1_count_read/read_count,3)
             variant_dict_HP2_ave[(key[0],key[1])] = round(hp2_count_read/read_count,3)
             for read in val:
@@ -1230,21 +1179,7 @@ def main(args):
                 new_hp= line[9].split(":")
             
             if not args.include_all_variants and line[6] not in ["PASS","."]:
-                # re_assignment_vars[tuple(line[0:2])]= (line[0:8]+
-                #                                       [':'.join(new_ps)]+
-                #                                       [':'.join(new_hp).replace("|", "/").
-                #                                                        replace("1/0", "0/1").
-                #                                                        replace("2/1", "1/2")]+
-                #                                       ["NA"]*15)
                 continue
-            
-            # if line[9].startswith(("0/1","1/0","0|1","1|0",
-            #                        "1/2","1|2","2/1","2|1")):
-            #     if ((len(line[3]) == 1 and len(line[4]) == 1) or 
-            #         (len(line[3]) == 1 and len(line[4]) == 3 and "," in line[4])):
-            #         info_out_dict[line[0]]["all_het_snvs"] += 1
-            #     else:
-            #         info_out_dict[line[0]]["all_het_indels"] += 1
             if line[9].startswith(("0/1","1/0","0|1","1|0")):
                 hp1_count_alt= variant_dict_HP1[(line[0],int(line[1])-1)][line[4].upper()]
                 hp2_count_alt= variant_dict_HP2[(line[0],int(line[1])-1)][line[4].upper()]
@@ -1296,10 +1231,6 @@ def main(args):
                     (hp2_count_ref > hp1_count_ref and
                      hp2_ref_ratio > hp1_ref_ratio and
                      hp2_count_ref >= min_read_reassignment)):
-                    # if len(line[3]) == 1 and len(line[4]) == 1:
-                    #     info_out_dict[line[0]]["pofo_het_snvs"] += 1
-                    # else:
-                    #     info_out_dict[line[0]]["pofo_het_indels"] += 1
                     re_assignment_vars[tuple(line[0:2])]= (line[0:8]+
                                                         [':'.join(new_ps)+":PS"]+
                                                         ["1|0:"+':'.join(new_hp[1:])+":HP2|HP1"]+
@@ -1310,10 +1241,6 @@ def main(args):
                       (hp1_count_ref > hp2_count_ref and
                        hp1_ref_ratio > hp2_ref_ratio and
                        hp1_count_ref >= min_read_reassignment)):
-                    # if len(line[3]) == 1 and len(line[4]) == 1:
-                    #     info_out_dict[line[0]]["pofo_het_snvs"] += 1
-                    # else:
-                    #     info_out_dict[line[0]]["pofo_het_indels"] += 1
                     re_assignment_vars[tuple(line[0:2])]= (line[0:8]+
                                                           [':'.join(new_ps)+":PS"]+
                                                           ["0|1:"+':'.join(new_hp[1:])+":HP1|HP2"]+
@@ -1324,13 +1251,6 @@ def main(args):
                                                           [':'.join(new_hp).replace("|", "/").
                                                                             replace("1/0", "0/1")]+
                                                           additional_info)
-                # else:
-                #     re_assignment_vars[tuple(line[0:2])]= ('\t'.join(line[0:8]+
-                #                                           [':'.join(new_ps)]+
-                #                                           [':'.join(new_hp).replace("|", "/").
-                #                                                             replace("1/0", "0/1")]+
-                #                                           additional_info))
-                
             elif line[9].startswith(('1/2','1|2','2/1','2|1')):
                 hp1_count_alt= variant_dict_HP1[(line[0],int(line[1])-1)][line[4].split(',')[1].upper()]
                 hp2_count_alt= variant_dict_HP2[(line[0],int(line[1])-1)][line[4].split(',')[1].upper()]
@@ -1380,11 +1300,6 @@ def main(args):
                     (hp2_count_ref > hp1_count_ref and
                      hp2_ref_ratio > hp1_ref_ratio and
                      hp2_count_ref >= min_read_reassignment)):
-                    # if len(line[3]) == 1 and len(line[4]) == 3:
-                    #     info_out_dict[line[0]]["pofo_het_snvs"] += 1
-                    # else:
-                    #     info_out_dict[line[0]]["pofo_het_indels"] += 1
-                    
                     re_assignment_vars[tuple(line[0:2])]= (line[0:8]+
                                                         [':'.join(new_ps)+":PS"]+
                                                         ["1|2:"+':'.join(new_hp[1:])+":Ref_HP2|HP1"]+
@@ -1396,10 +1311,6 @@ def main(args):
                       (hp1_count_ref > hp2_count_ref and
                        hp1_ref_ratio > hp2_ref_ratio and
                        hp1_count_ref >= min_read_reassignment)):
-                    # if len(line[3]) == 1 and len(line[4]) == 3:
-                    #     info_out_dict[line[0]]["pofo_het_snvs"] += 1
-                    # else:
-                    #     info_out_dict[line[0]]["pofo_het_indels"] += 1
                     re_assignment_vars[tuple(line[0:2])]= (line[0:8]+
                                                         [':'.join(new_ps)+":PS"]+
                                                         ["1|2:"+':'.join(new_hp[1:])+":Ref_HP1|HP2"]+
@@ -1410,13 +1321,6 @@ def main(args):
                                                         [':'.join(new_hp).replace("|", "/").
                                                                           replace("2/1", "1/2")]+
                                                         additional_info)
-    #         else:
-    #             re_assignment_file.write('\t'.join(line[0:8]+
-    #                                           [':'.join(new_ps)]+
-    #                                           [':'.join(new_hp).replace("|", "/")]+
-    #                                           ["NA"]*17)+'\n')
-    # re_assignment_file.close()                
-    
 
     subprocess.run("sed '1d' {} | awk -F'\t' '{{print $1,$2-100000,$3+100000}}' OFS='\t'"
                     " | awk '{{if ($2<0) {{$2=0}}; print}}' OFS='\t' "
@@ -1548,16 +1452,10 @@ def main(args):
                             out_line= '\t'.join(var_info[0:10]).replace("HP1", "Mat"
                                                                  ).replace("HP2", "Pat")
                             assignment_file.write(out_line+'\n')
-                            # if var_info[9].replace("Ref_","").split(':')[-1].startswith("HP1"): 
                             assignment_file_info.write(out_line+'\t'+
                                                   '\t'.join(var_info[10:]+
                                                             [hp1_count_ref,hp2_count_ref,
                                                              hp1_count_alt,hp2_count_alt])+'\n')
-                            # elif var_info[9].replace("Ref_","").split(':')[-1].startswith("HP2"):
-                            #     assignment_file.write(out_line+'\t'+
-                            #                           '\t'.join(var_info[10:]+
-                            #                                     [hp1_count_ref,hp2_count_ref,
-                            #                                      hp1_count_alt,hp2_count_alt])+'\n')
                         elif chrom_hp_origin[line[0]]['HP1'][0] == 'paternal':
                             if var_info[9].startswith("1|0"):
                                 out_line= '\t'.join(var_info[0:10]).replace("1|0","0|1"
@@ -1719,29 +1617,6 @@ required.add_argument("--reference", "-ref",
                             "must also give the path to the reference file. "
                             "File must be indexed using samtools faidx."))
 optional = parser.add_argument_group("Optional arguments")
-
-# optional.add_argument("--callthresh", "-tc",
-#                            action="store",
-#                            type=str,
-#                            required=False,
-#                            default="methbam:0.4",
-#                            help=("Software you have used for methylation "
-#                                  "calling:Call threshold. Supported files "
-#                                  "include methbam (Methylation bam format produced by "
-#                                  "guppy basecaller) and per-read CpG methylation calls from "
-#                                  "nanoplish (or f5c>=v0.7), megalodon, and deepsignal. "
-#                                  "For example, nanopolish:1.5 is when methylation"
-#                                  " calling performed by nanopolish and a CpG with"
-#                                  " llr >= 1.5 will be considered as methylated "
-#                                  "and llr <= -1.5 as unmethylated, anything "
-#                                  "in between will be considered as ambiguous"
-#                                  " call and ignored. For methbam, megalodon, and"
-#                                  " deepsignl call threshold will be delta probability (0-1)"
-#                                  ". For example threshold 0.4 means any call >=0.7"
-#                                  " is methylated and <=0.3 is not and between"
-#                                  " 0.3-0.7 will be ignored. Default is methbam:0.4."
-#                                  " If methbam is selected you must also provide path"
-#                                  " to the reference file using --reference option."))
 optional.add_argument("--pacbio", "-pb",
                             action="store_true",
                             required=False,
@@ -1834,7 +1709,7 @@ optional.add_argument("--mapping_quality", "-mq",
                       help=("An integer value to specify threshold for "
                             "filtering reads based on mapping quality for "
                             "PofO assignment to variants. "
-                            "Default is >=20"))
+                            "Default is >=10"))
 optional.add_argument("--min_variant", "-mv",
                       action="store",
                       type=int,
@@ -1880,14 +1755,10 @@ optional.add_argument("--include_all_variants", "-iav",
                            " in the FILTER column of the input vcf file will be used"
                            " during phasing and PofO assignment. Select this flag "
                            "if you want to use all the variants.")
-optional.add_argument("--include_supplementary", "-nis",
+optional.add_argument("--include_supplementary", "-is",
                       action="store_true",
                       required=False,
-                      help="Do not include supplementary reads.")
-# optional.add_argument("--include_indels", "-ind",
-#                       action="store_true",
-#                       required=False,
-#                       help="Also include indels for read phasing to haplotypes.")
+                      help="Include supplementary reads.")
 optional.add_argument("--processes", "-p",
                       action="store",
                       type=int,
