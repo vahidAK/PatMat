@@ -46,7 +46,7 @@ def get_variant_info(feed_list,
     '''
     read_var_list= list()
     read_hap_list= list()
-    read_var_cov= defaultdict(int)
+    read_var_cov= defaultdict(list)
     samfile = pysam.AlignmentFile(alignment_file, 'rb')
     for varinfo in feed_list:
         gt,position,ref,alt= varinfo
@@ -71,11 +71,11 @@ def get_variant_info(feed_list,
                         continue
                     if pileupread.alignment.is_supplementary and not args.include_supplementary:
                         continue
-                    read_var_cov[(chrom,position)]+=1
                     read_id= pileupread.alignment.query_name
                     flag= pileupread.alignment.flag
                     read_start= pileupread.alignment.reference_start
                     ext_key= (read_id,str(flag),str(read_mq),str(read_start+1))
+                    read_var_cov[(chrom,position)].append((chrom,read_id))
                     if pileupread.is_del or pileupread.is_refskip:
                         continue
                     read_base= None
@@ -859,7 +859,7 @@ def per_read_variant(vcf_dict,
     variant_dict= defaultdict(set)
     read_dict_HP1= defaultdict(int)
     read_dict_HP2= defaultdict(int)
-    per_var_cov = defaultdict(int)
+    per_var_cov = defaultdict(list)
     for chrom,feed_list in vcf_dict.items():
         bamiter, bam, count = openalignment(bam_file, chrom)
         if count > 0:
@@ -1151,19 +1151,28 @@ def main(args):
         variant_dict_HP2= defaultdict(lambda: defaultdict(int))
         variant_dict_HP1_all= defaultdict(int)
         variant_dict_HP2_all= defaultdict(int)
+        for key,val in per_var_cov.items():
+            for read in val:
+                if read in reads_hap and reads_hap[read]==1:
+                    variant_dict_HP1_all[(key[0],key[1])] += 1
+                    variant_dict_HP2_all[(key[0],key[1])] += 0
+                elif read in reads_hap and reads_hap[read]==2:
+                    variant_dict_HP1_all[(key[0],key[1])] += 0
+                    variant_dict_HP2_all[(key[0],key[1])] += 1
+                
         for key,val in variant_dict.items():
             for read in val:
                 if (key[0],read[0]) in reads_hap:
                     if reads_hap[(key[0],read[0])] == 1:
+                        variant_dict_HP1_all[(key[0],key[1],"delskip")] += 1
+                        variant_dict_HP2_all[(key[0],key[1],"delskip")] += 0
                         variant_dict_HP1[(key[0],key[1])][key[2]] += 1 
-                        variant_dict_HP1_all[(key[0],key[1])] += 1
                         variant_dict_HP2[(key[0],key[1])][key[2]] += 0
-                        variant_dict_HP2_all[(key[0],key[1])] += 0
                     elif reads_hap[(key[0],read[0])] == 2:
+                        variant_dict_HP1_all[(key[0],key[1],"delskip")] += 0
+                        variant_dict_HP2_all[(key[0],key[1],"delskip")] += 1
                         variant_dict_HP1[(key[0],key[1])][key[2]] += 0
-                        variant_dict_HP1_all[(key[0],key[1])] += 0
                         variant_dict_HP2[(key[0],key[1])][key[2]] += 1 
-                        variant_dict_HP2_all[(key[0],key[1])] += 1
         variant_dict.clear()
         records_chrom= vcf_tb.query(chrom, 0, chroms[chrom]+1)
         for line in records_chrom:
@@ -1187,12 +1196,14 @@ def main(args):
                 hp2_count_ref= variant_dict_HP2[(line[0],int(line[1])-1)][line[3].upper()]
                 hp1_cov= str(variant_dict_HP1_all[(line[0],int(line[1])-1)])
                 hp2_cov= str(variant_dict_HP2_all[(line[0],int(line[1])-1)])
-                all_cov= str(per_var_cov[(line[0],int(line[1])-1)])
-                if hp1_cov == "0":
+                hp1_cov_skip= str(variant_dict_HP1_all[(line[0],int(line[1])-1,"delskip")])
+                hp2_cov_skip= str(variant_dict_HP2_all[(line[0],int(line[1])-1,"delskip")])
+                all_cov= str(len(per_var_cov[(line[0],int(line[1])-1)]))
+                if hp1_cov_skip == "0":
                     hp1_count_ave= 0
                 else:
                     hp1_count_ave= variant_dict_HP1_ave[(line[0],int(line[1])-1)]
-                if hp2_cov == "0":
+                if hp2_cov_skip == "0":
                     hp2_count_ave= 0
                 else:
                     hp2_count_ave= variant_dict_HP2_ave[(line[0],int(line[1])-1)]
@@ -1209,7 +1220,7 @@ def main(args):
                     hp2_alt_ratio= 0
                     hp2_ref_ratio= 0
                 if args.phased and (line[0],block_id,"agreement") in phase_block_stat:
-                    additional_info= [all_cov,hp1_cov,hp2_cov,
+                    additional_info= [all_cov,hp1_cov,hp2_cov,hp1_cov_skip,hp2_cov_skip,
                                      str(hp1_count_ref), str(hp2_count_ref),
                                      str(hp1_count_alt),str(hp2_count_alt),
                                      str(hp1_count_ave),
@@ -1219,7 +1230,7 @@ def main(args):
                                      str(phase_block_stat[(line[0],block_id,"agreement")]),
                                      str(phase_block_stat[(line[0],block_id,"disagreement")])]
                 else:
-                    additional_info= [all_cov,hp1_cov,hp2_cov,
+                    additional_info= [all_cov,hp1_cov,hp2_cov,hp1_cov_skip,hp2_cov_skip,
                                      str(hp1_count_ref), str(hp2_count_ref),
                                      str(hp1_count_alt),str(hp2_count_alt),
                                      str(hp1_count_ave),
@@ -1258,12 +1269,16 @@ def main(args):
                 hp2_count_ref= variant_dict_HP2[(line[0],int(line[1])-1)][line[4].split(',')[0].upper()]
                 hp1_cov= str(variant_dict_HP1_all[(line[0],int(line[1])-1)])
                 hp2_cov= str(variant_dict_HP2_all[(line[0],int(line[1])-1)])
-                all_cov= str(per_var_cov[(line[0],int(line[1])-1)])
-                if hp1_cov == "0" or hp2_cov == "0":
+                hp1_cov_skip= str(variant_dict_HP1_all[(line[0],int(line[1])-1,"delskip")])
+                hp2_cov_skip= str(variant_dict_HP2_all[(line[0],int(line[1])-1,"delskip")])
+                all_cov= str(len(per_var_cov[(line[0],int(line[1])-1)]))
+                if hp1_cov_skip == "0":
                     hp1_count_ave= 0
-                    hp2_count_ave= 0
                 else:
                     hp1_count_ave= variant_dict_HP1_ave[(line[0],int(line[1])-1)]
+                if hp2_cov_skip == "0":
+                    hp2_count_ave= 0
+                else:
                     hp2_count_ave= variant_dict_HP2_ave[(line[0],int(line[1])-1)]
                 if hp1_count_alt > 0 or hp1_count_ref > 0:
                     hp1_alt_ratio= hp1_count_alt/(hp1_count_alt+hp1_count_ref)
@@ -1278,7 +1293,7 @@ def main(args):
                     hp2_alt_ratio= 0
                     hp2_ref_ratio= 0
                 if args.phased and (line[0],block_id,"agreement") in phase_block_stat:
-                    additional_info= [all_cov,hp1_cov,hp2_cov,
+                    additional_info= [all_cov,hp1_cov,hp2_cov,hp1_cov_skip,hp2_cov_skip,
                                      str(hp1_count_ref), str(hp2_count_ref),
                                      str(hp1_count_alt),str(hp2_count_alt),
                                      str(hp1_count_ave),
@@ -1288,7 +1303,7 @@ def main(args):
                                      str(phase_block_stat[(line[0],block_id,"agreement")]),
                                      str(phase_block_stat[(line[0],block_id,"disagreement")])]
                 else:
-                    additional_info= [all_cov,hp1_cov,hp2_cov,
+                    additional_info= [all_cov,hp1_cov,hp2_cov,hp1_cov_skip,hp2_cov_skip,
                                      str(hp1_count_ref), str(hp2_count_ref),
                                      str(hp1_count_alt),str(hp2_count_alt),
                                      str(hp1_count_ave),
@@ -1413,7 +1428,8 @@ def main(args):
             elif line.startswith("#"):
                 assignment_file.write(line)
                 assignment_file_info.write(line.rstrip()+"\tNumAllReads\t"
-                                        "NumReadsHP1\tNumReadsHP2\tNumReads_HP1_Ref/Left_Allele"
+                                        "NumReadsHP1\tNumReadsHP2\tNumReadsHP1_DelSkipRefSkip\t"
+                                        "NumReadsHP2_DelSkipRefSkip\tNumReads_HP1_Ref/Left_Allele"
                                         "\tNumReads_HP2_Ref/Left_Allele\tNumReads_HP1_Alt/Right_Allele"
                                         "\tNumReads_HP2_Alt/Right_Allele\t"
                                         "MeanNumherOfHP1-PhasedVariantsAccrossReads\t"
@@ -1848,4 +1864,3 @@ args = parser.parse_args()
 
 if __name__ == '__main__':
     main(args)
-
