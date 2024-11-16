@@ -119,7 +119,8 @@ process small_variant_calling{
         path(fai)
     output:
         tuple path("*_passed_variants.vcf.gz"),
-            path("{merge_output.vcf.gz,*_DeepVariant.vcf}")
+            path("{merge_output.vcf.gz,*_DeepVariant.vcf}"),
+            path("small_variant_calling_command*")
     script:
         if ( params.clair3 ) {
             if ( params.hifi ) {
@@ -127,20 +128,26 @@ process small_variant_calling{
                 run_clair3.sh --bam_fn="$bam" \
                     --ref_fn="${ref}" --output="." \
                     --threads="${params.processes}" \
-                    --platform="hifi" --model_path="${params.clair3_model}"
+                    --platform="hifi" --model_path="${params.clair3_model}" \
+                    --remove_intermediate_dir
                 gunzip -c merge_output.vcf.gz | awk '\$1~/^#/ || \$7=="PASS"' \
                 | bgzip > "${params.sample_id}"_clair3_passed_variants.vcf.gz
+                cp .command.log small_variant_calling_command.log
+                cp .command.sh small_variant_calling_command.sh
                 """
             }
             else {
                 """
-                    run_clair3.sh --bam_fn="$bam" \
-                        --ref_fn="${ref}" --output="." \
-                        --threads="${params.processes}" \
-                        --platform="ont" --model_path="${params.clair3_model}"
-                    gunzip -c merge_output.vcf.gz | awk '\$1~/^#/ || \$7=="PASS"' \
+                run_clair3.sh --bam_fn="$bam" \
+                    --ref_fn="${ref}" --output="." \
+                    --threads="${params.processes}" \
+                    --platform="ont" --model_path="${params.clair3_model}" \
+                    --remove_intermediate_dir
+                gunzip -c merge_output.vcf.gz | awk '\$1~/^#/ || \$7=="PASS"' \
                     | bgzip > "${params.sample_id}"_clair3_passed_variants.vcf.gz
-                    """
+                cp .command.log small_variant_calling_command.log
+                cp .command.sh small_variant_calling_command.sh
+                """
             }
         }
         else {
@@ -165,6 +172,8 @@ process small_variant_calling{
                     --dry_run=false
             awk '\$1~/^#/ || \$7=="PASS"' "${params.sample_id}"_DeepVariant.vcf | \
             bgzip > "${params.sample_id}"_DeepVariant_passed_variants.vcf.gz
+            cp .command.log small_variant_calling_command.log
+            cp .command.sh small_variant_calling_command.sh
             """
         }
 }
@@ -181,14 +190,17 @@ process large_variant_calling{
         path(bai)
         path(ref)
         path(fai)
-        tuple path(clair3_pass_vcf), path(clair3_vcf)
+        tuple path(clair3_pass_vcf), path(clair3_vcf), path(prev_log)
     output:
-        path("${params.sample_id}_sniffles_variants.vcf")
+        tuple path("${params.sample_id}_sniffles_variants.vcf"),
+            path("large_variant_calling_command*")
     script:
         """
         sniffles -i "${bam}" \
             --reference "${ref}" \
             -v "${params.sample_id}"_sniffles_variants.vcf
+        cp .command.log large_variant_calling_command.log
+        cp .command.sh large_variant_calling_command.sh
         """
 }
 
@@ -199,15 +211,16 @@ process phase_long_reads{
     conda '/projects/vakbari_prj/anaconda3/envs/patmat'
     publishDir "${params.output}/LongReadPhased_${params.sample_id}", mode: 'copy'
     input:
-        tuple path(pass_vcf), path(vcf)
+        tuple path(pass_vcf), path(vcf), path(prev_log_cl)
         path(bam)
         path(bai)
         path(ref)
         path(fai)
-        path(sniffles_vcf)
+        tuple path(sniffles_vcf), path(prev_log_sn)
     output:
         tuple path("${params.sample_id}_*.vcf.gz"),
-            path("${params.sample_id}_*.vcf.gz.tbi")
+            path("${params.sample_id}_*.vcf.gz.tbi"),
+            path("phase_long_reads_command*")
     script:
         if ( params.whatshap ) {
             """
@@ -216,6 +229,8 @@ process phase_long_reads{
                 --reference="$ref" "$pass_vcf" "$bam"
             bgzip "${params.sample_id}"_WhatsHap.vcf
             tabix -p vcf "${params.sample_id}"_WhatsHap.vcf.gz
+            cp .command.log phase_long_reads_command.log
+            cp .command.sh phase_long_reads_command.sh
             """
         }
         else {
@@ -226,6 +241,8 @@ process phase_long_reads{
                     --pb -t "${params.processes}" -o "${params.sample_id}"_LongPhase
                 bgzip "${params.sample_id}"_LongPhase.vcf
                 tabix -p vcf "${params.sample_id}"_LongPhase.vcf.gz
+                cp .command.log phase_long_reads_command.log
+                cp .command.sh phase_long_reads_command.sh
                 """
             }
             else {
@@ -235,6 +252,8 @@ process phase_long_reads{
                     --ont -t "${params.processes}" -o "${params.sample_id}"_LongPhase
                 bgzip "${params.sample_id}"_LongPhase.vcf
                 tabix -p vcf "${params.sample_id}"_LongPhase.vcf.gz
+                cp .command.log phase_long_reads_command.log
+                cp .command.sh phase_long_reads_command.sh
                 """
             }
         }
@@ -250,11 +269,14 @@ process strandseq_cutadapt_pair {
     input:
         tuple val(id),
             path(fastq_files)
-        path(phased_long_reads_vcf)
+        tuple path(longphase_vcf), 
+            path(longphase_index),
+            path(prev_log_lp)
     output:
         tuple val("${id}"),
             path("${id}_trimmed.1.fastq.gz"),
-            path("${id}_trimmed.2.fastq.gz")
+            path("${id}_trimmed.2.fastq.gz"),
+            path("*strandseq_cutadapt_pair_command*")
     script:
         def(read1, read2) = fastq_files
         """
@@ -267,6 +289,8 @@ process strandseq_cutadapt_pair {
             -p "${id}"_trimmed.2.fastq.gz \
             "${read1}" "${read2}" \
             -m 30 -q 15 -j "${params.processes}"
+        cp .command.log "${id}"_strandseq_cutadapt_pair_command.log
+        cp .command.sh "${id}"_strandseq_cutadapt_pair_command.sh
         """
 }
 
@@ -279,9 +303,12 @@ process strandseq_cutadapt_single {
     cpus "${params.processes}"
     input:
         path(fastq_file)
-        path(phased_long_reads_vcf)
+        tuple path(longphase_vcf), 
+            path(longphase_index),
+            path(prev_log_lp)
     output:
-        path("*_trimmed.fastq.gz")
+        tuple path("*_trimmed.fastq.gz"),
+            path("*strandseq_cutadapt_single_command*")
     script:
         """
         name=\$(echo "${fastq_file}" | rev | cut -d'/' -f1 | rev | sed 's/.fastq//g;s/.fq//g;s/.gz//g')
@@ -291,6 +318,8 @@ process strandseq_cutadapt_single {
             -o "\$name"_trimmed.fastq.gz \
             "${fastq_file}" \
             -m 30 -q 15 -j "${params.processes}"
+        cp .command.log "\$name"_strandseq_cutadapt_single_command.log
+        cp .command.sh "\$name"_strandseq_cutadapt_single_command.sh
         """
 }
 
@@ -304,11 +333,13 @@ process strandseq_bowtie_pair {
     input:
         tuple val(id),
             path(fastq1),
-            path(fastq2)
+            path(fastq2),
+            path(prev_log)
         path(bowtie_ref)
         path(bowtie_ref_index)
     output:
-        path("${id}_MarkedDup.bam*")
+        tuple path("${id}_MarkedDup.bam*"),
+            path("*strandseq_bowtie_pair_command*")
     script:
         """
         chrs=\$(printf "chr%s " {1..22} X Y)
@@ -328,6 +359,8 @@ process strandseq_bowtie_pair {
             -M "${id}"_MarkedDup.metrics
         rm "${id}".bam*
         samtools index -@ "${params.processes}" "${id}"_MarkedDup.bam
+        cp .command.log "${id}"_strandseq_bowtie_pair_command.log
+        cp .command.sh "${id}"_strandseq_bowtie_pair_command.sh
         """
 }
 
@@ -339,11 +372,13 @@ process strandseq_bowtie_single {
     publishDir "${params.output}/bowtie2_${params.sample_id}", mode: 'copy'
     cpus "${params.processes}"
     input:
-        path(fastq)
+        tuple path(fastq),
+            path(prev_log)
         path(bowtie_ref)
         path(bowtie_ref_index)
     output:
-        path("*_MarkedDup.bam*")
+        tuple path("*_MarkedDup.bam*"),
+            path("*strandseq_bowtie_single_command*")
     script:
         """
         chrs=\$(printf "chr%s " {1..22} X Y)
@@ -361,6 +396,8 @@ process strandseq_bowtie_single {
             -M "\$name"_MarkedDup.metrics
         rm "\$name".bam*
         samtools index -@ "${params.processes}" "\$name"_MarkedDup.bam
+        cp .command.log "\$name"_strandseq_bowtie_single_command.log
+        cp .command.sh "\$name"_strandseq_bowtie_single_command.sh
         """
 }
 
@@ -371,32 +408,38 @@ process ashley_qc{
     conda '/projects/vakbari_prj/anaconda3/envs/ashleys_patmat-wf'
     publishDir "${params.output}/bowtie2_${params.sample_id}", mode: 'copy'
     input:
-        path(strandseq_bam_folder)
         val(bowtie_out)
     output:
-        tuple path("ashleys_pass"), path("ashleys_fail")
+        tuple path("ashleys_pass"), 
+            path("ashleys_fail"),
+            path("ashleys_*.tsv"),
+            path("ashley_qc_command*")
     script:
         """
         ashleys.py -j "${params.processes}" \
             features \
-            -f ${strandseq_bam_folder} \
+            -f "${params.output}"/bowtie2_"${params.sample_id}" \
             -w 5000000 2000000 1000000 800000 600000 400000 200000 \
             -o ashleys_features.tsv
 
         ashleys.py -j "${params.processes}" \
             predict -p ashleys_features.tsv \
-            -o ashleys_quality.txt \
+            -o ashleys_quality.tsv \
             -m ${params.ashleys_model}
 
         mkdir ashleys_pass
         mkdir ashleys_fail
 
-        awk 'NR>1 && \$2==1{ print \$1 }' ashleys_quality.txt | \
-            xargs -i cp "${strandseq_bam_folder}"/{} "${strandseq_bam_folder}"/{}.bai ashleys_pass
-        awk 'NR>1 && \$2==0{ print \$1 }' ashleys_quality.txt | \
-            xargs -i cp "${strandseq_bam_folder}"/{} "${strandseq_bam_folder}"/{}.bai ashleys_fail
-
-    """
+        awk 'NR>1 && \$2==1{ print \$1 }' ashleys_quality.tsv | \
+            xargs -i cp "${params.output}"/bowtie2_"${params.sample_id}"/{} \
+                "${params.output}"/bowtie2_"${params.sample_id}"/{}.bai ashleys_pass
+        awk 'NR>1 && \$2==0{ print \$1 }' ashleys_quality.tsv | \
+            xargs -i cp "${params.output}"/bowtie2_"${params.sample_id}"/{} \
+                "${params.output}"/bowtie2_"${params.sample_id}"/{}.bai ashleys_fail
+        cp .command.log ashley_qc_command.log
+        cp .command.sh ashley_qc_command.sh
+        rm "${params.output}"/bowtie2_"${params.sample_id}"/*{.bam,.bam.bai}
+        """
 }
 
 
@@ -406,10 +449,16 @@ process strandseq_phase {
     conda '/projects/vakbari_prj/anaconda3/envs/patmat'
     publishDir "${params.output}/strandseq_phase_${params.sample_id}", mode: 'copy'
     input:
-        tuple path(ashleys_pass_bam_folder),path(ashleys_fail_bam_folder)
-        tuple path(clair3_pass_vcf), path(clair3_vcf)
+        tuple path(ashleys_pass_bam_folder),
+            path(ashleys_fail_bam_folder),
+            path(ashleys_qual_feature),
+            path(prev_log_as)
+        tuple path(clair3_pass_vcf), 
+            path(clair3_vcf),
+            path(prev_log_cl)
     output:
-        path("${params.sample_id}.strandseqphased.inv_aware.vcf")
+        tuple path("${params.sample_id}.strandseqphased.inv_aware.vcf"),
+            path("strandseq_phase_command*")
     script:
         if (params.single){
             """
@@ -420,6 +469,8 @@ process strandseq_phase {
                 -t "${params.processes}" \
                 -n ${params.sample_id} \
                 ${clair3_pass_vcf}
+            cp .command.log strandseq_phase_command.log
+            cp .command.sh strandseq_phase_command.sh
             """
         }
         else{
@@ -431,6 +482,8 @@ process strandseq_phase {
                 -t "${params.processes}" \
                 -n ${params.sample_id} \
                 ${clair3_vcf}
+            cp .command.log strandseq_phase_command.log
+            cp .command.sh strandseq_phase_command.sh
             """
         }
 }
@@ -444,13 +497,18 @@ process patmat {
     input:
         path(bam_file)
         path(bam_index)
-        tuple path(longphase_vcf), path(longphase_index)
-        path(sniffles_vcf)
-        path(strandseq_phased_vcf)
+        tuple path(longphase_vcf), 
+            path(longphase_index),
+            path(prev_log_lp)
+        tuple path(sniffles_vcf),
+            path(prev_log_sn)
+        tuple path(strandseq_phased_vcf),
+            path(prev_log_sp)
         path(reference_genome)
         path(reference_index)
     output:
-        path("${params.sample_id}*")
+        tuple path("${params.sample_id}*"),
+            path("patmat_command*")
     script:
         if (params.hifi){
             """
@@ -459,7 +517,9 @@ process patmat {
                 -b ${bam_file} -stv ${strandseq_phased_vcf} \
                 -o "${params.sample_id}" \
                 -p ${params.processes} -sv_vcf ${sniffles_vcf} \
-                -ref ${reference_genome} -pb -is
+                -ref ${reference_genome} -pb
+            cp .command.log patmat_command.log
+            cp .command.sh patmat_command.sh
             """
         }
         else{
@@ -469,7 +529,9 @@ process patmat {
                 -b ${bam_file} -stv ${strandseq_phased_vcf} \
                 -o "${params.sample_id}" \
                 -p ${params.processes} -sv_vcf ${sniffles_vcf} \
-                -ref ${reference_genome} -is
+                -ref ${reference_genome}
+            cp .command.log patmat_command.log
+            cp .command.sh patmat_command.sh
             """
         }
 }
@@ -497,22 +559,24 @@ workflow {
                                     phase_long_reads.out)
         strandseq_bowtie_single(strandseq_cutadapt_single.out,
                                 params.reference,ref_indexes)
-        ashley_qc("${params.output}/bowtie2_${params.sample_id}",
-                    strandseq_bowtie_single.out.collect(flat:true))
+        ashley_qc(strandseq_bowtie_single.out.collect(flat:true))
     }
     else {
         strandseq_cutadapt_pair(strandseq_fqs_pair,
                                 phase_long_reads.out)
         strandseq_bowtie_pair(strandseq_cutadapt_pair.out,
                             params.reference, ref_indexes)
-        ashley_qc("${params.output}/bowtie2_${params.sample_id}",
-                    strandseq_bowtie_pair.out.collect(flat:true))
+        ashley_qc(strandseq_bowtie_pair.out.collect(flat:true))
     }
     strandseq_phase(ashley_qc.out,
                     small_variant_calling.out)
     patmat(params.bam, file("${params.bam}.{bai,crai}"), phase_long_reads.out,
             large_variant_calling.out, strandseq_phase.out, 
             params.reference,"${params.reference}.fai")
+}
+
+workflow.onComplete {
+    println workflow.success ? "Workflow completed successfully" : "Workflow failed"
 }
 
 

@@ -1457,7 +1457,7 @@ def main(args):
                 if tuple(line[0:2]) in re_assignment_vars:
                     var_info= re_assignment_vars[tuple(line[0:2])]
                     (hp1_count_ref,hp2_count_ref,
-                     hp1_count_alt,hp2_count_alt) = var_info[13:17]
+                     hp1_count_alt,hp2_count_alt) = var_info[15:19]
                     if line[0] in chrom_hp_origin:
                         if snv_var and var_info[9].startswith(("1|0","0|1","1|2")):
                             info_out_dict[line[0]]["pofo_het_snvs"] += 1
@@ -1519,7 +1519,7 @@ def main(args):
                                                         ).replace("|", "/")
                     assignment_file.write(out_line+'\n')
                     assignment_file_info.write(out_line+'\t'+
-                                          '\t'.join(["NA"]*17)+'\n')
+                                          '\t'.join(["NA"]*19)+'\n')
     assignment_file.close()
     assignment_file_info.close()
 
@@ -1616,7 +1616,8 @@ required.add_argument("--vcf", "-v",
                   type=str,
                   required=True,
                   default= None,
-                  help="The path to the vcf file.")
+                  help="The path to the vcf file. If the input vcf is phased (e.g. using whatshap or longphase) "
+                       "you can select the --phased option to also use phase blocks. See --phased for more details.")
 required.add_argument("--strand_vcf", "-stv",
                       action="store",
                       type=str,
@@ -1665,7 +1666,7 @@ optional.add_argument("--phased", "-ph",
                             " phased variants from strand-seq are very sparse. "
                             "If selected, vcf file must be indexed using tabix."
                             " Note that phased blocks will be extract from vcf file and"
-                            " assumption is that the number after last : sign in "
+                            " assumption is that the number after last \":\" sign in "
                             "column 10 is the block ID, as with vcfs phased by "
                             "whatshap or longphase."))
 optional.add_argument("--pb_cpg_tools_model", "-pbcg",
