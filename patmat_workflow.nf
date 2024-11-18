@@ -541,7 +541,7 @@ workflow {
         .fromFilePairs("${params.strandseq_fq}/*_{R1,R2}.{fastq,fq,fastq.gz,fq.gz}")
         .set{strandseq_fqs_pair}
     Channel
-        .fromPath("${params.strandseq_fq}/*")
+        .fromPath("${params.strandseq_fq}/*.{fastq,fq,fastq.gz,fq.gz}")
         .set{strandseq_fqs_single}
     Channel
         .fromPath("${params.reference}.*").collect()

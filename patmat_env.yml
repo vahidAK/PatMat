@@ -25,6 +25,7 @@ dependencies:
   - r-argparse
   - bioconductor-bsgenome.hsapiens.ucsc.hg38=1.4.5
   - bioconductor-bsgenome.hsapiens.ncbi.t2t.chm13v2.0=1.5.0
+  - bioconductor-bsgenome.hsapiens.ucsc.hs1=1.4.4
   - r-r.utils=2.12.3
   - r-sys=3.4.2
   - r-tibble=3.2.1
