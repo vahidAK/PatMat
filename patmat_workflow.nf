@@ -29,7 +29,18 @@ def help_message() {
                         the paired reads must be in two different fastq files and the files must be named like 
                         UniqueID_R1.fastq and UniqueID_R2.fastq OR *_R1.fq and *_R2.fq (zipped .gz files are 
                         allowed. e.g. *_R1.fastq.gz). Unique ID will be a unique ID of each seqeunced cell.
+      --patmat_dir      Absolute path to the patmat github directory you have cloned/downloaded. /path/to/PatMat
     Optional arguments:
+      --bsgenome        BSgenome Genome version to use for strand-seq phasing. Default is
+                        BSgenome.Hsapiens.UCSC.hg38
+      --known_dmr       Absolute path to known imprinted region lists. There are two provided list in the patmat
+                        directory. Default is Imprinted_DMR_List_V1.GRCh38.tsv.
+      --hard_mask       Absolute path to hard_mask list for strand-seq phasing. default is hard_mask.GRCh38.bed. 
+                        See other available lists in the PatMat Strand-seq directory. 
+      --soft_mask       Absolute path to soft_mask list for strand-seq phasing. default is soft_mask.GRCh38.bed. 
+                        See other available lists in the PatMat Strand-seq directory.
+      --inversion_list  path to the inversion_list for strand-seq phasing. Default is hanlon_2021_BMCgenomics_augmented.GRCh38.bed.
+                        See other available lists in the PatMat Strand-seq directory.
       --sample_id       Sample id. Will be also used as output prefix. Default is Sample
       --hifi            Select this option if long-read data is from PacBio
       --processes       Number of processes. Default is 10.
@@ -58,6 +69,9 @@ if (params.help){
     exit 0
 }
 
+
+${params.patmat_dir}"/Strand-seq/hanlon_2021_BMCgenomics_augmented.GRCh38.bed"  Strand-seq/hard_mask.GRCh38.bed  Strand-seq/soft_mask.GRCh38.bed
+
 // Parameters
 params.reference = "reference file: not specified"
 params.bam= "bam file: not specified"
@@ -67,11 +81,16 @@ params.deepvar_model= "ONT_R104"
 params.strandseq_fq= "strand-seq fastqs folder: not specified"
 params.sample_id= "Sample"
 params.processes= 10
+params.bsgenome= "BSgenome.Hsapiens.UCSC.hg38"
+params.known_dmr= ${params.patmat_dir}"/patmat/"
+params.hard_mask= ${params.patmat_dir}"/Strand-seq/hard_mask.GRCh38.bed"
+params.soft_mask= ${params.patmat_dir}"/Strand-seq/soft_mask.GRCh38.bed"
+params.inversion_list= ${params.patmat_dir}"/Strand-seq/hanlon_2021_BMCgenomics_augmented.GRCh38.bed"
 params.adapter_3R1= "AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNNNATCTCGTATGCCGTCTTCTGCTTG"
 params.adapter_5R1= "AATGATACGGCGACCACCGAGATCTACACNNNNNNNNACACTCTTTCCCTACACGACGCTCTTCCGATCT"
 params.adapter_3R2= "AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTNNNNNNNNGTGTAGATCTCGGTGGTCGCCGTATCATT"
 params.adapter_5R2= "CAAGCAGAAGACGGCATACGAGATNNNNNNNNGTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT"
-params.clair3_model = "clair3 model: not specified"
+params.clair3_model = "clair3 model: not specified. --clair3 is false and deepvariant will be used."
 params.clair3 = false
 params.single = false
 params.whatshap = false
@@ -86,6 +105,11 @@ def selected_params() {
     --strandseq_fq ${params.strandseq_fq}
     --deepvar_model ${params.deepvar_model}
     --sample_id ${params.sample_id}
+    --bsgenome ${params.bsgenome}
+    --known_dmr ${params.known_dmr}
+    --hard_mask ${params.hard_mask}
+    --soft_mask ${params.soft_mask}
+    --inversion_list ${params.inversion_list}
     --processes ${params.processes}
     --clair3 ${params.clair3}
     --clair3_model ${params.clair3_model}
@@ -467,7 +491,10 @@ process strandseq_phase {
                 -i ${ashleys_pass_bam_folder} \
                 -o . \
                 -t "${params.processes}" \
-                -n ${params.sample_id} \
+                -n ${params.sample_id} -bg ${params.bsgenome} \
+                --hard_mask ${params.hard_mask} \
+                --soft_mask ${params.soft_mask} \
+                --inversion_list ${params.inversion_list} \
                 ${clair3_pass_vcf}
             cp .command.log strandseq_phase_command.log
             cp .command.sh strandseq_phase_command.sh
@@ -480,7 +507,10 @@ process strandseq_phase {
                 -i ${ashleys_pass_bam_folder} \
                 -o . \
                 -t "${params.processes}" \
-                -n ${params.sample_id} \
+                -n ${params.sample_id} -bg ${params.bsgenome} \
+                --hard_mask ${params.hard_mask} \
+                --soft_mask ${params.soft_mask} \
+                --inversion_list ${params.inversion_list} \
                 ${clair3_vcf}
             cp .command.log strandseq_phase_command.log
             cp .command.sh strandseq_phase_command.sh
@@ -517,7 +547,8 @@ process patmat {
                 -b ${bam_file} -stv ${strandseq_phased_vcf} \
                 -o "${params.sample_id}" \
                 -p ${params.processes} -sv_vcf ${sniffles_vcf} \
-                -ref ${reference_genome} -pb
+                -ref ${reference_genome} -pb \
+                -kd ${params.known_dmr}
             cp .command.log patmat_command.log
             cp .command.sh patmat_command.sh
             """
@@ -529,7 +560,8 @@ process patmat {
                 -b ${bam_file} -stv ${strandseq_phased_vcf} \
                 -o "${params.sample_id}" \
                 -p ${params.processes} -sv_vcf ${sniffles_vcf} \
-                -ref ${reference_genome}
+                -ref ${reference_genome} \
+                -kd ${params.known_dmr}
             cp .command.log patmat_command.log
             cp .command.sh patmat_command.sh
             """

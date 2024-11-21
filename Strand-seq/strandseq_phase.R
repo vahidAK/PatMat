@@ -2,7 +2,7 @@
 
 # Run like this: ./strandseq_phase.R -h
 
-# Requires bcftools, R>=4.3.0, and the R packages InvertypeR, argparse, and BSgenome.Hsapiens.UCSC.hg38
+# Requires bcftools, R>=4.3.0, and the R packages InvertypeR, argparse, and appropriate BSgenome
 
 
 #######################################################################################################
@@ -50,7 +50,7 @@ tryCatch(
 suppressPackageStartupMessages(library("argparse"))
 
 parser <- ArgumentParser(description='Performs inversion-aware Strand-seq phasing of a VCF file of SNVs. Requires bcftools (samtools.github.io/bcftools/bcftools.html), 
-    R>=4.3.0, and the R packages InvertypeR (GitHub: vincent-hanlon/InvertypeR), argparse (CRAN), and BSgenome.Hsapiens.UCSC.hg38 (Bioconductor). These are best
+    R>=4.3.0, and the R packages InvertypeR (GitHub: vincent-hanlon/InvertypeR), argparse (CRAN), and appropriate BSgenome (Bioconductor). These are best
     installed with the R package installer, pak (CRAN)!')
 
 parser$add_argument("vcf",
@@ -77,6 +77,12 @@ parser$add_argument("-o", "--output_folder",
     metavar = "/path/to/output/"
 )
 
+parser$add_argument("-bg", "--bsgenome",
+    type = "character", required = F, default = "BSgenome.Hsapiens.UCSC.hg38",
+    help = "BSgenome to use. Default is BSgenome.Hsapiens.UCSC.hg38",
+    metavar = "string"
+)
+
 parser$add_argument("-t", "--threads",
     type = "integer", required = F, default= 4,
     help = "The number of parallel threads to run on. Default: 4.",
@@ -90,26 +96,26 @@ parser$add_argument("-n", "--name",
 )
 
 parser$add_argument("--inversion_list",
-    type = "character", required = F, default=file.path(script_dir, "hanlon_2021_BMCgenomics_augmented.bed"),
+    type = "character", required = F, default=file.path(script_dir, "hanlon_2021_BMCgenomics_augmented.GRCh38.bed"),
     help = "Absolute path to a BED file containing genomic intervals that might be inversions. This is typically a list from the literature
-        so the file hanlon_2021_BMCgenomics_augmented.bed on the PatMat GitHub (originally from vincent-hanlon/InvertypeR) is a good start.
+        so the file hanlon_2021_BMCgenomics_augmented.GRCh38.bed on the PatMat GitHub (originally from vincent-hanlon/InvertypeR) is a good start.
         Default: the file suggested above, if it is in the same directory as strandseq_phase.R.",
     metavar = "/path/to/BED"
 )
 
 parser$add_argument("--hard_mask",
-    type = "character", required = F, default=file.path(script_dir, "hard_mask.GRCh38.humans.bed"),
+    type = "character", required = F, default=file.path(script_dir, "hard_mask.GRCh38.bed"),
     help = "Absolute path to a BED file containing regions with unreliable Strand-seq data. 
-        The file hard_mask.GRCh38.humans.bed on the PatMat GitHub is a good start.
+        The file hard_mask.GRCh38.bed in the same directory as strandseq_phase.R is a good start.
         Default: the file suggested above, if it is in the same directory as strandseq_phase.R.",
     metavar = "/path/to/BED"
 )
 
 parser$add_argument("--soft_mask",
-    type = "character", required = F, default=file.path(script_dir, "soft_mask.bed"),
+    type = "character", required = F, default=file.path(script_dir, "soft_mask.GRCh38.bed"),
     help = "Absolute path to a BED file containing regions, like very large inversions, that
         occasionally interfere with composite file creation. Rarely really necessary (see InvertypeR documentation)
-        Default: the file suggested above, if it is in the same directory as strandseq_phase.R, which contains
+        Default: the file soft_mask.GRCh38.bed in the same directory as strandseq_phase.R, which contains
         the three largest autosomal inversions according to Porubsky et al. 2022, except for a very rare one on chr2.",
     metavar = "/path/to/BED"
 )
@@ -144,7 +150,6 @@ parser$add_argument("--fix_het_invs",
     metavar = "TRUE or FALSE"
 )
 
-
 args <- parser$parse_args()
 
 stopifnot("Provide a valid VCF file with the --vcf flag" = file.exists(args$vcf))
@@ -162,7 +167,7 @@ suppressPackageStartupMessages(library("breakpointR"))
 suppressPackageStartupMessages(library("StrandPhaseR"))
 suppressPackageStartupMessages(library("invertyper"))
 suppressPackageStartupMessages(library("BSgenome.Hsapiens.UCSC.hg38"))
-
+suppressPackageStartupMessages(library("BSgenome.Hsapiens.UCSC.hs1"))
 # A function to reconcile (very crudely) inversions from two different sources: genotyping known coordinates and de novo discovery
 combine_genotyped_discovered_inversions <- function(inversions) {
 
@@ -292,7 +297,7 @@ suppressMessages(strandPhaseR(
     chromosomes = args$chromosomes,
     num.iterations = 3,
     exportVCF = args$name,
-    bsGenome = "BSgenome.Hsapiens.UCSC.hg38",
+    bsGenome = args$bsgenome,
     splitPhasedReads = TRUE,
     assume.biallelic = TRUE,
     pairedEndReads = args$paired
@@ -311,7 +316,7 @@ invisible(suppressMessages(correctInvertedRegionPhasing(
     snv.positions = args$vcf,
     input.bams = args$input_folder,
     chromosomes = args$chromosomes,
-    bsGenome = "BSgenome.Hsapiens.UCSC.hg38",
+    bsGenome = args$bsgenome,
     recall.phased = TRUE,
     het.genotype = "lenient",
     pairedEndReads = args$paired,

@@ -1646,7 +1646,7 @@ optional.add_argument("--known_dmr", "-kd",
                   default= os.path.join(os.path.dirname(
                                                 os.path.realpath(__file__)
                                                     ),
-                                             "Imprinted_DMR_List_V1.tsv"),
+                                             "Imprinted_DMR_List_V1.GRCh38.tsv"),
                   help="The path to the input file for known imprinted DMRs. "
                         "File must have the following information in the "
                         "following column order: "
