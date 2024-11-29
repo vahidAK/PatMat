@@ -991,17 +991,17 @@ def pofo_final_dict(chrom_hp_origin_count):
                     hp2_alldiffcg_count, hp1_alldiffcg_count,
                     hp2_allcg_count, hp1_allcg_count]
         if origin.lower() == 'maternal':
-            if hp1_score > hp2_score:
+            if hp1_score > hp2_score and hp1_score > args.min_pofo_score:
                 chrom_hp_origin[chrom]['HP1'] = ['maternal']+add_info1
                 chrom_hp_origin[chrom]['HP2'] = ['paternal']+add_info1
-            elif hp2_score > hp1_score:
+            elif hp2_score > hp1_score and hp2_score > args.min_pofo_score:
                 chrom_hp_origin[chrom]['HP2'] = ['maternal']+add_info2
                 chrom_hp_origin[chrom]['HP1'] = ['paternal']+add_info2
         elif origin.lower() == 'paternal':
-            if hp1_score > hp2_score:
+            if hp1_score > hp2_score and hp1_score > args.min_pofo_score:
                 chrom_hp_origin[chrom]['HP1'] = ['paternal']+add_info1
                 chrom_hp_origin[chrom]['HP2'] = ['maternal']+add_info1
-            elif hp2_score > hp1_score:
+            elif hp2_score > hp1_score and hp2_score > args.min_pofo_score:
                 chrom_hp_origin[chrom]['HP2'] = ['paternal']+add_info2
                 chrom_hp_origin[chrom]['HP1'] = ['maternal']+add_info2
     return chrom_hp_origin
@@ -1689,6 +1689,15 @@ required.add_argument("--reference", "-ref",
                             "must also give the path to the reference file. "
                             "File must be indexed using samtools faidx."))
 optional = parser.add_argument_group("Optional arguments")
+optional.add_argument("--min_pofo_score", "-mps",
+                      action="store",
+                      type=float,
+                      required=False,
+                      default=0.55,
+                      help=("0-1. Threshold for chromosome PofO score. This is "
+                            "the minimum PofO score of a chromosome to assign PofO "
+                            "to a haplotype. See the github page on how PofO score "
+                            "of a chromosome is calculated."))
 optional.add_argument("--pacbio", "-pb",
                             action="store_true",
                             required=False,
