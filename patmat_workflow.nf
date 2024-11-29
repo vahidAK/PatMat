@@ -69,9 +69,6 @@ if (params.help){
     exit 0
 }
 
-
-${params.patmat_dir}"/Strand-seq/hanlon_2021_BMCgenomics_augmented.GRCh38.bed"  Strand-seq/hard_mask.GRCh38.bed  Strand-seq/soft_mask.GRCh38.bed
-
 // Parameters
 params.reference = "reference file: not specified"
 params.bam= "bam file: not specified"
@@ -79,13 +76,14 @@ params.output= "output directory: not specified"
 params.ashleys_model= "ashleys model: not specified"
 params.deepvar_model= "ONT_R104"
 params.strandseq_fq= "strand-seq fastqs folder: not specified"
+params.patmat_dir= "PatMat dir"
 params.sample_id= "Sample"
 params.processes= 10
 params.bsgenome= "BSgenome.Hsapiens.UCSC.hg38"
-params.known_dmr= ${params.patmat_dir}"/patmat/"
-params.hard_mask= ${params.patmat_dir}"/Strand-seq/hard_mask.GRCh38.bed"
-params.soft_mask= ${params.patmat_dir}"/Strand-seq/soft_mask.GRCh38.bed"
-params.inversion_list= ${params.patmat_dir}"/Strand-seq/hanlon_2021_BMCgenomics_augmented.GRCh38.bed"
+params.known_dmr= "${params.patmat_dir}/patmat/Imprinted_DMR_List_V1.GRCh38.tsv"
+params.hard_mask= "${params.patmat_dir}/Strand-seq/hard_mask.GRCh38.bed"
+params.soft_mask= "${params.patmat_dir}/Strand-seq/soft_mask.GRCh38.bed"
+params.inversion_list= "${params.patmat_dir}/Strand-seq/hanlon_2021_BMCgenomics_augmented.GRCh38.bed"
 params.adapter_3R1= "AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNNNATCTCGTATGCCGTCTTCTGCTTG"
 params.adapter_5R1= "AATGATACGGCGACCACCGAGATCTACACNNNNNNNNACACTCTTTCCCTACACGACGCTCTTCCGATCT"
 params.adapter_3R2= "AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTNNNNNNNNGTGTAGATCTCGGTGGTCGCCGTATCATT"
@@ -103,6 +101,7 @@ def selected_params() {
     --output ${params.output}
     --ashleys_model ${params.ashleys_model}
     --strandseq_fq ${params.strandseq_fq}
+    --patmat_dir ${params.patmat_dir}
     --deepvar_model ${params.deepvar_model}
     --sample_id ${params.sample_id}
     --bsgenome ${params.bsgenome}
@@ -221,7 +220,7 @@ process large_variant_calling{
     script:
         """
         sniffles -i "${bam}" \
-            --reference "${ref}" \
+            --reference "${ref}" --output-rnames \
             -v "${params.sample_id}"_sniffles_variants.vcf
         cp .command.log large_variant_calling_command.log
         cp .command.sh large_variant_calling_command.sh
@@ -543,12 +542,12 @@ process patmat {
         if (params.hifi){
             """
             patmat.py \
-                -v ${longphase_vcf} -ph \
+                -v ${longphase_vcf} \
                 -b ${bam_file} -stv ${strandseq_phased_vcf} \
                 -o "${params.sample_id}" \
                 -p ${params.processes} -sv_vcf ${sniffles_vcf} \
                 -ref ${reference_genome} -pb \
-                -kd ${params.known_dmr}
+                -kd ${params.known_dmr} -is -ph
             cp .command.log patmat_command.log
             cp .command.sh patmat_command.sh
             """
@@ -556,12 +555,12 @@ process patmat {
         else{
             """
             patmat.py \
-                -v ${longphase_vcf} -ph \
+                -v ${longphase_vcf} \
                 -b ${bam_file} -stv ${strandseq_phased_vcf} \
                 -o "${params.sample_id}" \
                 -p ${params.processes} -sv_vcf ${sniffles_vcf} \
                 -ref ${reference_genome} \
-                -kd ${params.known_dmr}
+                -kd ${params.known_dmr} -is -ph
             cp .command.log patmat_command.log
             cp .command.sh patmat_command.sh
             """

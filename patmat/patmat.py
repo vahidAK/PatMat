@@ -44,9 +44,7 @@ def get_variant_info(feed_list,
     This function maps each read to heterozygous variants and returns a list of  
     haplotype 1, haplotype 2, and unphased variants mapped to each read.
     '''
-    read_var_list= list()
-    read_hap_list= list()
-    read_var_cov= defaultdict(list)
+    read_var_list= defaultdict(list)
     samfile = pysam.AlignmentFile(alignment_file, 'rb')
     for varinfo in feed_list:
         gt,position,ref,alt= varinfo
@@ -73,92 +71,123 @@ def get_variant_info(feed_list,
                         continue
                     read_id= pileupread.alignment.query_name
                     flag= pileupread.alignment.flag
-                    read_start= pileupread.alignment.reference_start
-                    ext_key= (read_id,str(flag),str(read_mq),str(read_start+1))
-                    read_var_cov[(chrom,position)].append((chrom,read_id))
-                    if pileupread.is_del or pileupread.is_refskip:
-                        continue
+                    ext_key= (read_id,str(flag))#,str(read_mq),str(read_start+1))
                     read_base= None
                     read_base1= None
                     read_base2= None
-                    if gt != "1/2":                    
+                    hapt= "NA"
+                    # read_var_cov[(chrom,position)].append((read_id))
+                    if pileupread.is_del or pileupread.is_refskip:
+                        read_var_list[(chrom,position+1,"noninfo")].append(':'.join((*ext_key,hapt)))
+                        continue
+                    if gt != "1/2":
                         if len(ref) == 1 and len(alt)==1: # dealing with mismatches
                             read_base= pileupread.alignment.query_sequence[
-                                    pileupread.query_position]
+                                    pileupread.query_position].upper()
                         elif len(ref) > 1 and len(alt) == 1: #dealing with deletions
                             if pileupread.indel < 0 and abs(pileupread.indel) == len(ref) -1:
                                 read_base= pileupread.alignment.query_sequence[
-                                        pileupread.query_position]
+                                        pileupread.query_position].upper()
                             elif pileupread.indel == 0:
                                 read_base = pileupread.alignment.query_sequence[
-                                                pileupread.query_position:pileupread.query_position+len(ref)]
+                                                pileupread.query_position:pileupread.
+                                                query_position+len(ref)].upper()
                             else:
+                                read_var_list[(chrom,position+1,"noninfo")].append(
+                                                            ':'.join((*ext_key,hapt)))
                                 continue
                         elif len(ref) == 1 and len(alt) > 1: #dealing with insertions
                             if pileupread.indel > 0 and pileupread.indel == len(alt) -1:
                                 read_base= pileupread.alignment.query_sequence[
-                                                pileupread.query_position:pileupread.query_position+len(alt)]
+                                                pileupread.query_position:pileupread.
+                                                query_position+len(alt)].upper()
                             elif pileupread.indel == 0:
                                 read_base= pileupread.alignment.query_sequence[
-                                        pileupread.query_position]
+                                        pileupread.query_position].upper()
                             else:
+                                read_var_list[(chrom,position+1,"noninfo")].append(
+                                                            ':'.join((*ext_key,hapt)))
                                 continue
+
                         if read_base == ref:
-                            read_var_list.append((chrom,position,read_base.upper(),*ext_key))
                             if gt == '1|0':
-                                read_hap_list.append((chrom,*ext_key,2))
+                                hapt= "2"
+                                # read_hap_list.append((chrom,*ext_key,2))
                             elif gt == '0|1' and read_base == ref:
-                                read_hap_list.append((chrom,*ext_key,1))
+                                hapt= "1"
+                                # read_hap_list.append((chrom,*ext_key,1))
                         elif read_base == alt:
-                            read_var_list.append((chrom,position,read_base.upper(),*ext_key))
                             if gt == '1|0' and read_base == alt:
-                                read_hap_list.append((chrom,*ext_key,1))
+                                hapt= "1"
+                                # read_hap_list.append((chrom,*ext_key,1))
                             elif gt == '0|1' and read_base == alt:
-                                read_hap_list.append((chrom,*ext_key,2))
+                                hapt= "2"
+                                # read_hap_list.append((chrom,*ext_key,2))                    
+                        else:
+                            read_base= "noninfo"
+                        read_var_list[(chrom,position+1,read_base)].append(
+                                                        ':'.join((*ext_key,hapt)))
+
                     else:
                         alt1,alt2 = alt
                         if len(ref) > 1 and len(alt1) > 1 and len(alt2)  > 1:
+                            read_var_list[(chrom,position+1,"noninfo")].append(
+                                                        ':'.join((*ext_key,hapt)))
                             continue
                         if len(ref) == 1 and len(alt1) == 1: # dealing with mismatches
                             read_base1= pileupread.alignment.query_sequence[
-                                    pileupread.query_position]
+                                    pileupread.query_position].upper()
                         elif len(ref) > 1 and len(ref) > len(alt1): #dealing with deletions
                             if pileupread.indel < 0 and abs(pileupread.indel) == len(ref) - len(alt1):
                                 read_base1= pileupread.alignment.query_sequence[
-                                        pileupread.query_position:pileupread.query_position+len(ref)-abs(pileupread.indel)]
+                                        pileupread.query_position:pileupread.
+                                        query_position+len(ref)-abs(pileupread.indel)].upper()
                             elif pileupread.indel == 0:
                                 read_base1 = pileupread.alignment.query_sequence[
-                                                pileupread.query_position:pileupread.query_position+len(ref)]
+                                                pileupread.query_position:pileupread.
+                                                query_position+len(ref)].upper()
                         elif len(alt1) > 1 and len(alt1) > len(ref): #dealing with insertions
                             if pileupread.indel > 0 and pileupread.indel == len(alt1) - len(ref):
                                 read_base1= pileupread.alignment.query_sequence[
-                                                pileupread.query_position:pileupread.query_position+len(alt1)]
+                                                pileupread.query_position:pileupread.
+                                                query_position+len(alt1)].upper()
                             elif pileupread.indel == 0:
                                 read_base1= pileupread.alignment.query_sequence[
-                                        pileupread.query_position:pileupread.query_position+len(ref)]
+                                        pileupread.query_position:pileupread.
+                                        query_position+len(ref)].upper()
                         if len(ref) == 1 and len(alt2) == 1: # dealing with mismatches
                             read_base2= pileupread.alignment.query_sequence[
-                                    pileupread.query_position]
+                                    pileupread.query_position].upper()
                         elif len(ref) > 1 and len(ref) > len(alt2): #dealing with deletions
                             if pileupread.indel < 0 and abs(pileupread.indel) == len(ref) - len(alt2):
                                 read_base2= pileupread.alignment.query_sequence[
-                                        pileupread.query_position:pileupread.query_position+len(ref)-abs(pileupread.indel)]
+                                        pileupread.query_position:pileupread.
+                                        query_position+len(ref)-abs(pileupread.indel)].upper()
                             elif pileupread.indel == 0:
                                 read_base2 = pileupread.alignment.query_sequence[
-                                                pileupread.query_position:pileupread.query_position+len(ref)]
+                                                pileupread.query_position:pileupread.
+                                                query_position+len(ref)].upper()
                         elif len(alt2) > 1 and len(alt2) > len(ref): #dealing with insertions
                             if pileupread.indel > 0 and pileupread.indel == len(alt2) - len(ref):
                                 read_base2= pileupread.alignment.query_sequence[
-                                                pileupread.query_position:pileupread.query_position+len(alt2)]
+                                                pileupread.query_position:pileupread.
+                                                query_position+len(alt2)].upper()
                             elif pileupread.indel == 0:
                                 read_base2= pileupread.alignment.query_sequence[
-                                        pileupread.query_position:pileupread.query_position+len(ref)]
+                                        pileupread.query_position:pileupread.
+                                        query_position+len(ref)].upper()
                         if read_base1 == alt1 or read_base1 == alt2:
-                            read_var_list.append((chrom,position,read_base1.upper(),*ext_key))
+                            read_var_list[(chrom,position+1,read_base1)].append(
+                                                        ':'.join((*ext_key,hapt)))
                         elif read_base2 == alt1 or read_base2 == alt2:
-                            read_var_list.append((chrom,position,read_base2.upper(),*ext_key))
+                            read_var_list[(chrom,position+1,read_base2)].append(
+                                                        ':'.join((*ext_key,hapt)))
+                        else:
+                            read_var_list[(chrom,position+1,"noninfo")].append(
+                                                        ':'.join((*ext_key,hapt)))
+                        
                             
-    return read_var_list, read_hap_list, read_var_cov
+    return read_var_list
 
 
 
@@ -276,9 +305,6 @@ def PofO_dmr(known_dmr,
     dmr_file= openfile(known_dmr)
     header= next(dmr_file).rstrip()
     chrom_hp_origin_count= defaultdict(lambda: defaultdict(int))
-    chrom_hp_origin_count_all_cg= defaultdict(lambda: defaultdict(int))
-    chrom_hp_origin_count_diff_cg= defaultdict(lambda: defaultdict(int))
-    chrom_hp_origin_count_dmr= defaultdict(lambda: defaultdict(int))
     for line in dmr_file:
         line= line.rstrip().split('\t')
         dmr_chrom= line[0]
@@ -307,6 +333,8 @@ def PofO_dmr(known_dmr,
         hp2_freq= 0
         diff_cg_hp1 = 0
         diff_cg_hp2 = 0
+        diff_cg_hp1_meth = 0
+        diff_cg_hp2_meth = 0
         if records_all != "NA":
             for record_all in records_all:
                 num_cg += 1
@@ -314,95 +342,127 @@ def PofO_dmr(known_dmr,
                 hp2_freq += float(record_all[4])
         if records != "NA":
             for record in records:
-                if (float(record[3]) - float(record[4])) > 0:
+                diff_cg_meth= float(record[3]) - float(record[4]) 
+                if diff_cg_meth > 0:
+                    diff_cg_hp1_meth += diff_cg_meth
                     diff_cg_hp1 += 1
-                elif (float(record[4]) - float(record[3])) > 0:
+                elif diff_cg_meth < 0:
+                    diff_cg_hp2_meth += abs(diff_cg_meth)
                     diff_cg_hp2 += 1
         if num_cg < 1:
             out_meth.write('\t'.join(line)+'\t'+str(num_cg)+
-                           '\tNA\tNA\tNA\tNA\tIgnored:No_CpG\n')
+                           '\tNA\tNA\tNA\tNA\tNA\tNA\tIgnored:No_CpG\n')
             continue
-        hp1_freq= hp1_freq/num_cg
-        hp2_freq= hp2_freq/num_cg
+        hp1_freq= round(hp1_freq/num_cg,5)
+        hp2_freq= round(hp2_freq/num_cg,5)
+        if diff_cg_hp1 > 0:
+            diff_cg_hp1_meth= round(diff_cg_hp1_meth/diff_cg_hp1,5)
+        else:
+            diff_cg_hp1_meth= 0
+        if diff_cg_hp2 > 0:
+            diff_cg_hp2_meth= round(diff_cg_hp2_meth/diff_cg_hp2,5)
+        else:
+            diff_cg_hp2_meth= 0
         if num_cg < min_cg and abs(diff_cg_hp1 - diff_cg_hp2) / num_cg < cpg_difference:
             out_meth.write('\t'.join(line)+'\t'+str(num_cg)+'\t'+
-                           str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+
-                           '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + 
+                           str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+'\t'+
+                           str(diff_cg_hp1_meth)+'\t'+
+                           str(diff_cg_hp2_meth)+'\t'+
+                           str(hp1_freq) + '\t' + str(hp2_freq)+'\t'+ 
                            'Ignored:DidNotMeet_min_cg_And_cpg_difference\n')
             continue
         elif num_cg < min_cg and diff_cg_hp1 == 0 and diff_cg_hp2 == 0:
             out_meth.write('\t'.join(line)+'\t'+str(num_cg)+'\t'+
-                           str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+
-                           '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + 
+                           str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+'\t'+
+                           str(diff_cg_hp1_meth)+'\t'+
+                           str(diff_cg_hp2_meth)+'\t'+
+                           str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + 
                            'Ignored:DidNotMeet_min_cg_And_DifferentiallyMethylated'
                            'CpGsIsZeroInBothHaplotypes\n')
             continue
         elif num_cg < min_cg:
             out_meth.write('\t'.join(line)+'\t'+str(num_cg)+'\t'+
-                           str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+
-                           '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' +
+                           str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+'\t'+
+                           str(diff_cg_hp1_meth)+'\t'+
+                           str(diff_cg_hp2_meth)+'\t'+
+                           str(hp1_freq) + '\t' + str(hp2_freq)+'\t' +
                            'Ignored:DidNotMeet_min_cg\n')
             continue
         elif abs(diff_cg_hp1 - diff_cg_hp2) / num_cg < cpg_difference:
             out_meth.write('\t'.join(line)+'\t'+str(num_cg)+'\t'+
-                           str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+
-                           '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' +
+                           str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+'\t'+
+                           str(diff_cg_hp1_meth)+'\t'+
+                           str(diff_cg_hp2_meth)+'\t'+
+                           str(hp1_freq) + '\t' + str(hp2_freq)+'\t' +
                            'Ignored:DidNotMeet_cpg_difference\n')
             continue
         elif diff_cg_hp1 == 0 and diff_cg_hp2 == 0: 
             out_meth.write('\t'.join(line)+'\t'+str(num_cg)+'\t'+
-                           str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+ 
-                           '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + 
+                           str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+'\t'+
+                           str(diff_cg_hp1_meth)+'\t'+
+                           str(diff_cg_hp2_meth)+'\t'+
+                           str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + 
                            'Ignored:DifferentiallyMethylatedCpGsIsZeroInBothHaplotypes\n')
             continue
         out_meth.write('\t'.join(line)+'\t'+str(num_cg)+'\t'+
-                       str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+
-                       '\t'+str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + 
-                       'Included\n')  
+                       str(diff_cg_hp1)+'\t'+str(diff_cg_hp2)+'\t'+
+                       str(diff_cg_hp1_meth)+'\t'+
+                       str(diff_cg_hp2_meth)+'\t'+
+                       str(hp1_freq) + '\t' + str(hp2_freq)+'\t' + 
+                       'Included\n')
+        diff_cg_hp1_score= diff_cg_hp1*diff_cg_hp1_meth
+        diff_cg_hp2_score= diff_cg_hp2*diff_cg_hp2_meth
         if origin == 'maternal':
-            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP1'] += diff_cg_hp1
-            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP2'] += diff_cg_hp2
-            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP2'] += diff_cg_hp1
-            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP1'] += diff_cg_hp2
-            if diff_cg_hp1 > diff_cg_hp2:
-                chrom_hp_origin_count_dmr[(dmr_chrom, 'maternal')]['HP1'] += 1
-                chrom_hp_origin_count_dmr[(dmr_chrom, 'paternal')]['HP2'] += 1
-                chrom_hp_origin_count_all_cg[(dmr_chrom, 'maternal')]['HP1'] += num_cg
-                chrom_hp_origin_count_all_cg[(dmr_chrom, 'paternal')]['HP2'] += num_cg
-                chrom_hp_origin_count_diff_cg[(dmr_chrom, 'maternal')]['HP1'] += diff_cg_hp1+diff_cg_hp2
-                chrom_hp_origin_count_diff_cg[(dmr_chrom, 'paternal')]['HP2'] += diff_cg_hp1+diff_cg_hp2
-            elif diff_cg_hp1 < diff_cg_hp2:
-                chrom_hp_origin_count_dmr[(dmr_chrom, 'maternal')]['HP2'] += 1
-                chrom_hp_origin_count_dmr[(dmr_chrom, 'paternal')]['HP1'] += 1
-                chrom_hp_origin_count_all_cg[(dmr_chrom, 'maternal')]['HP2'] += num_cg
-                chrom_hp_origin_count_all_cg[(dmr_chrom, 'paternal')]['HP1'] += num_cg
-                chrom_hp_origin_count_diff_cg[(dmr_chrom, 'maternal')]['HP2'] += diff_cg_hp1+diff_cg_hp2
-                chrom_hp_origin_count_diff_cg[(dmr_chrom, 'paternal')]['HP1'] += diff_cg_hp1+diff_cg_hp2
-        if origin == 'paternal':
-            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP1'] += diff_cg_hp2 
-            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['HP2'] += diff_cg_hp1
-            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP2'] += diff_cg_hp2 
-            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['HP1'] += diff_cg_hp1
-            if diff_cg_hp1 > diff_cg_hp2:
-                chrom_hp_origin_count_dmr[(dmr_chrom, 'maternal')]['HP2'] += 1
-                chrom_hp_origin_count_dmr[(dmr_chrom, 'paternal')]['HP1'] += 1
-                chrom_hp_origin_count_all_cg[(dmr_chrom, 'maternal')]['HP2'] += num_cg
-                chrom_hp_origin_count_all_cg[(dmr_chrom, 'paternal')]['HP1'] += num_cg
-                chrom_hp_origin_count_diff_cg[(dmr_chrom, 'maternal')]['HP2'] += diff_cg_hp1+diff_cg_hp2
-                chrom_hp_origin_count_diff_cg[(dmr_chrom, 'paternal')]['HP1'] += diff_cg_hp1+diff_cg_hp2
-            elif diff_cg_hp1 < diff_cg_hp2:
-                chrom_hp_origin_count_dmr[(dmr_chrom, 'maternal')]['HP1'] += 1
-                chrom_hp_origin_count_dmr[(dmr_chrom, 'paternal')]['HP2'] += 1
-                chrom_hp_origin_count_all_cg[(dmr_chrom, 'maternal')]['HP1'] += num_cg
-                chrom_hp_origin_count_all_cg[(dmr_chrom, 'paternal')]['HP2'] += num_cg
-                chrom_hp_origin_count_diff_cg[(dmr_chrom, 'maternal')]['HP1'] += diff_cg_hp1+diff_cg_hp2
-                chrom_hp_origin_count_diff_cg[(dmr_chrom, 'paternal')]['HP2'] += diff_cg_hp1+diff_cg_hp2
+            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['score_HP1'] += diff_cg_hp1_score
+            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['score_HP2'] += diff_cg_hp2_score
+            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['score_HP2'] += diff_cg_hp1_score
+            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['score_HP1'] += diff_cg_hp2_score
+            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['diff_HP1'] += diff_cg_hp1
+            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['diff_HP2'] += diff_cg_hp2
+            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['diff_HP2'] += diff_cg_hp1
+            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['diff_HP1'] += diff_cg_hp2
+            if diff_cg_hp1_score > diff_cg_hp2_score:
+                chrom_hp_origin_count[(dmr_chrom, 'maternal')]['dmr_HP1'] += 1
+                chrom_hp_origin_count[(dmr_chrom, 'paternal')]['dmr_HP2'] += 1
+                chrom_hp_origin_count[(dmr_chrom, 'maternal')]['allcg_HP1'] += num_cg
+                chrom_hp_origin_count[(dmr_chrom, 'paternal')]['allcg_HP2'] += num_cg
+                chrom_hp_origin_count[(dmr_chrom, 'maternal')]['alldiff_HP1'] += diff_cg_hp1+diff_cg_hp2
+                chrom_hp_origin_count[(dmr_chrom, 'paternal')]['alldiff_HP2'] += diff_cg_hp1+diff_cg_hp2
+            elif diff_cg_hp1_score < diff_cg_hp2_score:
+                chrom_hp_origin_count[(dmr_chrom, 'maternal')]['dmr_HP2'] += 1
+                chrom_hp_origin_count[(dmr_chrom, 'paternal')]['dmr_HP1'] += 1
+                chrom_hp_origin_count[(dmr_chrom, 'maternal')]['allcg_HP2'] += num_cg
+                chrom_hp_origin_count[(dmr_chrom, 'paternal')]['allcg_HP1'] += num_cg
+                chrom_hp_origin_count[(dmr_chrom, 'maternal')]['alldiff_HP2'] += diff_cg_hp1+diff_cg_hp2
+                chrom_hp_origin_count[(dmr_chrom, 'paternal')]['alldiff_HP1'] += diff_cg_hp1+diff_cg_hp2
+                
+        elif origin == 'paternal':
+            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['score_HP1'] += diff_cg_hp2_score
+            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['score_HP2'] += diff_cg_hp1_score
+            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['score_HP2'] += diff_cg_hp2_score
+            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['score_HP1'] += diff_cg_hp1_score
+            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['diff_HP1'] += diff_cg_hp2
+            chrom_hp_origin_count[(dmr_chrom, 'maternal')]['diff_HP2'] += diff_cg_hp1
+            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['diff_HP2'] += diff_cg_hp2
+            chrom_hp_origin_count[(dmr_chrom, 'paternal')]['diff_HP1'] += diff_cg_hp1
+            if diff_cg_hp1_score > diff_cg_hp2_score:
+                chrom_hp_origin_count[(dmr_chrom, 'maternal')]['dmr_HP2'] += 1
+                chrom_hp_origin_count[(dmr_chrom, 'paternal')]['dmr_HP1'] += 1
+                chrom_hp_origin_count[(dmr_chrom, 'maternal')]['allcg_HP2'] += num_cg
+                chrom_hp_origin_count[(dmr_chrom, 'paternal')]['allcg_HP1'] += num_cg
+                chrom_hp_origin_count[(dmr_chrom, 'maternal')]['alldiff_HP2'] += diff_cg_hp1+diff_cg_hp2
+                chrom_hp_origin_count[(dmr_chrom, 'paternal')]['alldiff_HP1'] += diff_cg_hp1+diff_cg_hp2
+            elif diff_cg_hp1_score < diff_cg_hp2_score:
+                chrom_hp_origin_count[(dmr_chrom, 'maternal')]['dmr_HP1'] += 1
+                chrom_hp_origin_count[(dmr_chrom, 'paternal')]['dmr_HP2'] += 1
+                chrom_hp_origin_count[(dmr_chrom, 'maternal')]['allcg_HP1'] += num_cg
+                chrom_hp_origin_count[(dmr_chrom, 'paternal')]['allcg_HP2'] += num_cg
+                chrom_hp_origin_count[(dmr_chrom, 'maternal')]['alldiff_HP1'] += diff_cg_hp1+diff_cg_hp2
+                chrom_hp_origin_count[(dmr_chrom, 'paternal')]['alldiff_HP2'] += diff_cg_hp1+diff_cg_hp2
+
     dmr_file.close()
     out_meth.close()
-    return (chrom_hp_origin_count, 
-            chrom_hp_origin_count_all_cg, 
-            chrom_hp_origin_count_diff_cg,
-            chrom_hp_origin_count_dmr)
+    return chrom_hp_origin_count
 
 
 def out_freq_methbam(out,
@@ -490,7 +550,6 @@ def vcf2dict(vcf_strand,
     Process and converts the strand-seq vcf file to a dictionary
     for downstream use.
     """
-    strand_phased_vars= 0
     vcf_dict= defaultdict(dict)
     vcf_file = openfile(vcf_strand)
     for line in vcf_file:
@@ -507,10 +566,9 @@ def vcf2dict(vcf_strand,
                           "will be interpreted as 1|0 or 0|1 or 0|1 or "
                           "1|0".format(line[0], line[1]))
         if line[9].startswith(('1|0','0|1')):
-            strand_phased_vars += 1
             vcf_dict[line[0]][line[1]] = line[9].split(':')[0]
     vcf_file.close()
-    return vcf_dict, strand_phased_vars
+    return vcf_dict
 
 
 def alignment_writer(bam,
@@ -694,7 +752,7 @@ def strand_vcf2dict_phased(vcf_strand,
     and unphased heterozygous variants into a dictionary for read phasing.
     '''
     final_dict= defaultdict(set)
-    vcf_dict, strand_phased_vars= vcf2dict(vcf_strand,chrom)
+    vcf_dict = vcf2dict(vcf_strand,chrom)
     with openfile(vcf) as vf:
         for line in vf:
             line=line.rstrip().split('\t')
@@ -721,6 +779,8 @@ def strand_vcf2dict_phased(vcf_strand,
                                         line[3].upper(),
                                         (line[4].split(',')[0].upper(),
                                         line[4].split(',')[1].upper())))
+    strand_phased_vars= len(vcf_dict.keys())
+    vcf_dict.clear()
     return final_dict, strand_phased_vars
                 
 
@@ -740,7 +800,7 @@ def vcf2dict_phased(blocks,
     '''
     final_dict= defaultdict(set)
     phase_block_stat= defaultdict(int)
-    vcf_dict, strand_phased_vars= vcf2dict(vcf_strand,chrom)
+    vcf_dict= vcf2dict(vcf_strand,chrom)
     tb_vcf= tabix.open(os.path.abspath(vcf))
     for block in blocks:
         b_chrom, b_start, b_end= block
@@ -778,7 +838,7 @@ def vcf2dict_phased(blocks,
             else:
                 phase_block_stat[(b_chrom, str(b_start),"agreement")]+=disagreement_count
                 phase_block_stat[(b_chrom, str(b_start),"disagreement")]+=agreement_count
-            
+            phase_block_stat[(b_chrom, str(b_start))] = "No"
             for vcf_line in records_whats:
                 if vcf_line[1] in vcf_dict[vcf_line[0]]:
                     continue
@@ -788,11 +848,15 @@ def vcf2dict_phased(blocks,
                         agreement_count/(agreement_count+disagreement_count) >= hapRatio and
                         vcf_line[1] not in disagreement_sites):
                         vcf_dict[vcf_line[0]][vcf_line[1]] = vcf_line[9].split(':')[0]
+                        phase_block_stat[(b_chrom, str(b_start))] = "Yes"
                     elif (disagreement_count > agreement_count and
                           disagreement_count >= minvariantblock and 
                           disagreement_count/(agreement_count+disagreement_count) >= hapRatio and
                           vcf_line[1] not in agreement_sites):
                         vcf_dict[vcf_line[0]][vcf_line[1]] = vcf_line[9].split(':')[0][::-1]
+                        phase_block_stat[(b_chrom, str(b_start))] = "Yes"
+
+                        
     with openfile(vcf) as vf:
         for line in vf:
             line=line.rstrip().split('\t')
@@ -820,6 +884,7 @@ def vcf2dict_phased(blocks,
                                         (line[4].split(',')[0].upper(),
                                         line[4].split(',')[1].upper())))
 
+    strand_phased_vars= len(vcf_dict.keys()) 
     vcf_dict.clear()
     return final_dict, strand_phased_vars, phase_block_stat
 
@@ -852,14 +917,16 @@ def write_sam_phase(in_file,
 def per_read_variant(vcf_dict,
                      bam_file,
                      chunk,
-                     processes):
+                     processes,
+                     out_file):
     '''
     This function extracts per-read information for variants.
     '''
-    variant_dict= defaultdict(set)
-    read_dict_HP1= defaultdict(int)
-    read_dict_HP2= defaultdict(int)
-    per_var_cov = defaultdict(list)
+    outfile= open(out_file,'w')
+    # variant_dict= defaultdict(set)
+    # read_dict_HP1= defaultdict(int)
+    # read_dict_HP2= defaultdict(int)
+    # per_var_cov = defaultdict(list)
     for chrom,feed_list in vcf_dict.items():
         bamiter, bam, count = openalignment(bam_file, chrom)
         if count > 0:
@@ -884,18 +951,9 @@ def per_read_variant(vcf_dict,
                     p.join()
                     for result in results:
                         if result is not None:
-                            read_var_list, read_hap_list, read_var_cov= result
-                            for var_info in read_var_list:
-                                variant_dict[var_info[0:-4]].add(var_info[-4:])
-                            for read_hap in read_hap_list:
-                                if read_hap[-1] == 1:
-                                    read_dict_HP1[read_hap[0:-1]] += 1
-                                    read_dict_HP2[read_hap[0:-1]] += 0
-                                elif read_hap[-1] == 2:
-                                    read_dict_HP1[read_hap[0:-1]] += 0
-                                    read_dict_HP2[read_hap[0:-1]] += 1
-                            for key,val in read_var_cov.items():
-                                per_var_cov[key] += val
+                            for key,val in result.items():
+                                outfile.write('\t'.join(map(str,key))+'\t'+
+                                              ','.join(val)+'\n')
                             
                     pbar.update(1)
         else:
@@ -903,80 +961,49 @@ def per_read_variant(vcf_dict,
                           "file Or alignment is truncated or corrupt indexed. "
                           "Skipping it.".format(chrom))
             
-    return (variant_dict, read_dict_HP1, 
-            read_dict_HP2, per_var_cov)
+    outfile.close()
+    # return (variant_dict, read_dict_HP1, 
+    #         read_dict_HP2, per_var_cov)
 
 
-def pofo_final_dict(chrom_hp_origin_count,
-                    chrom_hp_origin_count_dmr,
-                    chrom_hp_origin_count_all_cg,
-                    chrom_hp_origin_count_diff_cg):
+def pofo_final_dict(chrom_hp_origin_count):
     chrom_hp_origin = defaultdict(dict)
     for key, val in chrom_hp_origin_count.items():
         chrom, origin= key
+        hp1_score= val['score_HP1']
+        hp2_score= val['score_HP2']
+        hp1_diff= val['diff_HP1']
+        hp2_diff= val['diff_HP2']          
+        hp1_dmr_count= val['dmr_HP1']
+        hp2_dmr_count= val['dmr_HP2']
+        hp1_allcg_count= val['allcg_HP1'] 
+        hp2_allcg_count= val['allcg_HP2']
+        hp1_alldiffcg_count= val['alldiff_HP1']
+        hp2_alldiffcg_count= val['alldiff_HP2']
+        add_info1= [hp1_score, hp2_score,
+                    hp1_diff, hp2_diff, 
+                    hp1_dmr_count, hp2_dmr_count,
+                    hp1_alldiffcg_count, hp2_alldiffcg_count,
+                    hp1_allcg_count, hp2_allcg_count]
+        add_info2= [hp2_score, hp1_score,
+                    hp2_diff, hp1_diff, 
+                    hp2_dmr_count, hp1_dmr_count,
+                    hp2_alldiffcg_count, hp1_alldiffcg_count,
+                    hp2_allcg_count, hp1_allcg_count]
         if origin.lower() == 'maternal':
-            hp1_cg_count= val['HP1']
-            hp2_cg_count= val['HP2']
-            hp1_dmr_count= chrom_hp_origin_count_dmr[(chrom, 'maternal')]['HP1']
-            hp2_dmr_count= chrom_hp_origin_count_dmr[(chrom, 'maternal')]['HP2']
-            hp1_allcg_count= chrom_hp_origin_count_all_cg[(chrom, 'maternal')]['HP1']
-            hp2_allcg_count= chrom_hp_origin_count_all_cg[(chrom, 'maternal')]['HP2']
-            hp1_alldiffcg_count= chrom_hp_origin_count_diff_cg[(chrom, 'maternal')]['HP1']
-            hp2_alldiffcg_count= chrom_hp_origin_count_diff_cg[(chrom, 'maternal')]['HP2']
-            if hp1_cg_count > hp2_cg_count:
-                chrom_hp_origin[chrom]['HP1'] = ['maternal',
-                                                  hp1_cg_count, hp2_cg_count,
-                                                  hp1_dmr_count, hp2_dmr_count,
-                                                  hp1_alldiffcg_count, hp2_alldiffcg_count,
-                                                  hp1_allcg_count, hp2_allcg_count]
-                                                  
-                chrom_hp_origin[chrom]['HP2'] = ['paternal',
-                                                  hp1_cg_count, hp2_cg_count,
-                                                  hp1_dmr_count, hp2_dmr_count,
-                                                  hp1_alldiffcg_count, hp2_alldiffcg_count,
-                                                  hp1_allcg_count, hp2_allcg_count]
-            elif hp2_cg_count > hp1_cg_count:
-                chrom_hp_origin[chrom]['HP2'] = ['maternal',
-                                                  hp2_cg_count, hp1_cg_count,
-                                                  hp2_dmr_count, hp1_dmr_count,
-                                                  hp2_alldiffcg_count, hp1_alldiffcg_count,
-                                                  hp2_allcg_count, hp1_allcg_count]
-                chrom_hp_origin[chrom]['HP1'] = ['paternal',
-                                                  hp2_cg_count, hp1_cg_count,
-                                                  hp2_dmr_count, hp1_dmr_count,
-                                                  hp2_alldiffcg_count, hp1_alldiffcg_count,
-                                                  hp2_allcg_count, hp1_allcg_count]
+            if hp1_score > hp2_score:
+                chrom_hp_origin[chrom]['HP1'] = ['maternal']+add_info1
+                chrom_hp_origin[chrom]['HP2'] = ['paternal']+add_info1
+            elif hp2_score > hp1_score:
+                chrom_hp_origin[chrom]['HP2'] = ['maternal']+add_info2
+                chrom_hp_origin[chrom]['HP1'] = ['paternal']+add_info2
         elif origin.lower() == 'paternal':
-            hp1_cg_count= val['HP1']
-            hp2_cg_count= val['HP2']
-            hp1_dmr_count= chrom_hp_origin_count_dmr[(chrom, 'paternal')]['HP1']
-            hp2_dmr_count= chrom_hp_origin_count_dmr[(chrom, 'paternal')]['HP2']
-            hp1_allcg_count= chrom_hp_origin_count_all_cg[(chrom, 'paternal')]['HP1']
-            hp2_allcg_count= chrom_hp_origin_count_all_cg[(chrom, 'paternal')]['HP2']
-            hp1_alldiffcg_count= chrom_hp_origin_count_diff_cg[(chrom, 'paternal')]['HP1']
-            hp2_alldiffcg_count= chrom_hp_origin_count_diff_cg[(chrom, 'paternal')]['HP2']
-            if hp1_cg_count > hp2_cg_count:
-                chrom_hp_origin[chrom]['HP1'] = ['paternal',
-                                                  hp1_cg_count, hp2_cg_count,
-                                                  hp1_dmr_count, hp2_dmr_count,
-                                                  hp1_alldiffcg_count, hp2_alldiffcg_count,
-                                                  hp1_allcg_count, hp2_allcg_count]
-                chrom_hp_origin[chrom]['HP2'] = ['maternal',
-                                                  hp1_cg_count, hp2_cg_count,
-                                                  hp1_dmr_count, hp2_dmr_count,
-                                                  hp1_alldiffcg_count, hp2_alldiffcg_count,
-                                                  hp1_allcg_count, hp2_allcg_count]
-            elif hp2_cg_count > hp1_cg_count:
-                chrom_hp_origin[chrom]['HP2'] = ['paternal',
-                                                  hp2_cg_count, hp1_cg_count,
-                                                  hp2_dmr_count, hp1_dmr_count,
-                                                  hp2_alldiffcg_count, hp1_alldiffcg_count,
-                                                  hp2_allcg_count, hp1_allcg_count]
-                chrom_hp_origin[chrom]['HP1'] = ['maternal',
-                                                  hp2_cg_count, hp1_cg_count,
-                                                  hp2_dmr_count, hp1_dmr_count,
-                                                  hp2_alldiffcg_count, hp1_alldiffcg_count,
-                                                  hp2_allcg_count, hp1_allcg_count]
+            if hp1_score > hp2_score:
+                chrom_hp_origin[chrom]['HP1'] = ['paternal']+add_info1
+                chrom_hp_origin[chrom]['HP2'] = ['maternal']+add_info1
+            elif hp2_score > hp1_score:
+                chrom_hp_origin[chrom]['HP2'] = ['paternal']+add_info2
+                chrom_hp_origin[chrom]['HP1'] = ['maternal']+add_info2
     return chrom_hp_origin
 
 
@@ -1082,23 +1109,44 @@ def main(args):
                                                 chrom)
         else:
             raise Exception("No strand-seq vcf is given.")
-        
-        (variant_dict,
-         read_dict_HP1, 
-         read_dict_HP2,
-         per_var_cov)= per_read_variant(final_dict,
-                                        bam_file,
-                                        chunk,
-                                        processes)
-        if not read_dict_HP1 and not read_dict_HP1:
+            
+        if strand_phased_vars == 0:
+            warnings.warn("No phased strand-seq variant for {}."
+                          " Skipping it.".format(chrom))
             continue
+        
+        per_read_variant(final_dict,
+                         bam_file,
+                         chunk,
+                         processes,
+                         out+"_temp_VarReadinfo.tsv")
+        
+        read_dict_HP_temp= defaultdict(lambda: defaultdict(int))
         reads_hap_temp= dict()
-        read_hap_reassign= defaultdict(lambda: defaultdict(int))
-        variant_dict_HP1_ave= defaultdict(lambda: defaultdict(int))
-        variant_dict_HP2_ave= defaultdict(lambda: defaultdict(int))
-        for key,val in read_dict_HP1.items():
-            hp1_count= val
-            hp2_count= read_dict_HP2[key]
+        per_var_info = defaultdict(lambda: defaultdict(int))
+        with open(out+"_temp_VarReadinfo.tsv") as VarReadInfo:
+            for line in VarReadInfo:
+                line= line.rstrip().split('\t')
+                for read_info in line[3].split(','):
+                    read_info= read_info.split(":")
+                    if read_info[-1]!="NA":
+                        if read_info[1] in ["0","16"]:
+                            read_dict_HP_temp[(line[0],read_info[0])][read_info[-1]] += 1
+        with open(out+"_temp_VarReadinfo.tsv") as VarReadInfo:
+            for line in VarReadInfo:
+                line= line.rstrip().split('\t')
+                for read_info in line[3].split(','):
+                    read_info= read_info.split(":")
+                    if read_info[-1]!="NA" and (line[0],read_info[0]) not in read_dict_HP_temp:
+                        read_dict_HP_temp[(line[0],read_info[0])][read_info[-1]] += 1
+                    
+        if not read_dict_HP_temp:
+            warnings.warn("No phased read for {}."
+                          " Skipping it.".format(chrom))
+            continue
+        for key,val in read_dict_HP_temp.items():
+            hp1_count= val["1"]
+            hp2_count= val["2"]
             if (hp1_count > hp2_count and 
                 hp1_count/(hp1_count+hp2_count) >= hapRatio and 
                 hp1_count >= minvariant):
@@ -1107,73 +1155,63 @@ def main(args):
                   hp2_count/(hp1_count+hp2_count) >= hapRatio and 
                   hp2_count >= minvariant):
                 reads_hap_temp[key]= 2
-        for key,val in variant_dict.items():
-            read_count = hp1_count = hp2_count = hp1_count_read = hp2_count_read = 0
-            for read in val:
-                read_count += 1
-                hp1_count_read += read_dict_HP1[(key[0],*read)]
-                hp2_count_read += read_dict_HP2[(key[0],*read)]
-                if (key[0],*read) in reads_hap_temp:
-                    if reads_hap_temp[(key[0],*read)] == 1:
-                        hp1_count += 1
-                    elif reads_hap_temp[(key[0],*read)] == 2:
-                        hp2_count += 1
-            variant_dict_HP1_ave[(key[0],key[1])] = round(hp1_count_read/read_count,3)
-            variant_dict_HP2_ave[(key[0],key[1])] = round(hp2_count_read/read_count,3)
-            for read in val:
-                if (hp1_count > hp2_count and 
-                    hp1_count/(hp1_count+hp2_count) >= hapRatio and 
-                    hp1_count >= minvariant):
-                    read_hap_reassign[(key[0],*read)][1] += 1
-                elif (hp2_count > hp1_count and 
-                      hp2_count/(hp1_count+hp2_count) >= hapRatio and 
-                      hp2_count >= minvariant):
-                    read_hap_reassign[(key[0],*read)][2] += 1
-        for key in read_hap_reassign.keys():
-            hp1_count= read_hap_reassign[key][1]
-            hp2_count= read_hap_reassign[key][2]
+        with open(out+"_temp_VarReadinfo.tsv") as VarReadInfo:
+            for line in VarReadInfo:
+                line= line.rstrip().split('\t')
+                read_count = hp1_count = hp2_count = hp1_count_read = hp2_count_read = 0
+                for read_info in line[3].split(','):
+                    read_info= read_info.split(":")
+                    per_var_info[(line[0],line[1])]["all"] += 1
+                    read_count += 1
+                    hp1_count_read += read_dict_HP_temp[(line[0],read_info[0])]["1"]
+                    hp2_count_read += read_dict_HP_temp[(line[0],read_info[0])]["2"]
+                    if (line[0],read_info[0]) in reads_hap_temp and line[2]!="noninfo":
+                        if reads_hap_temp[(line[0],read_info[0])] == 1:
+                            hp1_count += 1
+                        elif reads_hap_temp[(line[0],read_info[0])] == 2:
+                            hp2_count += 1
+                per_var_info[tuple(line[0:2])][(line[2],"ave1")] = round(hp1_count_read/read_count,5)
+                per_var_info[tuple(line[0:2])][(line[2],"ave2")] = round(hp2_count_read/read_count,5)
+                for read_info in line[3].split(','):
+                    read_info= read_info.split(":")
+                    if (hp1_count > hp2_count and 
+                        hp1_count/(hp1_count+hp2_count) >= hapRatio and 
+                        hp1_count >= minvariant):
+                        read_dict_HP_temp[(line[0],read_info[0])]["1_reass"] += 1
+                    elif (hp2_count > hp1_count and 
+                          hp2_count/(hp1_count+hp2_count) >= hapRatio and 
+                          hp2_count >= minvariant):
+                        read_dict_HP_temp[(line[0],read_info[0])]["2_reass"] += 1
+        reads_hap_temp.clear()
+        for key in read_dict_HP_temp.keys():
+            hp1_count= read_dict_HP_temp[key]["1_reass"]
+            hp2_count= read_dict_HP_temp[key]["2_reass"]
             if (hp1_count > hp2_count and 
                 hp1_count/(hp1_count+hp2_count) >= hapRatio and 
                 hp1_count >= minvariant):
-                if key[0:2] not in reads_hap:
-                    reads_hap[key[0:2]]= 1
-                elif key[2] in ["0","16"]:
-                    reads_hap[key[0:2]]= 1
+                reads_hap[key]= 1
             elif (hp2_count > hp1_count and 
                   hp2_count/(hp1_count+hp2_count) >= hapRatio and 
                   hp2_count >= minvariant):
-                if key[0:2] not in reads_hap:
-                    reads_hap[key[0:2]]= 2
-                elif key[2] in ["0","16"]:
-                    reads_hap[key[0:2]]= 2
-        read_hap_reassign.clear()
-        variant_dict_HP1= defaultdict(lambda: defaultdict(int))
-        variant_dict_HP2= defaultdict(lambda: defaultdict(int))
-        variant_dict_HP1_all= defaultdict(int)
-        variant_dict_HP2_all= defaultdict(int)
-        for key,val in per_var_cov.items():
-            for read in val:
-                if read in reads_hap and reads_hap[read]==1:
-                    variant_dict_HP1_all[(key[0],key[1])] += 1
-                    variant_dict_HP2_all[(key[0],key[1])] += 0
-                elif read in reads_hap and reads_hap[read]==2:
-                    variant_dict_HP1_all[(key[0],key[1])] += 0
-                    variant_dict_HP2_all[(key[0],key[1])] += 1
-                
-        for key,val in variant_dict.items():
-            for read in val:
-                if (key[0],read[0]) in reads_hap:
-                    if reads_hap[(key[0],read[0])] == 1:
-                        variant_dict_HP1_all[(key[0],key[1],"delskip")] += 1
-                        variant_dict_HP2_all[(key[0],key[1],"delskip")] += 0
-                        variant_dict_HP1[(key[0],key[1])][key[2]] += 1 
-                        variant_dict_HP2[(key[0],key[1])][key[2]] += 0
-                    elif reads_hap[(key[0],read[0])] == 2:
-                        variant_dict_HP1_all[(key[0],key[1],"delskip")] += 0
-                        variant_dict_HP2_all[(key[0],key[1],"delskip")] += 1
-                        variant_dict_HP1[(key[0],key[1])][key[2]] += 0
-                        variant_dict_HP2[(key[0],key[1])][key[2]] += 1 
-        variant_dict.clear()
+                reads_hap[key]= 2
+        read_dict_HP_temp.clear()
+        variant_dict_HP= defaultdict(lambda: defaultdict(int))
+        with open(out+"_temp_VarReadinfo.tsv") as VarReadInfo:
+            for line in VarReadInfo:
+                line= line.rstrip().split('\t')
+                for read_info in line[3].split(','):
+                    read_info= read_info.split(":")
+                    if ((line[0],read_info[0]) in reads_hap and 
+                        reads_hap[(line[0],read_info[0])]==1):
+                        per_var_info[(line[0],line[1])]["h1all"] += 1
+                        if line[2] != "noninfo":
+                            variant_dict_HP[(line[0],line[1])][(line[2],1)] += 1 
+                    elif ((line[0],read_info[0]) in reads_hap and 
+                          reads_hap[(line[0],read_info[0])]==2):
+                        per_var_info[(line[0],line[1])]["h2all"] += 1
+                        if line[2] != "noninfo":
+                            variant_dict_HP[(line[0],line[1])][(line[2],2)] += 1
+
         records_chrom= vcf_tb.query(chrom, 0, chroms[chrom]+1)
         for line in records_chrom:
             block_id= line[9].split(":")[-1]
@@ -1190,23 +1228,25 @@ def main(args):
             if not args.include_all_variants and line[6] not in ["PASS","."]:
                 continue
             if line[9].startswith(("0/1","1/0","0|1","1|0")):
-                hp1_count_alt= variant_dict_HP1[(line[0],int(line[1])-1)][line[4].upper()]
-                hp2_count_alt= variant_dict_HP2[(line[0],int(line[1])-1)][line[4].upper()]
-                hp1_count_ref= variant_dict_HP1[(line[0],int(line[1])-1)][line[3].upper()]
-                hp2_count_ref= variant_dict_HP2[(line[0],int(line[1])-1)][line[3].upper()]
-                hp1_cov= str(variant_dict_HP1_all[(line[0],int(line[1])-1)])
-                hp2_cov= str(variant_dict_HP2_all[(line[0],int(line[1])-1)])
-                hp1_cov_skip= str(variant_dict_HP1_all[(line[0],int(line[1])-1,"delskip")])
-                hp2_cov_skip= str(variant_dict_HP2_all[(line[0],int(line[1])-1,"delskip")])
-                all_cov= str(len(per_var_cov[(line[0],int(line[1])-1)]))
-                if hp1_cov_skip == "0":
-                    hp1_count_ave= 0
+                hp1_count_alt= variant_dict_HP[(line[0],line[1])][(line[4].upper(),1)]
+                hp2_count_alt= variant_dict_HP[(line[0],line[1])][(line[4].upper(),2)]
+                hp1_count_ref= variant_dict_HP[(line[0],line[1])][(line[3].upper(),1)]
+                hp2_count_ref= variant_dict_HP[(line[0],line[1])][(line[3].upper(),2)]
+                hp1_cov= str(per_var_info[(line[0],line[1])]["h1all"])
+                hp2_cov= str(per_var_info[(line[0],line[1])]["h2all"])
+                all_cov= str(per_var_info[(line[0],line[1])]["all"])
+                if hp1_cov == "0":
+                    hp1_count_ave_ref= 0
+                    hp1_count_ave_alt= 0
                 else:
-                    hp1_count_ave= variant_dict_HP1_ave[(line[0],int(line[1])-1)]
-                if hp2_cov_skip == "0":
-                    hp2_count_ave= 0
+                    hp1_count_ave_ref= per_var_info[(line[0],line[1])][(line[3].upper(),"ave1")]
+                    hp1_count_ave_alt= per_var_info[(line[0],line[1])][(line[4].upper(),"ave1")]
+                if hp2_cov == "0":
+                    hp2_count_ave_ref= 0
+                    hp2_count_ave_alt= 0
                 else:
-                    hp2_count_ave= variant_dict_HP2_ave[(line[0],int(line[1])-1)]
+                    hp2_count_ave_ref= per_var_info[(line[0],line[1])][(line[3].upper(),"ave2")]
+                    hp2_count_ave_alt= per_var_info[(line[0],line[1])][(line[4].upper(),"ave2")]
                 if hp1_count_alt > 0 or hp1_count_ref > 0:
                     hp1_alt_ratio= hp1_count_alt/(hp1_count_alt+hp1_count_ref)
                     hp1_ref_ratio= hp1_count_ref/(hp1_count_alt+hp1_count_ref)
@@ -1220,22 +1260,23 @@ def main(args):
                     hp2_alt_ratio= 0
                     hp2_ref_ratio= 0
                 if args.phased and (line[0],block_id,"agreement") in phase_block_stat:
-                    additional_info= [all_cov,hp1_cov,hp2_cov,hp1_cov_skip,hp2_cov_skip,
+                    additional_info= [all_cov,hp1_cov,hp2_cov,
                                      str(hp1_count_ref), str(hp2_count_ref),
                                      str(hp1_count_alt),str(hp2_count_alt),
-                                     str(hp1_count_ave),
-                                     str(hp2_count_ave),
+                                     str(hp1_count_ave_ref),str(hp2_count_ave_ref),
+                                     str(hp1_count_ave_alt),str(hp2_count_ave_alt),
                                      blocks_dict[(line[0],block_id)][0],
                                      blocks_dict[(line[0],block_id)][1],
                                      str(phase_block_stat[(line[0],block_id,"agreement")]),
-                                     str(phase_block_stat[(line[0],block_id,"disagreement")])]
+                                     str(phase_block_stat[(line[0],block_id,"disagreement")]),
+                                     phase_block_stat[(line[0],block_id)]]
                 else:
-                    additional_info= [all_cov,hp1_cov,hp2_cov,hp1_cov_skip,hp2_cov_skip,
+                    additional_info= [all_cov,hp1_cov,hp2_cov,
                                      str(hp1_count_ref), str(hp2_count_ref),
                                      str(hp1_count_alt),str(hp2_count_alt),
-                                     str(hp1_count_ave),
-                                     str(hp2_count_ave),
-                                     "NA","NA","NA","NA"]
+                                     str(hp1_count_ave_ref),str(hp2_count_ave_ref),
+                                     str(hp1_count_ave_alt),str(hp2_count_ave_alt),
+                                     "NA","NA","NA","NA","NA"]
                 if ((hp1_count_alt > hp2_count_alt and
                      hp1_alt_ratio > hp2_alt_ratio and
                      hp1_count_alt >= min_read_reassignment) or
@@ -1263,23 +1304,29 @@ def main(args):
                                                                             replace("1/0", "0/1")]+
                                                           additional_info)
             elif line[9].startswith(('1/2','1|2','2/1','2|1')):
-                hp1_count_alt= variant_dict_HP1[(line[0],int(line[1])-1)][line[4].split(',')[1].upper()]
-                hp2_count_alt= variant_dict_HP2[(line[0],int(line[1])-1)][line[4].split(',')[1].upper()]
-                hp1_count_ref= variant_dict_HP1[(line[0],int(line[1])-1)][line[4].split(',')[0].upper()]
-                hp2_count_ref= variant_dict_HP2[(line[0],int(line[1])-1)][line[4].split(',')[0].upper()]
-                hp1_cov= str(variant_dict_HP1_all[(line[0],int(line[1])-1)])
-                hp2_cov= str(variant_dict_HP2_all[(line[0],int(line[1])-1)])
-                hp1_cov_skip= str(variant_dict_HP1_all[(line[0],int(line[1])-1,"delskip")])
-                hp2_cov_skip= str(variant_dict_HP2_all[(line[0],int(line[1])-1,"delskip")])
-                all_cov= str(len(per_var_cov[(line[0],int(line[1])-1)]))
-                if hp1_cov_skip == "0":
-                    hp1_count_ave= 0
+                hp1_count_alt= variant_dict_HP[(line[0],line[1])][(line[4].split(',')[1].upper(),1)]
+                hp2_count_alt= variant_dict_HP[(line[0],line[1])][(line[4].split(',')[1].upper(),2)]
+                hp1_count_ref= variant_dict_HP[(line[0],line[1])][(line[4].split(',')[0].upper(),1)]
+                hp2_count_ref= variant_dict_HP[(line[0],line[1])][(line[4].split(',')[0].upper(),2)]
+                hp1_cov= str(per_var_info[(line[0],line[1])]["h1all"])
+                hp2_cov= str(per_var_info[(line[0],line[1])]["h2all"])
+                all_cov= str(per_var_info[(line[0],line[1])]["all"])
+                if hp1_cov == "0":
+                    hp1_count_ave_ref= 0
+                    hp1_count_ave_alt= 0
                 else:
-                    hp1_count_ave= variant_dict_HP1_ave[(line[0],int(line[1])-1)]
-                if hp2_cov_skip == "0":
-                    hp2_count_ave= 0
+                    hp1_count_ave_ref= per_var_info[(line[0],line[1])][(
+                                                    line[4].split(',')[0].upper(),"ave1")]
+                    hp1_count_ave_alt= per_var_info[(line[0],line[1])][(
+                                                    line[4].split(',')[1].upper(),"ave1")]
+                if hp2_cov == "0":
+                    hp2_count_ave_ref= 0
+                    hp2_count_ave_alt= 0
                 else:
-                    hp2_count_ave= variant_dict_HP2_ave[(line[0],int(line[1])-1)]
+                    hp2_count_ave_ref= per_var_info[(line[0],line[1])][(
+                                                    line[4].split(',')[0].upper(),"ave2")]
+                    hp2_count_ave_alt= per_var_info[(line[0],line[1])][(
+                                                    line[4].split(',')[1].upper(),"ave2")]
                 if hp1_count_alt > 0 or hp1_count_ref > 0:
                     hp1_alt_ratio= hp1_count_alt/(hp1_count_alt+hp1_count_ref)
                     hp1_ref_ratio= hp1_count_ref/(hp1_count_alt+hp1_count_ref)
@@ -1293,22 +1340,23 @@ def main(args):
                     hp2_alt_ratio= 0
                     hp2_ref_ratio= 0
                 if args.phased and (line[0],block_id,"agreement") in phase_block_stat:
-                    additional_info= [all_cov,hp1_cov,hp2_cov,hp1_cov_skip,hp2_cov_skip,
+                    additional_info= [all_cov,hp1_cov,hp2_cov,
                                      str(hp1_count_ref), str(hp2_count_ref),
                                      str(hp1_count_alt),str(hp2_count_alt),
-                                     str(hp1_count_ave),
-                                     str(hp2_count_ave),
+                                     str(hp1_count_ave_ref),str(hp2_count_ave_ref),
+                                     str(hp1_count_ave_alt),str(hp2_count_ave_alt),
                                      blocks_dict[(line[0],block_id)][0],
                                      blocks_dict[(line[0],block_id)][1],
                                      str(phase_block_stat[(line[0],block_id,"agreement")]),
-                                     str(phase_block_stat[(line[0],block_id,"disagreement")])]
+                                     str(phase_block_stat[(line[0],block_id,"disagreement")]),
+                                     phase_block_stat[(line[0],block_id)]]
                 else:
-                    additional_info= [all_cov,hp1_cov,hp2_cov,hp1_cov_skip,hp2_cov_skip,
+                    additional_info= [all_cov,hp1_cov,hp2_cov,
                                      str(hp1_count_ref), str(hp2_count_ref),
                                      str(hp1_count_alt),str(hp2_count_alt),
-                                     str(hp1_count_ave),
-                                     str(hp2_count_ave),
-                                     "NA","NA","NA","NA"]
+                                     str(hp1_count_ave_ref),str(hp2_count_ave_ref),
+                                     str(hp1_count_ave_alt),str(hp2_count_ave_alt),
+                                     "NA","NA","NA","NA","NA"]
                 if ((hp1_count_alt > hp2_count_alt and
                      hp1_alt_ratio > hp2_alt_ratio and
                      hp1_count_alt >= min_read_reassignment) or
@@ -1337,6 +1385,7 @@ def main(args):
                                                                           replace("2/1", "1/2")]+
                                                         additional_info)
 
+    per_var_info.clear()
     subprocess.run("sed '1d' {} | awk -F'\t' '{{print $1,$2-100000,$3+100000}}' OFS='\t'"
                     " | awk '{{if ($2<0) {{$2=0}}; print}}' OFS='\t' "
                     "| sort -k1,1 -k2,2n | bedtools merge > {}"
@@ -1400,21 +1449,17 @@ def main(args):
     out_meth.write(header+"\tAll_CpGs_At_iDMR_CouldBeExaminedInBothHaplotypes\t"
                    "DifferentiallyMethylatedCpGs_HypermethylatedOnHP1\t"
                    "DifferentiallyMethylatedCpGs_HypermethylatedOnHP2\t"
+                   "MeanDiffMethylationOf_DifferentiallyMethylatedCpGs_HypermethylatedOnHP1\t"
+                   "MeanDiffMethylationOf_DifferentiallyMethylatedCpGs_HypermethylatedOnHP2\t"
                    "MethylationFrequency_HP1\tMethylationFrequency_HP2\t"
                    "Included_Or_Ignored_For_PofO_Assignment\n")
     dmr_file.close()
-    (chrom_hp_origin_count,
-      chrom_hp_origin_count_all_cg,
-      chrom_hp_origin_count_diff_cg,
-      chrom_hp_origin_count_dmr)= PofO_dmr(known_dmr, 
+    chrom_hp_origin_count= PofO_dmr(known_dmr, 
                                           out,
                                           out_meth,
                                           min_cg,
                                           cpg_difference)
-    chrom_hp_origin= pofo_final_dict(chrom_hp_origin_count,
-                                     chrom_hp_origin_count_dmr,
-                                     chrom_hp_origin_count_all_cg,
-                                     chrom_hp_origin_count_diff_cg)
+    chrom_hp_origin= pofo_final_dict(chrom_hp_origin_count)
 
 
     print("################## Assigning PofO to Variants ##################")
@@ -1428,19 +1473,21 @@ def main(args):
             elif line.startswith("#"):
                 assignment_file.write(line)
                 assignment_file_info.write(line.rstrip()+"\tNumAllReads\t"
-                                        "NumReadsHP1\tNumReadsHP2\tNumReadsHP1_DelSkipRefSkip\t"
-                                        "NumReadsHP2_DelSkipRefSkip\tNumReads_HP1_Ref/Left_Allele"
-                                        "\tNumReads_HP2_Ref/Left_Allele\tNumReads_HP1_Alt/Right_Allele"
-                                        "\tNumReads_HP2_Alt/Right_Allele\t"
-                                        "MeanNumherOfHP1-PhasedVariantsAccrossReads\t"
-                                        "MeanNumherOfHP2-PhasedVariantsAccrossReads\t"
-                                        "BlockStart\tBlockEnd\t"
-                                        "NumberOfSupportiveStrandSeqPhasedVariantsAtThePhasedBlock\t"
-                                        "NumberOfConflictingStrandSeqPhasedVariantsAtThePhasedBlock\t"
-                                        "NumReads_Maternal_Ref/Left_Allele"
-                                        "\tNumReads_Paternal_Ref/Left_Allele\t"
-                                        "NumReads_Maternal_Alt/Right_Allele"
-                                        "\tNumReads_Paternal_Alt/Right_Allele\t\n")
+                                           "NumReadsHP1\tNumReadsHP2\tNumReads_HP1_Ref/Left_Allele\t"
+                                           "NumReads_HP2_Ref/Left_Allele\tNumReads_HP1_Alt/Right_Allele\t"
+                                           "NumReads_HP2_Alt/Right_Allele\t"
+                                           "MeanNumherOfHP1-InitialPhasedVariantsAccrossReadsMappedToRef/LeftAllele\t"
+                                           "MeanNumherOfHP2-InitialPhasedVariantsAccrossReadsMappedToRef/LeftAllele\t"
+                                           "MeanNumherOfHP1-InitialPhasedVariantsAccrossReadsMappedToAlt/RightAllele\t"
+                                           "MeanNumherOfHP2-InitialPhasedVariantsAccrossReadsMappedToAlt/RightAllele\t"
+                                           "BlockStart\tBlockEnd\t"
+                                           "NumberOfSupportiveStrandSeqPhasedVariantsAtThePhasedBlock\t"
+                                           "NumberOfConflictingStrandSeqPhasedVariantsAtThePhasedBlock\t"
+                                           "IsPhaseBlockUsed\t"
+                                           "NumReads_Maternal_Ref/Left_Allele\t"
+                                           "NumReads_Paternal_Ref/Left_Allele\t"
+                                           "NumReads_Maternal_Alt/Right_Allele\t"
+                                           "NumReads_Paternal_Alt/Right_Allele\t\n")
             else:
                 line=line.rstrip().split('\t')
                 snv_var= False
@@ -1457,7 +1504,7 @@ def main(args):
                 if tuple(line[0:2]) in re_assignment_vars:
                     var_info= re_assignment_vars[tuple(line[0:2])]
                     (hp1_count_ref,hp2_count_ref,
-                     hp1_count_alt,hp2_count_alt) = var_info[15:19]
+                     hp1_count_alt,hp2_count_alt) = var_info[13:17]
                     if line[0] in chrom_hp_origin:
                         if snv_var and var_info[9].startswith(("1|0","0|1","1|2")):
                             info_out_dict[line[0]]["pofo_het_snvs"] += 1
@@ -1519,7 +1566,7 @@ def main(args):
                                                         ).replace("|", "/")
                     assignment_file.write(out_line+'\n')
                     assignment_file_info.write(out_line+'\t'+
-                                          '\t'.join(["NA"]*19)+'\n')
+                                          '\t'.join(["NA"]*20)+'\n')
     assignment_file.close()
     assignment_file_info.close()
 
@@ -1550,13 +1597,19 @@ def main(args):
                          outfile_bam)
     outfile_bam.close()
     infile_bam.close()
- 
+    subprocess.run("samtools sort -@ {0} {1} -o {1} && samtools index -@ {0} -c {1}"
+                        "".format(processes,
+                                    out+"_PofO_Tagged.cram"),
+                    shell=True,
+                    check=True)
     subprocess.run("rm {}*".format(out+"_Temp"),
                     shell=True,
                     check=True)
                         
     out_scores= open(out + '_PofO_Scores.tsv','w')
     out_scores.write("Chromosome\tOrigin_HP1\tOrigin_HP2\tPofO_Assignment_Score\t"
+                     "NormalizedNum_Differentially_Methylated_CGs_Supported_PofO_Assignment\t"
+                     "NormalizedNum_Differentially_Methylated_CGs_Conflicted_PofO_Assignment\t"
                      "Num_Differentially_Methylated_CGs_Supported_PofO_Assignment\t"
                      "Num_Differentially_Methylated_CGs_Conflicted_PofO_Assignment\t"
                      "Num_iDMRs_Supported_PofO_Assignment\t"
@@ -1571,10 +1624,12 @@ def main(args):
                 origin_hp1= score[0]
                 if origin_hp1 == "maternal":
                     origin_hp2= "Paternal"
+                    origin_hp1= "Maternal"                    
                 elif origin_hp1 == "paternal":
                     origin_hp2= "Maternal"
+                    origin_hp1= "Paternal"
                 out_scores.write('\t'.join([chrom,origin_hp1,origin_hp2,
-                                            str(score[1]/(score[1]+score[2]))] +
+                                            str(round(score[1]/(score[1]+score[2]),5))] +
                                            list(map(str,score[1:])))+'\n')
     out_scores.close()
     if not args.include_all_variants:
@@ -1653,7 +1708,10 @@ optional.add_argument("--known_dmr", "-kd",
                         "chromosome\tstart\tend\tMethylatedAlleleOrigin "
                         "where the methylated allele origin must be either "
                         "maternal or paternal (First row must be header). "
-                        "By default, we use iDMR list in repo's patmat directory.")
+                        "By default, we use hg38 reference iDMR list in repo's patmat directory."
+                        " We have also provided the iDMR list for t2t (hs1) reference"
+                        " in the  repo's patmat directory, in case you are using t2t "
+                        "reference provide the path to that file.")
 optional.add_argument("--phased", "-ph",
                       action="store_true",
                       required=False,
@@ -1678,7 +1736,8 @@ optional.add_argument("--pb_cpg_tools_model", "-pbcg",
                                                         ).split('/')[0:-1]),
                                                  "third_parties",
                                                  "pb-CpG-tools-v2.3.2-x86_64-unknown-linux-gnu",
-                                                 "models/pileup_calling_model.v1.tflite"),
+                                                 "models",
+                                                 "pileup_calling_model.v1.tflite"),
                       help=("If you have selected --pacbio patmat will use "
                             "aligned_bam_to_cpg_scores tool with "
                             "pileup_calling_model.v1.tflite model for methylation"

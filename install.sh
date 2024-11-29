@@ -1,9 +1,8 @@
 #!/bin/bash -l
 # 1- Installing patmat and plus some additional tools such as longphase, whatshap, samtools, sniffles, bowtie2
 ###################################################################################################################
-#git clone https://github.com/vahidAK/PatMat.git
-#cd PatMat
-chmod -x */* && chmod +x */{patmat.py,strandseq_phase.R}
+git clone https://github.com/vahidAK/PatMat.git && cd PatMat &&\
+chmod -x */* && chmod +x */{patmat.py,strandseq_phase.R} && \
 mamba env create -f patmat_env.yml && \
 conda activate patmat && \
 env_path=$(mamba info | grep -i 'active env location' | cut -d'/' -f2- | awk '{print "/"$0"/bin"}') && \
@@ -17,8 +16,9 @@ ln -s $PWD/pb-CpG-tools-v2.3.2-x86_64-unknown-linux-gnu/bin/aligned_bam_to_cpg_s
 patmat.py --version
 # 2- Installing ashleys-qc
 ###################################################################################################################
-git clone https://github.com/friendsofstrandseq/ashleys-qc.git ashleys-qc && \
-cd ashleys-qc && sed -i 's/name: ashleys/name: ashleys_patmat-wf/g' environment/ashleys_env.yml && \
+wget https://github.com/friendsofstrandseq/ashleys-qc/archive/refs/tags/v0.2.0.tar.gz && \
+tar -xzf v0.2.0.tar.gz && rm v0.2.0.tar.gz && cd ashleys-qc-0.2.0 && \
+sed -i 's/name: ashleys/name: ashleys_patmat-wf/g' environment/ashleys_env.yml && \
 mamba env create -f environment/ashleys_env.yml && \
 conda activate ashleys_patmat-wf && \
 python setup.py install && \
