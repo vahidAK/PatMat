@@ -1273,9 +1273,11 @@ def main(args):
                                      "NA","NA","NA","NA"]
                 if ((hp1_count_alt > hp2_count_alt and
                      hp1_alt_ratio > hp2_alt_ratio and
+                     hp1_alt_ratio > hp1_ref_ratio and
                      hp1_count_alt >= min_read_reassignment) or
                     (hp2_count_ref > hp1_count_ref and
                      hp2_ref_ratio > hp1_ref_ratio and
+                     hp2_ref_ratio > hp2_alt_ratio and
                      hp2_count_ref >= min_read_reassignment)):
                     re_assignment_vars[tuple(line[0:2])]= (line[0:8]+
                                                         [':'.join(new_ps)+":PS"]+
@@ -1283,9 +1285,11 @@ def main(args):
                                                         additional_info)
                 elif ((hp2_count_alt > hp1_count_alt and
                        hp2_alt_ratio > hp1_alt_ratio and
+                       hp2_alt_ratio > hp2_ref_ratio and
                        hp2_count_alt >= min_read_reassignment) or
                       (hp1_count_ref > hp2_count_ref and
                        hp1_ref_ratio > hp2_ref_ratio and
+                       hp1_ref_ratio > hp1_alt_ratio and
                        hp1_count_ref >= min_read_reassignment)):
                     re_assignment_vars[tuple(line[0:2])]= (line[0:8]+
                                                           [':'.join(new_ps)+":PS"]+
@@ -1352,9 +1356,11 @@ def main(args):
                                      "NA","NA","NA","NA"]
                 if ((hp1_count_alt > hp2_count_alt and
                      hp1_alt_ratio > hp2_alt_ratio and
+                     hp1_alt_ratio > hp1_ref_ratio and
                      hp1_count_alt >= min_read_reassignment) or
                     (hp2_count_ref > hp1_count_ref and
                      hp2_ref_ratio > hp1_ref_ratio and
+                     hp2_ref_ratio > hp2_alt_ratio and
                      hp2_count_ref >= min_read_reassignment)):
                     re_assignment_vars[tuple(line[0:2])]= (line[0:8]+
                                                         [':'.join(new_ps)+":PS"]+
@@ -1363,9 +1369,11 @@ def main(args):
                         
                 elif ((hp2_count_alt > hp1_count_alt and
                        hp2_alt_ratio > hp1_alt_ratio and
+                       hp2_alt_ratio > hp2_ref_ratio and
                        hp2_count_alt >= min_read_reassignment) or
                       (hp1_count_ref > hp2_count_ref and
                        hp1_ref_ratio > hp2_ref_ratio and
+                       hp1_ref_ratio > hp1_alt_ratio and
                        hp1_count_ref >= min_read_reassignment)):
                     re_assignment_vars[tuple(line[0:2])]= (line[0:8]+
                                                         [':'.join(new_ps)+":PS"]+
