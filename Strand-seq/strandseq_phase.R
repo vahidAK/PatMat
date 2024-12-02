@@ -96,9 +96,9 @@ parser$add_argument("-n", "--name",
 )
 
 parser$add_argument("--inversion_list",
-    type = "character", required = F, default=file.path(script_dir, "hanlon_2021_BMCgenomics_augmented.GRCh38.bed"),
+    type = "character", required = F, default=file.path(script_dir, "hanlon_2021_BMCgenomics_augmented.Merged.GRCh38.bed"),
     help = "Absolute path to a BED file containing genomic intervals that might be inversions. This is typically a list from the literature
-        so the file hanlon_2021_BMCgenomics_augmented.GRCh38.bed on the PatMat GitHub (originally from vincent-hanlon/InvertypeR) is a good start.
+        so the file hanlon_2021_BMCgenomics_augmented.Merged.GRCh38.bed on the PatMat GitHub (originally from vincent-hanlon/InvertypeR) is a good start.
         Default: the file suggested above, if it is in the same directory as strandseq_phase.R.",
     metavar = "/path/to/BED"
 )

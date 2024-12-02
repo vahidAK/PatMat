@@ -786,8 +786,6 @@ def strand_vcf2dict_phased(vcf_strand,
 
 def vcf2dict_phased(blocks, 
                     vcf_strand,
-                    hapRatio,
-                    minvariantblock,
                     vcf,
                     include_all_variants,
                     chrom):
@@ -806,8 +804,6 @@ def vcf2dict_phased(blocks,
         b_chrom, b_start, b_end= block
         if b_chrom!=chrom:
             continue
-        agreement_count= 0
-        disagreement_count= 0
         try:
             records_whats = tb_vcf.query(b_chrom, b_start-1, b_end+1)
             records_whats = list(records_whats)
@@ -816,46 +812,45 @@ def vcf2dict_phased(blocks,
                           "Make sure file is indexed. Skipping it.".format(b_chrom, b_start, b_end))
             continue
         if b_chrom in vcf_dict:
-            disagreement_sites = set()
-            agreement_sites = set()
+            agreement_count_temp= 0
+            disagreement_count_temp= 0
+            agreement_count= 0
+            disagreement_count= 0
+            vars_list= list()
             for vcf_line in records_whats:
+                if not include_all_variants and vcf_line[6] not in ["PASS","."]:
+                    continue
+                if agreement_count_temp + disagreement_count_temp == 2:
+                    if agreement_count_temp == 2:
+                        for var in vars_list:
+                            vcf_dict[var[0]][var[1]] = var[9].split(':')[0]
+                    elif disagreement_count_temp == 2:
+                        for var in vars_list:
+                            vcf_dict[var[0]][var[1]] = var[9].split(':')[0][::-1]
+                    agreement_count_temp= 0
+                    disagreement_count_temp= 0
+                    vars_list= list()
+                if vcf_line[9].startswith(("1|0","0|1")):
+                    vars_list.append(vcf_line)
                 if vcf_line[1] in vcf_dict[vcf_line[0]]:
                     if vcf_line[9].startswith("1|0") and vcf_dict[vcf_line[0]][vcf_line[1]] == "1|0":
-                        agreement_sites.add(vcf_line[1])
                         agreement_count += 1
+                        agreement_count_temp += 1
                     elif vcf_line[9].startswith("1|0") and vcf_dict[vcf_line[0]][vcf_line[1]] == "0|1":
-                        disagreement_sites.add(vcf_line[1])
                         disagreement_count += 1
+                        disagreement_count_temp += 1
                     elif vcf_line[9].startswith("0|1") and vcf_dict[vcf_line[0]][vcf_line[1]] == "0|1":
-                        agreement_sites.add(vcf_line[1])
                         agreement_count += 1
+                        agreement_count_temp += 1
                     elif vcf_line[9].startswith("0|1") and vcf_dict[vcf_line[0]][vcf_line[1]] == "1|0":
-                        disagreement_sites.add(vcf_line[1])
                         disagreement_count += 1                    
+                        disagreement_count_temp += 1                    
             if agreement_count > disagreement_count:
                 phase_block_stat[(b_chrom, str(b_start),"agreement")]+=agreement_count
                 phase_block_stat[(b_chrom, str(b_start),"disagreement")]+=disagreement_count
             else:
                 phase_block_stat[(b_chrom, str(b_start),"agreement")]+=disagreement_count
                 phase_block_stat[(b_chrom, str(b_start),"disagreement")]+=agreement_count
-            phase_block_stat[(b_chrom, str(b_start))] = "No"
-            for vcf_line in records_whats:
-                if vcf_line[1] in vcf_dict[vcf_line[0]]:
-                    continue
-                if vcf_line[9].startswith(('1|0','0|1')):
-                    if (agreement_count > disagreement_count and
-                        agreement_count >= minvariantblock and 
-                        agreement_count/(agreement_count+disagreement_count) >= hapRatio and
-                        vcf_line[1] not in disagreement_sites):
-                        vcf_dict[vcf_line[0]][vcf_line[1]] = vcf_line[9].split(':')[0]
-                        phase_block_stat[(b_chrom, str(b_start))] = "Yes"
-                    elif (disagreement_count > agreement_count and
-                          disagreement_count >= minvariantblock and 
-                          disagreement_count/(agreement_count+disagreement_count) >= hapRatio and
-                          vcf_line[1] not in agreement_sites):
-                        vcf_dict[vcf_line[0]][vcf_line[1]] = vcf_line[9].split(':')[0][::-1]
-                        phase_block_stat[(b_chrom, str(b_start))] = "Yes"
-
                         
     with openfile(vcf) as vf:
         for line in vf:
@@ -991,17 +986,17 @@ def pofo_final_dict(chrom_hp_origin_count):
                     hp2_alldiffcg_count, hp1_alldiffcg_count,
                     hp2_allcg_count, hp1_allcg_count]
         if origin.lower() == 'maternal':
-            if hp1_score > hp2_score and hp1_score > args.min_pofo_score:
+            if hp1_score > hp2_score and hp1_score/(hp1_score+hp2_score) > args.min_pofo_score:
                 chrom_hp_origin[chrom]['HP1'] = ['maternal']+add_info1
                 chrom_hp_origin[chrom]['HP2'] = ['paternal']+add_info1
-            elif hp2_score > hp1_score and hp2_score > args.min_pofo_score:
+            elif hp2_score > hp1_score and hp2_score/(hp1_score+hp2_score) > args.min_pofo_score:
                 chrom_hp_origin[chrom]['HP2'] = ['maternal']+add_info2
                 chrom_hp_origin[chrom]['HP1'] = ['paternal']+add_info2
         elif origin.lower() == 'paternal':
-            if hp1_score > hp2_score and hp1_score > args.min_pofo_score:
+            if hp1_score > hp2_score and hp1_score/(hp1_score+hp2_score) > args.min_pofo_score:
                 chrom_hp_origin[chrom]['HP1'] = ['paternal']+add_info1
                 chrom_hp_origin[chrom]['HP2'] = ['maternal']+add_info1
-            elif hp2_score > hp1_score and hp2_score > args.min_pofo_score:
+            elif hp2_score > hp1_score and hp2_score/(hp1_score+hp2_score) > args.min_pofo_score:
                 chrom_hp_origin[chrom]['HP2'] = ['paternal']+add_info2
                 chrom_hp_origin[chrom]['HP1'] = ['maternal']+add_info2
     return chrom_hp_origin
@@ -1010,7 +1005,8 @@ def pofo_final_dict(chrom_hp_origin_count):
 
 
 
-def get_block(vcf):
+def get_block(vcf,
+              chrom):
     '''
     In case --phased option is provided this function extracts "
     "phased blocks from vcf file.
@@ -1022,8 +1018,9 @@ def get_block(vcf):
             if line.startswith("#"):
                 continue
             line=line.rstrip().split('\t')
-            if "|" in line[9].split(":")[0]:
-               blocks_dict[(line[0],line[9].split(":")[-1])].add(int(line[1]))
+            if line[0] != chrom or "|" not in line[9].split(":")[0]:
+                continue
+            blocks_dict[(line[0],line[9].split(":")[-1])].add(int(line[1]))
     for key, val in blocks_dict.items():
         val= sorted(val)
         final.append((key[0], val[0], val[-1]))
@@ -1092,18 +1089,16 @@ def main(args):
         if args.strand_vcf is not None and not args.phased:
             vcf_strand = os.path.abspath(args.strand_vcf)
             final_dict, strand_phased_vars= strand_vcf2dict_phased(vcf_strand, 
-                                                           vcf, 
-                                                           args.include_all_variants,
-                                                           chrom)
+                                                                   vcf, 
+                                                                   args.include_all_variants,
+                                                                   chrom)
         elif args.strand_vcf is not None and args.phased:
             vcf_strand = os.path.abspath(args.strand_vcf)
-            blocks_phased, blocks_dict= get_block(vcf)
+            blocks_phased, blocks_dict= get_block(vcf, chrom)
             (final_dict,
              strand_phased_vars,
              phase_block_stat)= vcf2dict_phased(blocks_phased, 
                                                 vcf_strand,
-                                                hapRatio,
-                                                minvariantblock,
                                                 vcf,
                                                 args.include_all_variants,
                                                 chrom)
@@ -1268,15 +1263,14 @@ def main(args):
                                      blocks_dict[(line[0],block_id)][0],
                                      blocks_dict[(line[0],block_id)][1],
                                      str(phase_block_stat[(line[0],block_id,"agreement")]),
-                                     str(phase_block_stat[(line[0],block_id,"disagreement")]),
-                                     phase_block_stat[(line[0],block_id)]]
+                                     str(phase_block_stat[(line[0],block_id,"disagreement")])]
                 else:
                     additional_info= [all_cov,hp1_cov,hp2_cov,
                                      str(hp1_count_ref), str(hp2_count_ref),
                                      str(hp1_count_alt),str(hp2_count_alt),
                                      str(hp1_count_ave_ref),str(hp2_count_ave_ref),
                                      str(hp1_count_ave_alt),str(hp2_count_ave_alt),
-                                     "NA","NA","NA","NA","NA"]
+                                     "NA","NA","NA","NA"]
                 if ((hp1_count_alt > hp2_count_alt and
                      hp1_alt_ratio > hp2_alt_ratio and
                      hp1_count_alt >= min_read_reassignment) or
@@ -1348,15 +1342,14 @@ def main(args):
                                      blocks_dict[(line[0],block_id)][0],
                                      blocks_dict[(line[0],block_id)][1],
                                      str(phase_block_stat[(line[0],block_id,"agreement")]),
-                                     str(phase_block_stat[(line[0],block_id,"disagreement")]),
-                                     phase_block_stat[(line[0],block_id)]]
+                                     str(phase_block_stat[(line[0],block_id,"disagreement")])]
                 else:
                     additional_info= [all_cov,hp1_cov,hp2_cov,
                                      str(hp1_count_ref), str(hp2_count_ref),
                                      str(hp1_count_alt),str(hp2_count_alt),
                                      str(hp1_count_ave_ref),str(hp2_count_ave_ref),
                                      str(hp1_count_ave_alt),str(hp2_count_ave_alt),
-                                     "NA","NA","NA","NA","NA"]
+                                     "NA","NA","NA","NA"]
                 if ((hp1_count_alt > hp2_count_alt and
                      hp1_alt_ratio > hp2_alt_ratio and
                      hp1_count_alt >= min_read_reassignment) or
@@ -1483,7 +1476,6 @@ def main(args):
                                            "BlockStart\tBlockEnd\t"
                                            "NumberOfSupportiveStrandSeqPhasedVariantsAtThePhasedBlock\t"
                                            "NumberOfConflictingStrandSeqPhasedVariantsAtThePhasedBlock\t"
-                                           "IsPhaseBlockUsed\t"
                                            "NumReads_Maternal_Ref/Left_Allele\t"
                                            "NumReads_Paternal_Ref/Left_Allele\t"
                                            "NumReads_Maternal_Alt/Right_Allele\t"
@@ -1566,7 +1558,7 @@ def main(args):
                                                         ).replace("|", "/")
                     assignment_file.write(out_line+'\n')
                     assignment_file_info.write(out_line+'\t'+
-                                          '\t'.join(["NA"]*20)+'\n')
+                                          '\t'.join(["NA"]*19)+'\n')
     assignment_file.close()
     assignment_file_info.close()
 
@@ -1697,7 +1689,7 @@ optional.add_argument("--min_pofo_score", "-mps",
                       help=("0-1. Threshold for chromosome PofO score. This is "
                             "the minimum PofO score of a chromosome to assign PofO "
                             "to a haplotype. See the github page on how PofO score "
-                            "of a chromosome is calculated."))
+                            "of a chromosome is calculated. Default is 0.55"))
 optional.add_argument("--pacbio", "-pb",
                             action="store_true",
                             required=False,
@@ -1777,15 +1769,9 @@ optional.add_argument("--hapratio", "-hr",
                       type=float,
                       required=False,
                       default=0.75,
-                      help=("0-1. Minimum ratio of variants a read must have "
+                      help=("0-1. Minimum ratio of phased variants a read must have "
                             "from a haplotype to assign it to that haplotype. "
-                            "Default is 0.75. Note that if you also provide "
-                            "--phased option, this option will be "
-                            "also used to correct phased-block switches"
-                            " using Strand-seq phased variants. In this case,"
-                            " it is the minimum ratio of phased variants "
-                            "at a block that supports the decision based "
-                            "on strand-seq phased variants."))
+                            "Default is 0.75."))
 optional.add_argument("--mapping_quality", "-mq",
                       action="store",
                       type=int,

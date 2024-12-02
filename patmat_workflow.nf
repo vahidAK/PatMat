@@ -39,7 +39,7 @@ def help_message() {
                         See other available lists in the PatMat Strand-seq directory. 
       --soft_mask       Absolute path to soft_mask list for strand-seq phasing. default is soft_mask.GRCh38.bed. 
                         See other available lists in the PatMat Strand-seq directory.
-      --inversion_list  path to the inversion_list for strand-seq phasing. Default is hanlon_2021_BMCgenomics_augmented.GRCh38.bed.
+      --inversion_list  path to the inversion_list for strand-seq phasing. Default is hanlon_2021_BMCgenomics_augmented.Merged.GRCh38.bed.
                         See other available lists in the PatMat Strand-seq directory.
       --sample_id       Sample id. Will be also used as output prefix. Default is Sample
       --hifi            Select this option if long-read data is from PacBio
@@ -83,7 +83,7 @@ params.bsgenome= "BSgenome.Hsapiens.UCSC.hg38"
 params.known_dmr= "${params.patmat_dir}/patmat/Imprinted_DMR_List_V1.GRCh38.tsv"
 params.hard_mask= "${params.patmat_dir}/Strand-seq/hard_mask.GRCh38.bed"
 params.soft_mask= "${params.patmat_dir}/Strand-seq/soft_mask.GRCh38.bed"
-params.inversion_list= "${params.patmat_dir}/Strand-seq/hanlon_2021_BMCgenomics_augmented.GRCh38.bed"
+params.inversion_list= "${params.patmat_dir}/Strand-seq/hanlon_2021_BMCgenomics_augmented.Merged.GRCh38.bed"
 params.adapter_3R1= "AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNNNATCTCGTATGCCGTCTTCTGCTTG"
 params.adapter_5R1= "AATGATACGGCGACCACCGAGATCTACACNNNNNNNNACACTCTTTCCCTACACGACGCTCTTCCGATCT"
 params.adapter_3R2= "AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTNNNNNNNNGTGTAGATCTCGGTGGTCGCCGTATCATT"
