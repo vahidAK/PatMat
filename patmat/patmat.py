@@ -579,14 +579,14 @@ def alignment_writer(bam,
     bamiter = bam.fetch(chrom)
     if chrom in chrom_hp_origin and chrom_hp_origin[chrom]['HP1'][0] == 'maternal':
         for read in bamiter:
+            read.set_tag("HP", None)
+            read.set_tag("PS", None)
             if (read.mapping_quality < args.mapping_quality or 
                 read.is_secondary or read.is_qcfail or 
                 read.is_duplicate or read.is_unmapped or
                 (read.is_supplementary and not args.include_supplementary)):
                 outfile.write(read)
                 continue
-            read.set_tag("HP", None)
-            read.set_tag("PS", None)
             read_id = read.query_name
             ref_name = read.reference_name
             if(ref_name,read_id) in reads_hap:
@@ -594,14 +594,14 @@ def alignment_writer(bam,
             outfile.write(read)
     elif chrom in chrom_hp_origin and chrom_hp_origin[chrom]['HP2'][0] == 'maternal':
         for read in bamiter:
+            read.set_tag("HP", None)
+            read.set_tag("PS", None)
             if (read.mapping_quality < args.mapping_quality or 
                 read.is_secondary or read.is_qcfail or 
                 read.is_duplicate or read.is_unmapped or
                 (read.is_supplementary and not args.include_supplementary)):
                 outfile.write(read)
                 continue
-            read.set_tag("HP", None)
-            read.set_tag("PS", None)
             read_id = read.query_name
             ref_name = read.reference_name
             if(ref_name,read_id) in reads_hap:
@@ -612,12 +612,6 @@ def alignment_writer(bam,
             outfile.write(read)
     else:
         for read in bamiter:
-            if (read.mapping_quality < args.mapping_quality or 
-                read.is_secondary or read.is_qcfail or 
-                read.is_duplicate or read.is_unmapped or
-                (read.is_supplementary and not args.include_supplementary)):
-                outfile.write(read)
-                continue
             read.set_tag("HP", None)
             read.set_tag("PS", None)
             outfile.write(read)
@@ -1589,7 +1583,7 @@ def main(args):
     outfile_bam = pysam.AlignmentFile(out+"_PofO_Tagged.cram", "wc", 
                                       template=infile_bam, header=cramHeader,
                                       reference_filename= reference)
-    for chrom in bam_choms:
+    for chrom in list(bam_choms)+["*"]:
         alignment_writer(infile_bam,
                          chrom,
                          reads_hap,
