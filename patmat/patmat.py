@@ -76,7 +76,6 @@ def get_variant_info(feed_list,
                     read_base1= None
                     read_base2= None
                     hapt= "NA"
-                    # read_var_cov[(chrom,position)].append((read_id))
                     if pileupread.is_del or pileupread.is_refskip:
                         read_var_list[(chrom,position+1,"noninfo")].append(':'.join((*ext_key,hapt)))
                         continue
@@ -112,17 +111,13 @@ def get_variant_info(feed_list,
                         if read_base == ref:
                             if gt == '1|0':
                                 hapt= "2"
-                                # read_hap_list.append((chrom,*ext_key,2))
                             elif gt == '0|1' and read_base == ref:
                                 hapt= "1"
-                                # read_hap_list.append((chrom,*ext_key,1))
                         elif read_base == alt:
                             if gt == '1|0' and read_base == alt:
                                 hapt= "1"
-                                # read_hap_list.append((chrom,*ext_key,1))
                             elif gt == '0|1' and read_base == alt:
                                 hapt= "2"
-                                # read_hap_list.append((chrom,*ext_key,2))                    
                         else:
                             read_base= "noninfo"
                         read_var_list[(chrom,position+1,read_base)].append(
@@ -185,8 +180,6 @@ def get_variant_info(feed_list,
                         else:
                             read_var_list[(chrom,position+1,"noninfo")].append(
                                                         ':'.join((*ext_key,hapt)))
-                        
-                            
     return read_var_list
 
 
@@ -626,7 +619,7 @@ def pofo_sv_write(sv_file,
     sv_assignment_file= open(out +"_"+os.path.basename(sv_file) + 
                                       '_PofO_Assignment_SVs.vcf', 'w')
     sv_assignment_file_info= open(out +"_"+os.path.basename(sv_file) + 
-                                      '_PofO_Assignment_SVs_info.tsv', 'w') 
+                                      '_Variant_Assignment_SVs_info.tsv', 'w') 
     with openfile(sv_file) as vf:
         for line in vf:
             if line.startswith("##"):
@@ -675,7 +668,7 @@ def pofo_sv_write(sv_file,
                         if chrom_hp_origin[line[0]]['HP1'][0] == 'maternal':
                             line_out= (line[0:8]+
                                         [':'.join(new_ps)+":PS"]+
-                                        ["1|0:"+':'.join(new_hp[1:])+":Pat|Mat"]+
+                                        ["1|0:"+':'.join(new_hp[1:])+":Mat"]+
                                         [str(hp1_count), str(hp2_count),
                                           str(hp2_count), str(hp1_count)])
                             sv_assignment_file.write('\t'.join(line_out[0:-4])+'\n')
@@ -683,7 +676,7 @@ def pofo_sv_write(sv_file,
                         if chrom_hp_origin[line[0]]['HP1'][0] == 'paternal':
                             line_out= (line[0:8]+
                                         [':'.join(new_ps)+":PS"]+
-                                        ["0|1:"+':'.join(new_hp[1:])+":Mat|Pat"]+
+                                        ["0|1:"+':'.join(new_hp[1:])+":Pat"]+
                                         [str(hp1_count), str(hp2_count),
                                           str(hp1_count), str(hp2_count)])
                             sv_assignment_file.write('\t'.join(line_out[0:-4])+'\n')
@@ -693,7 +686,7 @@ def pofo_sv_write(sv_file,
                         if chrom_hp_origin[line[0]]['HP2'][0] == 'maternal':
                             line_out= (line[0:8]+
                                         [':'.join(new_ps)+":PS"]+
-                                        ["1|0:"+':'.join(new_hp[1:])+":Pat|Mat"]+
+                                        ["1|0:"+':'.join(new_hp[1:])+":Mat"]+
                                         [str(hp1_count), str(hp2_count),
                                           str(hp1_count), str(hp2_count)])
                             sv_assignment_file.write('\t'.join(line_out[0:-4])+'\n')
@@ -701,7 +694,7 @@ def pofo_sv_write(sv_file,
                         if chrom_hp_origin[line[0]]['HP2'][0] == 'paternal':
                             line_out= (line[0:8]+
                                         [':'.join(new_ps)+":PS"]+
-                                        ["0|1:"+':'.join(new_hp[1:])+":Mat|Pat"]+
+                                        ["0|1:"+':'.join(new_hp[1:])+":Pat"]+
                                         [str(hp1_count), str(hp2_count),
                                           str(hp2_count), str(hp1_count)])
                             sv_assignment_file.write('\t'.join(line_out[0:-4])+'\n')
@@ -714,7 +707,7 @@ def pofo_sv_write(sv_file,
                                     [str(hp1_count), str(hp2_count),
                                       "NA","NA"])
                         sv_assignment_file.write('\t'.join(line_out[0:-4])+'\n')
-                        sv_assignment_file_info.write('\t'.join(line_out)+'\n')                                    
+                        sv_assignment_file_info.write('\t'.join(line_out)+'\n')
                 else:
                     line_out= (line[0:8]+
                                 [':'.join(new_ps)]+
@@ -725,16 +718,52 @@ def pofo_sv_write(sv_file,
                     sv_assignment_file.write('\t'.join(line_out[0:-4])+'\n')
                     sv_assignment_file_info.write('\t'.join(line_out)+'\n')
             else:
-                line_out= (line[0:8]+
-                            [':'.join(new_ps)]+
-                            [line[9].replace("|", "/").
-                              replace("1/0", "0/1").
-                              replace("2/1", "1/2")]+
-                            ["NA"]*4)
-                sv_assignment_file.write('\t'.join(line_out[0:-4])+'\n')
-                sv_assignment_file_info.write('\t'.join(line_out)+'\n')
-    sv_assignment_file.close()
-    sv_assignment_file_info.close()
+                if gt in ["0/1","1/0","0|1","1|0"] and "RNAMES=" in line[7]:
+                    hp1_count= 0
+                    hp2_count= 0
+                    for read_ID in line[7].split("RNAMES=")[1].split(";")[0].split(","):
+                        if (line[0],read_ID) in reads_hap:
+                            if reads_hap[(line[0],read_ID)]==1:
+                                hp1_count+= 1
+                            elif reads_hap[(line[0],read_ID)]==2:
+                                hp2_count+= 1
+                    if (hp1_count > hp2_count and
+                        hp1_count >= min_read_reassignment):
+                        line_out= (line[0:8]+
+                                    [':'.join(new_ps)+":PS"]+
+                                    ["1|0:"+':'.join(new_hp[1:])+":HP1"]+
+                                    [str(hp1_count), str(hp2_count),
+                                      "NA", "NA"])
+                        sv_assignment_file.write('\t'.join(line_out[0:-4])+'\n')
+                        sv_assignment_file_info.write('\t'.join(line_out)+'\n')
+                    elif (hp2_count > hp1_count and
+                          hp2_count >= min_read_reassignment):
+                        line_out= (line[0:8]+
+                                    [':'.join(new_ps)+":PS"]+
+                                    ["0|1:"+':'.join(new_hp[1:])+":HP2"]+
+                                    [str(hp1_count), str(hp2_count),
+                                      "NA", "NA"])
+                        sv_assignment_file.write('\t'.join(line_out[0:-4])+'\n')
+                        sv_assignment_file_info.write('\t'.join(line_out)+'\n')
+                    else:
+                        line_out= (line[0:8]+
+                                    [':'.join(new_ps)]+
+                                    [line[9].replace("|", "/").
+                                              replace("1/0", "0/1")]+
+                                    [str(hp1_count), str(hp2_count),
+                                      "NA","NA"])
+                        sv_assignment_file.write('\t'.join(line_out[0:-4])+'\n')
+                        sv_assignment_file_info.write('\t'.join(line_out)+'\n')
+                else:
+                    line_out= (line[0:8]+
+                                [':'.join(new_ps)]+
+                                [line[9].replace("|", "/").
+                                  replace("1/0", "0/1").
+                                  replace("2/1", "1/2")]+
+                                ["NA"]*4)
+                    sv_assignment_file.write('\t'.join(line_out[0:-4])+'\n')
+                    sv_assignment_file_info.write('\t'.join(line_out)+'\n')
+                
     
     
 def strand_vcf2dict_phased(vcf_strand,
@@ -912,10 +941,6 @@ def per_read_variant(vcf_dict,
     This function extracts per-read information for variants.
     '''
     outfile= open(out_file,'w')
-    # variant_dict= defaultdict(set)
-    # read_dict_HP1= defaultdict(int)
-    # read_dict_HP2= defaultdict(int)
-    # per_var_cov = defaultdict(list)
     for chrom,feed_list in vcf_dict.items():
         bamiter, bam, count = openalignment(bam_file, chrom)
         if count > 0:
@@ -951,8 +976,6 @@ def per_read_variant(vcf_dict,
                           "Skipping it.".format(chrom))
             
     outfile.close()
-    # return (variant_dict, read_dict_HP1, 
-    #         read_dict_HP2, per_var_cov)
 
 
 def pofo_final_dict(chrom_hp_origin_count):
@@ -1021,6 +1044,8 @@ def get_block(vcf,
         blocks_dict[key]= (str(val[0]), str(val[-1]))
     return final, blocks_dict
 
+
+
 def main(args):
     '''
     The main function that uses user's inputs and other functions to phase and
@@ -1028,7 +1053,6 @@ def main(args):
     '''
     hapRatio = args.hapratio
     minvariant= args.min_variant
-    minvariantblock= args.min_variant_block
     min_cg= args.min_cg
     bam_file = os.path.abspath(args.bam)
     processes = args.processes
@@ -1108,12 +1132,14 @@ def main(args):
                          bam_file,
                          chunk,
                          processes,
-                         out+"_temp_VarReadinfo.tsv")
+                         out+"_temp_VarReadinfo_"+chrom+".tsv")
         
         read_dict_HP_temp= defaultdict(lambda: defaultdict(int))
+        added_prim_read= set()
+        read_dict_HP_temp_reass= defaultdict(lambda: defaultdict(int))
         reads_hap_temp= dict()
         per_var_info = defaultdict(lambda: defaultdict(int))
-        with open(out+"_temp_VarReadinfo.tsv") as VarReadInfo:
+        with open(out+"_temp_VarReadinfo_"+chrom+".tsv") as VarReadInfo:
             for line in VarReadInfo:
                 line= line.rstrip().split('\t')
                 for read_info in line[3].split(','):
@@ -1121,14 +1147,15 @@ def main(args):
                     if read_info[-1]!="NA":
                         if read_info[1] in ["0","16"]:
                             read_dict_HP_temp[(line[0],read_info[0])][read_info[-1]] += 1
-        with open(out+"_temp_VarReadinfo.tsv") as VarReadInfo:
+                            added_prim_read.add(read_info[0])
+        with open(out+"_temp_VarReadinfo_"+chrom+".tsv") as VarReadInfo:
             for line in VarReadInfo:
                 line= line.rstrip().split('\t')
                 for read_info in line[3].split(','):
                     read_info= read_info.split(":")
-                    if read_info[-1]!="NA" and (line[0],read_info[0]) not in read_dict_HP_temp:
+                    if read_info[-1]!="NA" and read_info[0] not in added_prim_read:
                         read_dict_HP_temp[(line[0],read_info[0])][read_info[-1]] += 1
-                    
+        added_prim_read.clear()            
         if not read_dict_HP_temp:
             warnings.warn("No phased read for {}."
                           " Skipping it.".format(chrom))
@@ -1144,7 +1171,7 @@ def main(args):
                   hp2_count/(hp1_count+hp2_count) >= hapRatio and 
                   hp2_count >= minvariant):
                 reads_hap_temp[key]= 2
-        with open(out+"_temp_VarReadinfo.tsv") as VarReadInfo:
+        with open(out+"_temp_VarReadinfo_"+chrom+".tsv") as VarReadInfo:
             for line in VarReadInfo:
                 line= line.rstrip().split('\t')
                 read_count = hp1_count = hp2_count = hp1_count_read = hp2_count_read = 0
@@ -1166,15 +1193,16 @@ def main(args):
                     if (hp1_count > hp2_count and 
                         hp1_count/(hp1_count+hp2_count) >= hapRatio and 
                         hp1_count >= minvariant):
-                        read_dict_HP_temp[(line[0],read_info[0])]["1_reass"] += 1
+                        read_dict_HP_temp_reass[(line[0],read_info[0])]["1"] += 1
                     elif (hp2_count > hp1_count and 
                           hp2_count/(hp1_count+hp2_count) >= hapRatio and 
                           hp2_count >= minvariant):
-                        read_dict_HP_temp[(line[0],read_info[0])]["2_reass"] += 1
+                        read_dict_HP_temp_reass[(line[0],read_info[0])]["2"] += 1
         reads_hap_temp.clear()
-        for key in read_dict_HP_temp.keys():
-            hp1_count= read_dict_HP_temp[key]["1_reass"]
-            hp2_count= read_dict_HP_temp[key]["2_reass"]
+        read_dict_HP_temp.clear()
+        for key,val in read_dict_HP_temp_reass.items():
+            hp1_count= val["1"]
+            hp2_count= val["2"]
             if (hp1_count > hp2_count and 
                 hp1_count/(hp1_count+hp2_count) >= hapRatio and 
                 hp1_count >= minvariant):
@@ -1183,9 +1211,9 @@ def main(args):
                   hp2_count/(hp1_count+hp2_count) >= hapRatio and 
                   hp2_count >= minvariant):
                 reads_hap[key]= 2
-        read_dict_HP_temp.clear()
+        read_dict_HP_temp_reass.clear()
         variant_dict_HP= defaultdict(lambda: defaultdict(int))
-        with open(out+"_temp_VarReadinfo.tsv") as VarReadInfo:
+        with open(out+"_temp_VarReadinfo_"+chrom+".tsv") as VarReadInfo:
             for line in VarReadInfo:
                 line= line.rstrip().split('\t')
                 for read_info in line[3].split(','):
@@ -1221,21 +1249,35 @@ def main(args):
                 hp2_count_alt= variant_dict_HP[(line[0],line[1])][(line[4].upper(),2)]
                 hp1_count_ref= variant_dict_HP[(line[0],line[1])][(line[3].upper(),1)]
                 hp2_count_ref= variant_dict_HP[(line[0],line[1])][(line[3].upper(),2)]
-                hp1_cov= str(per_var_info[(line[0],line[1])]["h1all"])
-                hp2_cov= str(per_var_info[(line[0],line[1])]["h2all"])
-                all_cov= str(per_var_info[(line[0],line[1])]["all"])
-                if hp1_cov == "0":
+                hp1_cov= per_var_info[(line[0],line[1])]["h1all"]
+                hp2_cov= per_var_info[(line[0],line[1])]["h2all"]
+                all_cov= per_var_info[(line[0],line[1])]["all"]
+                if all_cov == 0:
+                    hp1_frac= 0
+                    hp2_frac= 0
+                else:
+                    hp1_frac= round(hp1_cov/all_cov,5)
+                    hp2_frac= round(hp2_cov/all_cov,5)
+                if hp1_cov == 0:
                     hp1_count_ave_ref= 0
                     hp1_count_ave_alt= 0
+                    hp1_frac_ref= 0
+                    hp1_frac_alt= 0
                 else:
                     hp1_count_ave_ref= per_var_info[(line[0],line[1])][(line[3].upper(),"ave1")]
                     hp1_count_ave_alt= per_var_info[(line[0],line[1])][(line[4].upper(),"ave1")]
-                if hp2_cov == "0":
+                    hp1_frac_ref= round(hp1_count_ref/hp1_cov,5)
+                    hp1_frac_alt= round(hp1_count_alt/hp1_cov,5)
+                if hp2_cov == 0:
                     hp2_count_ave_ref= 0
                     hp2_count_ave_alt= 0
+                    hp2_frac_ref= 0
+                    hp2_frac_alt= 0
                 else:
                     hp2_count_ave_ref= per_var_info[(line[0],line[1])][(line[3].upper(),"ave2")]
                     hp2_count_ave_alt= per_var_info[(line[0],line[1])][(line[4].upper(),"ave2")]
+                    hp2_frac_ref= round(hp2_count_ref/hp2_cov,5)
+                    hp2_frac_alt= round(hp2_count_alt/hp2_cov,5)
                 if hp1_count_alt > 0 or hp1_count_ref > 0:
                     hp1_alt_ratio= hp1_count_alt/(hp1_count_alt+hp1_count_ref)
                     hp1_ref_ratio= hp1_count_ref/(hp1_count_alt+hp1_count_ref)
@@ -1249,29 +1291,37 @@ def main(args):
                     hp2_alt_ratio= 0
                     hp2_ref_ratio= 0
                 if args.phased and (line[0],block_id,"agreement") in phase_block_stat:
-                    additional_info= [all_cov,hp1_cov,hp2_cov,
-                                     str(hp1_count_ref), str(hp2_count_ref),
-                                     str(hp1_count_alt),str(hp2_count_alt),
-                                     str(hp1_count_ave_ref),str(hp2_count_ave_ref),
-                                     str(hp1_count_ave_alt),str(hp2_count_ave_alt),
-                                     blocks_dict[(line[0],block_id)][0],
-                                     blocks_dict[(line[0],block_id)][1],
-                                     str(phase_block_stat[(line[0],block_id,"agreement")]),
-                                     str(phase_block_stat[(line[0],block_id,"disagreement")])]
+                    additional_info= list(map(str,[all_cov,hp1_cov,hp2_cov,
+                                         hp1_count_ref, hp2_count_ref,
+                                         hp1_count_alt,hp2_count_alt,
+                                         hp1_frac, hp2_frac,
+                                         hp1_frac_ref, hp2_frac_ref,
+                                         hp1_frac_alt, hp2_frac_alt,
+                                         hp1_count_ave_ref, hp2_count_ave_ref,
+                                         hp1_count_ave_alt, hp2_count_ave_alt,
+                                         blocks_dict[(line[0],block_id)][0],
+                                         blocks_dict[(line[0],block_id)][1],
+                                         phase_block_stat[(line[0],block_id,"agreement")],
+                                         phase_block_stat[(line[0],block_id,"disagreement")]]))
                 else:
-                    additional_info= [all_cov,hp1_cov,hp2_cov,
-                                     str(hp1_count_ref), str(hp2_count_ref),
-                                     str(hp1_count_alt),str(hp2_count_alt),
-                                     str(hp1_count_ave_ref),str(hp2_count_ave_ref),
-                                     str(hp1_count_ave_alt),str(hp2_count_ave_alt),
-                                     "NA","NA","NA","NA"]
+                    additional_info= list(map(str,[all_cov,hp1_cov,hp2_cov,
+                                         hp1_count_ref, hp2_count_ref,
+                                         hp1_count_alt,hp2_count_alt,
+                                         hp1_frac, hp2_frac,
+                                         hp1_frac_ref, hp2_frac_ref,
+                                         hp1_frac_alt, hp2_frac_alt,
+                                         hp1_count_ave_ref, hp2_count_ave_ref,
+                                         hp1_count_ave_alt, hp2_count_ave_alt,
+                                         "NA","NA","NA","NA"]))
                 if ((hp1_count_alt > hp2_count_alt and
                      hp1_alt_ratio > hp2_alt_ratio and
                      hp1_alt_ratio > hp1_ref_ratio and
+                     hp1_alt_ratio > hapRatio and
                      hp1_count_alt >= min_read_reassignment) or
                     (hp2_count_ref > hp1_count_ref and
                      hp2_ref_ratio > hp1_ref_ratio and
                      hp2_ref_ratio > hp2_alt_ratio and
+                     hp2_ref_ratio > hapRatio and
                      hp2_count_ref >= min_read_reassignment)):
                     re_assignment_vars[tuple(line[0:2])]= (line[0:8]+
                                                         [':'.join(new_ps)+":PS"]+
@@ -1280,10 +1330,12 @@ def main(args):
                 elif ((hp2_count_alt > hp1_count_alt and
                        hp2_alt_ratio > hp1_alt_ratio and
                        hp2_alt_ratio > hp2_ref_ratio and
+                       hp2_alt_ratio > hapRatio and
                        hp2_count_alt >= min_read_reassignment) or
                       (hp1_count_ref > hp2_count_ref and
                        hp1_ref_ratio > hp2_ref_ratio and
                        hp1_ref_ratio > hp1_alt_ratio and
+                       hp1_ref_ratio > hapRatio and
                        hp1_count_ref >= min_read_reassignment)):
                     re_assignment_vars[tuple(line[0:2])]= (line[0:8]+
                                                           [':'.join(new_ps)+":PS"]+
@@ -1300,25 +1352,39 @@ def main(args):
                 hp2_count_alt= variant_dict_HP[(line[0],line[1])][(line[4].split(',')[1].upper(),2)]
                 hp1_count_ref= variant_dict_HP[(line[0],line[1])][(line[4].split(',')[0].upper(),1)]
                 hp2_count_ref= variant_dict_HP[(line[0],line[1])][(line[4].split(',')[0].upper(),2)]
-                hp1_cov= str(per_var_info[(line[0],line[1])]["h1all"])
-                hp2_cov= str(per_var_info[(line[0],line[1])]["h2all"])
-                all_cov= str(per_var_info[(line[0],line[1])]["all"])
-                if hp1_cov == "0":
+                hp1_cov= per_var_info[(line[0],line[1])]["h1all"]
+                hp2_cov= per_var_info[(line[0],line[1])]["h2all"]
+                all_cov= per_var_info[(line[0],line[1])]["all"]
+                if all_cov == 0:
+                    hp1_frac= 0
+                    hp2_frac= 0
+                else:
+                    hp1_frac= round(hp1_cov/all_cov,5)
+                    hp2_frac= round(hp2_cov/all_cov,5)
+                if hp1_cov == 0:
                     hp1_count_ave_ref= 0
                     hp1_count_ave_alt= 0
+                    hp1_frac_ref= 0
+                    hp1_frac_alt= 0
                 else:
                     hp1_count_ave_ref= per_var_info[(line[0],line[1])][(
                                                     line[4].split(',')[0].upper(),"ave1")]
                     hp1_count_ave_alt= per_var_info[(line[0],line[1])][(
                                                     line[4].split(',')[1].upper(),"ave1")]
-                if hp2_cov == "0":
+                    hp1_frac_ref= round(hp1_count_ref/hp1_cov,5)
+                    hp1_frac_alt= round(hp1_count_alt/hp1_cov,5)
+                if hp2_cov == 0:
                     hp2_count_ave_ref= 0
                     hp2_count_ave_alt= 0
+                    hp2_frac_ref= 0
+                    hp2_frac_alt= 0
                 else:
                     hp2_count_ave_ref= per_var_info[(line[0],line[1])][(
                                                     line[4].split(',')[0].upper(),"ave2")]
                     hp2_count_ave_alt= per_var_info[(line[0],line[1])][(
                                                     line[4].split(',')[1].upper(),"ave2")]
+                    hp2_frac_ref= round(hp2_count_ref/hp2_cov,5)
+                    hp2_frac_alt= round(hp2_count_alt/hp2_cov,5)
                 if hp1_count_alt > 0 or hp1_count_ref > 0:
                     hp1_alt_ratio= hp1_count_alt/(hp1_count_alt+hp1_count_ref)
                     hp1_ref_ratio= hp1_count_ref/(hp1_count_alt+hp1_count_ref)
@@ -1332,29 +1398,38 @@ def main(args):
                     hp2_alt_ratio= 0
                     hp2_ref_ratio= 0
                 if args.phased and (line[0],block_id,"agreement") in phase_block_stat:
-                    additional_info= [all_cov,hp1_cov,hp2_cov,
-                                     str(hp1_count_ref), str(hp2_count_ref),
-                                     str(hp1_count_alt),str(hp2_count_alt),
-                                     str(hp1_count_ave_ref),str(hp2_count_ave_ref),
-                                     str(hp1_count_ave_alt),str(hp2_count_ave_alt),
-                                     blocks_dict[(line[0],block_id)][0],
-                                     blocks_dict[(line[0],block_id)][1],
-                                     str(phase_block_stat[(line[0],block_id,"agreement")]),
-                                     str(phase_block_stat[(line[0],block_id,"disagreement")])]
+                    additional_info= list(map(str,[all_cov,hp1_cov,hp2_cov,
+                                         hp1_count_ref, hp2_count_ref,
+                                         hp1_count_alt,hp2_count_alt,
+                                         hp1_frac, hp2_frac,
+                                         hp1_frac_ref, hp2_frac_ref,
+                                         hp1_frac_alt, hp2_frac_alt,
+                                         hp1_count_ave_ref, hp2_count_ave_ref,
+                                         hp1_count_ave_alt, hp2_count_ave_alt,
+                                         blocks_dict[(line[0],block_id)][0],
+                                         blocks_dict[(line[0],block_id)][1],
+                                         phase_block_stat[(line[0],block_id,"agreement")],
+                                         phase_block_stat[(line[0],block_id,"disagreement")]]))
                 else:
-                    additional_info= [all_cov,hp1_cov,hp2_cov,
-                                     str(hp1_count_ref), str(hp2_count_ref),
-                                     str(hp1_count_alt),str(hp2_count_alt),
-                                     str(hp1_count_ave_ref),str(hp2_count_ave_ref),
-                                     str(hp1_count_ave_alt),str(hp2_count_ave_alt),
-                                     "NA","NA","NA","NA"]
+                    additional_info= list(map(str,[all_cov,hp1_cov,hp2_cov,
+                                         hp1_count_ref, hp2_count_ref,
+                                         hp1_count_alt,hp2_count_alt,
+                                         hp1_frac, hp2_frac,
+                                         hp1_frac_ref, hp2_frac_ref,
+                                         hp1_frac_alt, hp2_frac_alt,
+                                         hp1_count_ave_ref, hp2_count_ave_ref,
+                                         hp1_count_ave_alt, hp2_count_ave_alt,
+                                         "NA","NA","NA","NA"]))
+                    
                 if ((hp1_count_alt > hp2_count_alt and
                      hp1_alt_ratio > hp2_alt_ratio and
                      hp1_alt_ratio > hp1_ref_ratio and
+                     hp1_alt_ratio > hapRatio and
                      hp1_count_alt >= min_read_reassignment) or
                     (hp2_count_ref > hp1_count_ref and
                      hp2_ref_ratio > hp1_ref_ratio and
                      hp2_ref_ratio > hp2_alt_ratio and
+                     hp2_ref_ratio > hapRatio and
                      hp2_count_ref >= min_read_reassignment)):
                     re_assignment_vars[tuple(line[0:2])]= (line[0:8]+
                                                         [':'.join(new_ps)+":PS"]+
@@ -1364,10 +1439,12 @@ def main(args):
                 elif ((hp2_count_alt > hp1_count_alt and
                        hp2_alt_ratio > hp1_alt_ratio and
                        hp2_alt_ratio > hp2_ref_ratio and
+                       hp2_alt_ratio > hapRatio and
                        hp2_count_alt >= min_read_reassignment) or
                       (hp1_count_ref > hp2_count_ref and
                        hp1_ref_ratio > hp2_ref_ratio and
                        hp1_ref_ratio > hp1_alt_ratio and
+                       hp1_ref_ratio > hapRatio and
                        hp1_count_ref >= min_read_reassignment)):
                     re_assignment_vars[tuple(line[0:2])]= (line[0:8]+
                                                         [':'.join(new_ps)+":PS"]+
@@ -1379,7 +1456,8 @@ def main(args):
                                                         [':'.join(new_hp).replace("|", "/").
                                                                           replace("2/1", "1/2")]+
                                                         additional_info)
-
+        os.remove(out+"_temp_VarReadinfo_"+chrom+".tsv")
+    
     per_var_info.clear()
     subprocess.run("sed '1d' {} | awk -F'\t' '{{print $1,$2-100000,$3+100000}}' OFS='\t'"
                     " | awk '{{if ($2<0) {{$2=0}}; print}}' OFS='\t' "
@@ -1461,16 +1539,19 @@ def main(args):
     info_out_dict= defaultdict(lambda: defaultdict(int))
     with openfile(vcf) as vf_file:
         assignment_file= open(out+"_PofO_Assigned.vcf",'w')
-        assignment_file_info= open(out+"_PofO_Assigned_info.tsv",'w')
+        assignment_file_info= open(out+"_Variant_Assignment_info.tsv",'w')
         for line in vf_file:
             if line.startswith("##"):
                 assignment_file.write(line)
             elif line.startswith("#"):
                 assignment_file.write(line)
                 assignment_file_info.write(line.rstrip()+"\tNumAllReads\t"
-                                           "NumReadsHP1\tNumReadsHP2\tNumReads_HP1_Ref/Left_Allele\t"
-                                           "NumReads_HP2_Ref/Left_Allele\tNumReads_HP1_Alt/Right_Allele\t"
-                                           "NumReads_HP2_Alt/Right_Allele\t"
+                                           "NumReadsHP1\tNumReadsHP2\t"
+                                           "NumReadsHP1RefOrLeftAllele\tNumReadsHP2RefOrLeftAllele\t"
+                                           "NumReadsHP1AltOrRightAllele\tNumReadsHP2AltOrRightAllele\t"
+                                           "FracReadsHP1\tFracReadsHP2\t"
+                                           "FracHP1ReadsWithRefOrLeftAllele\tFracHP2ReadsWithRefOrLeftAllele\t"
+                                           "FracHP1ReadsWithAltOrRightAllele\tFracHP2ReadsWithAltOrLeftAllele\t"
                                            "MeanNumherOfHP1-InitialPhasedVariantsAccrossReadsMappedToRef/LeftAllele\t"
                                            "MeanNumherOfHP2-InitialPhasedVariantsAccrossReadsMappedToRef/LeftAllele\t"
                                            "MeanNumherOfHP1-InitialPhasedVariantsAccrossReadsMappedToAlt/RightAllele\t"
@@ -1478,10 +1559,14 @@ def main(args):
                                            "BlockStart\tBlockEnd\t"
                                            "NumberOfSupportiveStrandSeqPhasedVariantsAtThePhasedBlock\t"
                                            "NumberOfConflictingStrandSeqPhasedVariantsAtThePhasedBlock\t"
-                                           "NumReads_Maternal_Ref/Left_Allele\t"
-                                           "NumReads_Paternal_Ref/Left_Allele\t"
-                                           "NumReads_Maternal_Alt/Right_Allele\t"
-                                           "NumReads_Paternal_Alt/Right_Allele\t\n")
+                                           "NumReadsMaternal\tNumReadsPaternal\t"
+                                           "NumReadsMaternalRefOrLeftAllele\t"
+                                           "NumReads_PaternalRefOrLeftAllele\t"
+                                           "NumReads_MaternalAltOrRightAllele\t"
+                                           "NumReads_PaternalAltOrRightAllele\t\t"
+                                           "FracReadsMaternal\tFracReadsPaternal\t"
+                                           "FracMaternalReadsWithRefOrLeftAllele\tFracPaternalReadsWithRefOrLeftAllele\t"
+                                           "FracMaternalReadsWithAltOrRightAllele\tFracPaternalReadsWithAltOrRightAllele\n")
             else:
                 line=line.rstrip().split('\t')
                 snv_var= False
@@ -1497,40 +1582,10 @@ def main(args):
                         info_out_dict[line[0]]["all_het_indels"] += 1
                 if tuple(line[0:2]) in re_assignment_vars:
                     var_info= re_assignment_vars[tuple(line[0:2])]
-                    (hp1_count_ref,hp2_count_ref,
-                     hp1_count_alt,hp2_count_alt) = var_info[13:17]
-                    if line[0] in chrom_hp_origin:
-                        if snv_var and var_info[9].startswith(("1|0","0|1","1|2")):
-                            info_out_dict[line[0]]["pofo_het_snvs"] += 1
-                        elif indel_var and var_info[9].startswith(("1|0","0|1","1|2")):
-                            info_out_dict[line[0]]["pofo_het_indels"] += 1
-                            
-                        if chrom_hp_origin[line[0]]['HP1'][0] == 'maternal':
-                            out_line= '\t'.join(var_info[0:10]).replace("HP1", "Mat"
-                                                                 ).replace("HP2", "Pat")
-                            assignment_file.write(out_line+'\n')
-                            assignment_file_info.write(out_line+'\t'+
-                                                  '\t'.join(var_info[10:]+
-                                                            [hp1_count_ref,hp2_count_ref,
-                                                             hp1_count_alt,hp2_count_alt])+'\n')
-                        elif chrom_hp_origin[line[0]]['HP1'][0] == 'paternal':
-                            if var_info[9].startswith("1|0"):
-                                out_line= '\t'.join(var_info[0:10]).replace("1|0","0|1"
-                                                                     ).replace("HP1", "Pat"
-                                                                     ).replace("HP2", "Mat")
-                            elif var_info[9].startswith("0|1"):
-                                out_line= '\t'.join(var_info[0:10]).replace("0|1","1|0"
-                                                                     ).replace("HP1", "Pat"
-                                                                     ).replace("HP2", "Mat")
-                            else:
-                                out_line= '\t'.join(var_info[0:10]).replace("HP1", "Pat"
-                                                                     ).replace("HP2", "Mat")
-                            assignment_file.write(out_line+'\n')
-                            assignment_file_info.write(out_line+'\t'+
-                                                  '\t'.join(var_info[10:]+
-                                                            [hp2_count_ref,hp1_count_ref,
-                                                             hp2_count_alt,hp1_count_alt])+'\n')
-                    else:
+                    if (not var_info[9].startswith(("1|0","0|1","1|2")) or
+                        not line[0] in chrom_hp_origin):
+                        assignment_file_info.write('\t'.join(var_info+
+                                                             ["NA"]*12)+'\n')
                         out_line= '\t'.join(var_info[0:10]).replace(":PS", ""
                                                     ).replace("1|0", "0/1"
                                                     ).replace("2|1", "1/2"
@@ -1540,9 +1595,56 @@ def main(args):
                                                     ).replace(":HP1/HP2",""
                                                     ).replace(":HP2/HP1","")
                         assignment_file.write(out_line+'\n')
+                        continue
+                        
+                    (hp1_count, hp2_count, 
+                     hp1_count_ref,hp2_count_ref,
+                     hp1_count_alt,hp2_count_alt,
+                     hp1_frac, hp2_frac,
+                     hp1_ref_frac, hp2_ref_frac,
+                     hp1_alt_frac, hp2_alt_frac) = var_info[11:23]
+                    if snv_var and var_info[9].startswith(("1|0","0|1","1|2")):
+                        info_out_dict[line[0]]["pofo_het_snvs"] += 1
+                    elif indel_var and var_info[9].startswith(("1|0","0|1","1|2")):
+                        info_out_dict[line[0]]["pofo_het_indels"] += 1
+                    
+                    if chrom_hp_origin[line[0]]['HP1'][0] == 'maternal':
+                        out_line= '\t'.join(var_info[0:10]).replace("HP1", "Mat"
+                                                             ).replace("HP2", "Pat")
+                        assignment_file.write(out_line+'\n')
                         assignment_file_info.write(out_line+'\t'+
                                               '\t'.join(var_info[10:]+
-                                                        ["NA"]*4)+'\n')
+                                                        [hp1_count, hp2_count, 
+                                                         hp1_count_ref,hp2_count_ref,
+                                                         hp1_count_alt,hp2_count_alt,
+                                                         hp1_frac, hp2_frac,
+                                                         hp1_ref_frac, hp2_ref_frac,
+                                                         hp1_alt_frac, hp2_alt_frac])+'\n')
+                        
+                            
+                    elif chrom_hp_origin[line[0]]['HP1'][0] == 'paternal':
+                        if var_info[9].startswith("1|0"):
+                            out_line= '\t'.join(var_info[0:10]).replace("1|0","0|1"
+                                                                 ).replace("HP1", "Pat"
+                                                                 ).replace("HP2", "Mat")
+                        elif var_info[9].startswith("0|1"):
+                            out_line= '\t'.join(var_info[0:10]).replace("0|1","1|0"
+                                                                 ).replace("HP1", "Pat"
+                                                                 ).replace("HP2", "Mat")
+                        else:
+                            out_line= '\t'.join(var_info[0:10]).replace("HP1", "Pat"
+                                                                 ).replace("HP2", "Mat")
+                            continue
+                        assignment_file.write(out_line+'\n')
+                        assignment_file_info.write(out_line+'\t'+
+                                              '\t'.join(var_info[10:]+
+                                                        [hp2_count, hp1_count, 
+                                                         hp2_count_ref,hp1_count_ref,
+                                                         hp2_count_alt,hp1_count_alt,
+                                                         hp2_frac, hp1_frac,
+                                                         hp2_ref_frac, hp1_ref_frac,
+                                                         hp2_alt_frac, hp1_alt_frac])+'\n')
+                        
                 else:
                     if 'PS' in line[8].split(":"):
                         ps_index= line[8].split(":").index('PS')
@@ -1560,11 +1662,10 @@ def main(args):
                                                         ).replace("|", "/")
                     assignment_file.write(out_line+'\n')
                     assignment_file_info.write(out_line+'\t'+
-                                          '\t'.join(["NA"]*19)+'\n')
+                                          '\t'.join(["NA"]*33)+'\n')
     assignment_file.close()
     assignment_file_info.close()
 
-    
     if args.sv_vcf is not None:
         print("################## Assigning PofO to SVs ##################")
         all_sv_files= args.sv_vcf
@@ -1771,8 +1872,10 @@ optional.add_argument("--hapratio", "-hr",
                       type=float,
                       required=False,
                       default=0.75,
-                      help=("0-1. Minimum ratio of phased variants a read must have "
-                            "from a haplotype to assign it to that haplotype. "
+                      help=("0-1. For phasing reads, minimum ratio of phased variants "
+                            "a read must have from a haplotype to assign it to that haplotype. "
+                            "For phasing variants, minimum ratio of phased reads on a haplotype"
+                            "for a variant to phase the variant."
                             "Default is 0.75."))
 optional.add_argument("--mapping_quality", "-mq",
                       action="store",
@@ -1791,14 +1894,6 @@ optional.add_argument("--min_variant", "-mv",
                       help=("Minimum number of phased variants a read must have "
                             "to be considered during variant rephasing."
                             ". Default= 1."))
-optional.add_argument("--min_variant_block", "-mvb",
-                      action="store",
-                      type=int,
-                      required=False,
-                      default=2,
-                      help=("Minimum number of concordant phased variants must a phased block "
-                            "have to be used during phase block switch correction"
-                            ". Default= 2."))
 optional.add_argument("--min_read_number", "-mr",
                       action="store",
                       type=int,
@@ -1921,3 +2016,4 @@ args = parser.parse_args()
 
 if __name__ == '__main__':
     main(args)
+    
