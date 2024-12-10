@@ -664,6 +664,7 @@ def pofo_sv_write(sv_file,
                             elif reads_hap[(line[0],read_ID)]==2:
                                 hp2_count+= 1
                     if (hp1_count > hp2_count and
+                        hp1_count/(hp1_count+hp2_count) >= args.hapratio and
                         hp1_count >= min_read_reassignment):
                         if chrom_hp_origin[line[0]]['HP1'][0] == 'maternal':
                             line_out= (line[0:8]+
@@ -682,6 +683,7 @@ def pofo_sv_write(sv_file,
                             sv_assignment_file.write('\t'.join(line_out[0:-4])+'\n')
                             sv_assignment_file_info.write('\t'.join(line_out)+'\n')
                     elif (hp2_count > hp1_count and
+                          hp2_count/(hp1_count+hp2_count) >= args.hapratio and
                           hp2_count >= min_read_reassignment):
                         if chrom_hp_origin[line[0]]['HP2'][0] == 'maternal':
                             line_out= (line[0:8]+
@@ -728,6 +730,7 @@ def pofo_sv_write(sv_file,
                             elif reads_hap[(line[0],read_ID)]==2:
                                 hp2_count+= 1
                     if (hp1_count > hp2_count and
+                        hp1_count/(hp1_count+hp2_count) >= args.hapratio and
                         hp1_count >= min_read_reassignment):
                         line_out= (line[0:8]+
                                     [':'.join(new_ps)+":PS"]+
@@ -737,6 +740,7 @@ def pofo_sv_write(sv_file,
                         sv_assignment_file.write('\t'.join(line_out[0:-4])+'\n')
                         sv_assignment_file_info.write('\t'.join(line_out)+'\n')
                     elif (hp2_count > hp1_count and
+                          hp2_count/(hp1_count+hp2_count) >= args.hapratio and
                           hp2_count >= min_read_reassignment):
                         line_out= (line[0:8]+
                                     [':'.join(new_ps)+":PS"]+
@@ -763,8 +767,7 @@ def pofo_sv_write(sv_file,
                                 ["NA"]*4)
                     sv_assignment_file.write('\t'.join(line_out[0:-4])+'\n')
                     sv_assignment_file_info.write('\t'.join(line_out)+'\n')
-                
-    
+
     
 def strand_vcf2dict_phased(vcf_strand,
                            vcf,
