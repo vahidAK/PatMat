@@ -271,7 +271,7 @@ process phase_long_reads{
             else {
                 """
                 longphase phase \
-                    -s "$vcf" -b "$bam" -r "$ref" --indels \
+                    -s "$pass_vcf" -b "$bam" -r "$ref" --indels \
                     --ont -t "${params.processes}" -o "${params.sample_id}"_LongPhase
                 bgzip "${params.sample_id}"_LongPhase.vcf
                 tabix -p vcf "${params.sample_id}"_LongPhase.vcf.gz

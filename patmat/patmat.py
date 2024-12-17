@@ -843,10 +843,12 @@ def vcf2dict_phased(blocks,
             agreement_count= 0
             disagreement_count= 0
             vars_list= list()
+            two_or_more= False
             for vcf_line in records_whats:
                 if not include_all_variants and vcf_line[6] not in ["PASS","."]:
                     continue
                 if agreement_count_temp + disagreement_count_temp == 2:
+                    two_or_more= True
                     if agreement_count_temp == 2:
                         for var in vars_list:
                             vcf_dict[var[0]][var[1]] = var[9].split(':')[0]
@@ -870,7 +872,16 @@ def vcf2dict_phased(blocks,
                         agreement_count_temp += 1
                     elif vcf_line[9].startswith("0|1") and vcf_dict[vcf_line[0]][vcf_line[1]] == "1|0":
                         disagreement_count += 1                    
-                        disagreement_count_temp += 1                    
+                        disagreement_count_temp += 1 
+            if (agreement_count_temp + disagreement_count_temp == 1 and
+                (two_or_more or not args.ignore_blocks_single)):
+                if agreement_count_temp == 1:
+                    for var in vars_list:
+                        vcf_dict[var[0]][var[1]] = var[9].split(':')[0]
+                elif disagreement_count_temp == 1:
+                    for var in vars_list:
+                        vcf_dict[var[0]][var[1]] = var[9].split(':')[0][::-1]
+            
             if agreement_count > disagreement_count:
                 phase_block_stat[(b_chrom, str(b_start),"agreement")]+=agreement_count
                 phase_block_stat[(b_chrom, str(b_start),"disagreement")]+=disagreement_count
@@ -1318,13 +1329,11 @@ def main(args):
                                          "NA","NA","NA","NA"]))
                 if ((hp1_count_alt > hp2_count_alt and
                      hp1_alt_ratio > hp2_alt_ratio and
-                     hp1_alt_ratio > hp1_ref_ratio and
-                     hp1_alt_ratio > hapRatio and
+                     hp1_alt_ratio >= hp1_ref_ratio and
                      hp1_count_alt >= min_read_reassignment) or
                     (hp2_count_ref > hp1_count_ref and
                      hp2_ref_ratio > hp1_ref_ratio and
-                     hp2_ref_ratio > hp2_alt_ratio and
-                     hp2_ref_ratio > hapRatio and
+                     hp2_ref_ratio >= hp2_alt_ratio and
                      hp2_count_ref >= min_read_reassignment)):
                     re_assignment_vars[tuple(line[0:2])]= (line[0:8]+
                                                         [':'.join(new_ps)+":PS"]+
@@ -1332,13 +1341,11 @@ def main(args):
                                                         additional_info)
                 elif ((hp2_count_alt > hp1_count_alt and
                        hp2_alt_ratio > hp1_alt_ratio and
-                       hp2_alt_ratio > hp2_ref_ratio and
-                       hp2_alt_ratio > hapRatio and
+                       hp2_alt_ratio >= hp2_ref_ratio and
                        hp2_count_alt >= min_read_reassignment) or
                       (hp1_count_ref > hp2_count_ref and
                        hp1_ref_ratio > hp2_ref_ratio and
-                       hp1_ref_ratio > hp1_alt_ratio and
-                       hp1_ref_ratio > hapRatio and
+                       hp1_ref_ratio >= hp1_alt_ratio and
                        hp1_count_ref >= min_read_reassignment)):
                     re_assignment_vars[tuple(line[0:2])]= (line[0:8]+
                                                           [':'.join(new_ps)+":PS"]+
@@ -1426,13 +1433,11 @@ def main(args):
                     
                 if ((hp1_count_alt > hp2_count_alt and
                      hp1_alt_ratio > hp2_alt_ratio and
-                     hp1_alt_ratio > hp1_ref_ratio and
-                     hp1_alt_ratio > hapRatio and
+                     hp1_alt_ratio >= hp1_ref_ratio and
                      hp1_count_alt >= min_read_reassignment) or
                     (hp2_count_ref > hp1_count_ref and
                      hp2_ref_ratio > hp1_ref_ratio and
-                     hp2_ref_ratio > hp2_alt_ratio and
-                     hp2_ref_ratio > hapRatio and
+                     hp2_ref_ratio >= hp2_alt_ratio and
                      hp2_count_ref >= min_read_reassignment)):
                     re_assignment_vars[tuple(line[0:2])]= (line[0:8]+
                                                         [':'.join(new_ps)+":PS"]+
@@ -1441,13 +1446,11 @@ def main(args):
                         
                 elif ((hp2_count_alt > hp1_count_alt and
                        hp2_alt_ratio > hp1_alt_ratio and
-                       hp2_alt_ratio > hp2_ref_ratio and
-                       hp2_alt_ratio > hapRatio and
+                       hp2_alt_ratio >= hp2_ref_ratio and
                        hp2_count_alt >= min_read_reassignment) or
                       (hp1_count_ref > hp2_count_ref and
                        hp1_ref_ratio > hp2_ref_ratio and
-                       hp1_ref_ratio > hp1_alt_ratio and
-                       hp1_ref_ratio > hapRatio and
+                       hp1_ref_ratio >= hp1_alt_ratio and
                        hp1_count_ref >= min_read_reassignment)):
                     re_assignment_vars[tuple(line[0:2])]= (line[0:8]+
                                                         [':'.join(new_ps)+":PS"]+
@@ -1834,6 +1837,16 @@ optional.add_argument("--phased", "-ph",
                             " assumption is that the number after last \":\" sign in "
                             "column 10 is the block ID, as with vcfs phased by "
                             "whatshap or longphase."))
+optional.add_argument("--ignore_blocks_single", "-ibs",
+                      action="store_true",
+                      required=False,
+                      help=("When --phased is selected, strand-seq phased variants "
+                            "at phase blocks will be used for switch correction "
+                            "by a two variant overlap window. However, some phase "
+                            "blocks have only a single variant from strand-seq."
+                            " By default those blocks will also be considered. "
+                            "Select this option if you wish to ignore them."))
+
 optional.add_argument("--pb_cpg_tools_model", "-pbcg",
                       action="store",
                             type=str,
@@ -1877,8 +1890,7 @@ optional.add_argument("--hapratio", "-hr",
                       default=0.75,
                       help=("0-1. For phasing reads, minimum ratio of phased variants "
                             "a read must have from a haplotype to assign it to that haplotype. "
-                            "For phasing variants, minimum ratio of phased reads on a haplotype"
-                            "for a variant to phase the variant."
+                            "For phasing SVs, minimum ratio of phased reads on a haplotype. "
                             "Default is 0.75."))
 optional.add_argument("--mapping_quality", "-mq",
                       action="store",
@@ -2019,4 +2031,5 @@ args = parser.parse_args()
 
 if __name__ == '__main__':
     main(args)
+
     
