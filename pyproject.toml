@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "patmat"
+version = "1.4.0"
+description = "Parent-of-origin (Paternal and Maternal) resolved chromosome-scale haplotyping"
+authors = ["Vahid Akbari <vakbari@bcgsc.ca>"]
+license = "GPLv3"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10.12"
+pysam = "0.22.1"
+whatshap = "2.3"
+tqdm = "4.67.1"
+modbampy = "0.10.0"
+pytabix = "0.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0.0"
+black = "^24.0.0"
+flake8 = "^6.0.0"
+isort = "^5.13.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+patmat = "patmat.cli:main"
