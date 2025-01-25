@@ -35,6 +35,7 @@ from collections import defaultdict
 import pysam
 import tabix
 
+from patmat.io.vcf import get_chroms_from_vcf
 from patmat.core.methylation import PofO_dmr, out_freq_methbam, pofo_final_dict
 from patmat.core.phase_processing import (
     alignment_writer,
@@ -71,6 +72,29 @@ def out_pofo_freq(hp_fre, chrom, output):
                     output.write("\t".join(line) + "\n")
 
 
+def read_info_iter(read_info_file):
+    with open(read_info_file) as VarReadInfo:
+        for line in VarReadInfo:
+            line = line.rstrip().split("\t")
+            for read_info in line[3].split(","):
+                read_info = read_info.split(":")
+                yield (line, read_info, (line[0], read_info[0]))
+
+
+def build_read_dict_HP_temp(read_info_file):
+    read_dict_HP_temp = defaultdict(lambda: defaultdict(int))
+    added_prim_read = set()
+    for line, read_info, read_key in read_info_iter(read_info_file):
+        if read_info[-1] != "NA":
+            if read_info[1] in ["0", "16"]:
+                read_dict_HP_temp[read_key][read_info[-1]] += 1
+                added_prim_read.add(read_info[0])
+    for line, read_info, read_key in read_info_iter(read_info_file):
+        if read_info[-1] != "NA" and read_info[0] not in added_prim_read:
+            read_dict_HP_temp[read_key][read_info[-1]] += 1
+    return read_dict_HP_temp
+
+
 def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
     args = _parse_arguments(raw_arguments or sys.argv[1:])
     """
@@ -92,9 +116,11 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
     reference = os.path.abspath(args.reference)
     vcf = os.path.abspath(args.vcf)
     known_dmr = os.path.abspath(args.known_dmr)
+
     if not os.path.isfile(vcf + ".tbi"):
         raise Exception("It seems that vcf file " "is not index by tabix.")
     vcf_tb = tabix.open(vcf)
+
     sites_to_ignore = set()
     if args.black_list is not None:
         if not os.path.isfile(vcf + ".tbi"):
@@ -104,8 +130,8 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
                 " .tbi was not found)."
             )
         tb_vcf = tabix.open(vcf)
-        black_list = os.path.abspath(args.black_list)
-        with openfile(black_list) as bl:
+        black_list_file = os.path.abspath(args.black_list)
+        with openfile(black_list_file) as bl:
             for line in bl:
                 line = line.rstrip().split("\t")
                 try:
@@ -119,18 +145,13 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
                 if records != "NA":
                     for record in records:
                         sites_to_ignore.add((record[0], str(int(record[1]) - 1)))
-    re_assignment_vars = dict()
-    chroms = dict()
-    with openfile(vcf) as vf_file:
-        for line in vf_file:
-            if line.startswith("#"):
-                continue
-            else:
-                line = line.rstrip().split("\t")
-                chroms[line[0]] = int(line[1])
 
+    chroms = get_chroms_from_vcf(vcf)
     bam_choms = getChromsFromBAM(bam_file)
+
     reads_hap = dict()
+    re_assignment_vars = dict()
+
     for chrom in sorted(chroms.keys()):
         print("#############  Processing chromosome {}  #############".format(chrom))
         if args.strand_vcf is not None and not args.phased:
@@ -158,43 +179,25 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
             )
             continue
 
+        read_info_file = out + "_temp_VarReadinfo_" + chrom + ".tsv"
         per_read_variant(
             final_dict,
             bam_file,
             chunk,
             processes,
-            out + "_temp_VarReadinfo_" + chrom + ".tsv",
+            read_info_file,
             args.mapping_quality,
             args.include_supplementary,
         )
 
-        read_dict_HP_temp = defaultdict(lambda: defaultdict(int))
-        added_prim_read = set()
-        read_dict_HP_temp_reass = defaultdict(lambda: defaultdict(int))
-        reads_hap_temp = dict()
-        per_var_info = defaultdict(lambda: defaultdict(int))
-        with open(out + "_temp_VarReadinfo_" + chrom + ".tsv") as VarReadInfo:
-            for line in VarReadInfo:
-                line = line.rstrip().split("\t")
-                for read_info in line[3].split(","):
-                    read_info = read_info.split(":")
-                    if read_info[-1] != "NA":
-                        if read_info[1] in ["0", "16"]:
-                            read_dict_HP_temp[(line[0], read_info[0])][
-                                read_info[-1]
-                            ] += 1
-                            added_prim_read.add(read_info[0])
-        with open(out + "_temp_VarReadinfo_" + chrom + ".tsv") as VarReadInfo:
-            for line in VarReadInfo:
-                line = line.rstrip().split("\t")
-                for read_info in line[3].split(","):
-                    read_info = read_info.split(":")
-                    if read_info[-1] != "NA" and read_info[0] not in added_prim_read:
-                        read_dict_HP_temp[(line[0], read_info[0])][read_info[-1]] += 1
-        added_prim_read.clear()
+        read_dict_HP_temp = build_read_dict_HP_temp(read_info_file)
         if not read_dict_HP_temp:
             warnings.warn("No phased read for {}." " Skipping it.".format(chrom))
             continue
+
+        read_dict_HP_temp_reass = defaultdict(lambda: defaultdict(int))
+        per_var_info = defaultdict(lambda: defaultdict(int))
+        reads_hap_temp = dict()
         for key, val in read_dict_HP_temp.items():
             hp1_count = val["1"]
             hp2_count = val["2"]
@@ -210,23 +213,23 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
                 and hp2_count >= minvariant
             ):
                 reads_hap_temp[key] = 2
-        with open(out + "_temp_VarReadinfo_" + chrom + ".tsv") as VarReadInfo:
+        with open(read_info_file) as VarReadInfo:
             for line in VarReadInfo:
                 line = line.rstrip().split("\t")
                 read_count = hp1_count = hp2_count = hp1_count_read = hp2_count_read = 0
                 for read_info in line[3].split(","):
                     read_info = read_info.split(":")
+                    read_key = (line[0], read_info[0])
                     per_var_info[(line[0], line[1])]["all"] += 1
                     read_count += 1
-                    hp1_count_read += read_dict_HP_temp[(line[0], read_info[0])]["1"]
-                    hp2_count_read += read_dict_HP_temp[(line[0], read_info[0])]["2"]
-                    if (line[0], read_info[0]) in reads_hap_temp and line[
-                        2
-                    ] != "noninfo":
-                        if reads_hap_temp[(line[0], read_info[0])] == 1:
+                    hp1_count_read += read_dict_HP_temp[read_key]["1"]
+                    hp2_count_read += read_dict_HP_temp[read_key]["2"]
+                    if read_key in reads_hap_temp and line[2] != "noninfo":
+                        if reads_hap_temp[read_key] == 1:
                             hp1_count += 1
-                        elif reads_hap_temp[(line[0], read_info[0])] == 2:
+                        elif reads_hap_temp[read_key] == 2:
                             hp2_count += 1
+
                 per_var_info[tuple(line[0:2])][(line[2], "ave1")] = round(
                     hp1_count_read / read_count, 5
                 )
@@ -235,18 +238,19 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
                 )
                 for read_info in line[3].split(","):
                     read_info = read_info.split(":")
+                    read_key = (line[0], read_info[0])
                     if (
                         hp1_count > hp2_count
                         and hp1_count / (hp1_count + hp2_count) >= hapRatio
                         and hp1_count >= minvariant
                     ):
-                        read_dict_HP_temp_reass[(line[0], read_info[0])]["1"] += 1
+                        read_dict_HP_temp_reass[read_key]["1"] += 1
                     elif (
                         hp2_count > hp1_count
                         and hp2_count / (hp1_count + hp2_count) >= hapRatio
                         and hp2_count >= minvariant
                     ):
-                        read_dict_HP_temp_reass[(line[0], read_info[0])]["2"] += 1
+                        read_dict_HP_temp_reass[read_key]["2"] += 1
         reads_hap_temp.clear()
         read_dict_HP_temp.clear()
         for key, val in read_dict_HP_temp_reass.items():
@@ -266,55 +270,37 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
                 reads_hap[key] = 2
         read_dict_HP_temp_reass.clear()
         variant_dict_HP = defaultdict(lambda: defaultdict(int))
-        with open(out + "_temp_VarReadinfo_" + chrom + ".tsv") as VarReadInfo:
-            for line in VarReadInfo:
-                line = line.rstrip().split("\t")
-                for read_info in line[3].split(","):
-                    read_info = read_info.split(":")
-                    if (line[0], read_info[0]) in reads_hap and reads_hap[
-                        (line[0], read_info[0])
-                    ] == 1:
-                        per_var_info[(line[0], line[1])]["h1all"] += 1
-                        if line[2] != "noninfo":
-                            variant_dict_HP[(line[0], line[1])][(line[2], 1)] += 1
-                    elif (line[0], read_info[0]) in reads_hap and reads_hap[
-                        (line[0], read_info[0])
-                    ] == 2:
-                        per_var_info[(line[0], line[1])]["h2all"] += 1
-                        if line[2] != "noninfo":
-                            variant_dict_HP[(line[0], line[1])][(line[2], 2)] += 1
+        for line, read_info, read_key in read_info_iter(read_info_file):
+            var_key = (line[0], line[1])
+            hap = reads_hap.get(read_key)
+            if hap:
+                per_var_info[var_key][f"h{hap}all"] += 1
+                if line[2] != "noninfo":
+                    variant_dict_HP[var_key][(line[2], hap)] += 1
 
         records_chrom = vcf_tb.query(chrom, 0, chroms[chrom] + 1)
         for line in records_chrom:
+            ref_allele = line[3].upper()
+            alt_allele = line[4].upper()
+            var_key = (line[0], line[1])
             block_id = line[9].split(":")[-1]
-            if "PS" in line[8].split(":"):
-                ps_index = line[8].split(":").index("PS")
-                new_ps = line[8].split(":")
-                new_hp = line[9].split(":")
+            new_ps = line[8].split(":")
+            new_hp = line[9].split(":")
+            if "PS" in new_ps:
+                ps_index = new_ps.index("PS")
                 new_ps.pop(ps_index)
                 new_hp.pop(ps_index)
-            else:
-                new_ps = line[8].split(":")
-                new_hp = line[9].split(":")
 
             if not args.include_all_variants and line[6] not in ["PASS", "."]:
                 continue
             if line[9].startswith(("0/1", "1/0", "0|1", "1|0")):
-                hp1_count_alt = variant_dict_HP[(line[0], line[1])][
-                    (line[4].upper(), 1)
-                ]
-                hp2_count_alt = variant_dict_HP[(line[0], line[1])][
-                    (line[4].upper(), 2)
-                ]
-                hp1_count_ref = variant_dict_HP[(line[0], line[1])][
-                    (line[3].upper(), 1)
-                ]
-                hp2_count_ref = variant_dict_HP[(line[0], line[1])][
-                    (line[3].upper(), 2)
-                ]
-                hp1_cov = per_var_info[(line[0], line[1])]["h1all"]
-                hp2_cov = per_var_info[(line[0], line[1])]["h2all"]
-                all_cov = per_var_info[(line[0], line[1])]["all"]
+                hp1_count_alt = variant_dict_HP[var_key][(alt_allele, 1)]
+                hp2_count_alt = variant_dict_HP[var_key][(alt_allele, 2)]
+                hp1_count_ref = variant_dict_HP[var_key][(ref_allele, 1)]
+                hp2_count_ref = variant_dict_HP[var_key][(ref_allele, 2)]
+                hp1_cov = per_var_info[var_key]["h1all"]
+                hp2_cov = per_var_info[var_key]["h2all"]
+                all_cov = per_var_info[var_key]["all"]
                 if all_cov == 0:
                     hp1_frac = 0
                     hp2_frac = 0
@@ -327,12 +313,8 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
                     hp1_frac_ref = 0
                     hp1_frac_alt = 0
                 else:
-                    hp1_count_ave_ref = per_var_info[(line[0], line[1])][
-                        (line[3].upper(), "ave1")
-                    ]
-                    hp1_count_ave_alt = per_var_info[(line[0], line[1])][
-                        (line[4].upper(), "ave1")
-                    ]
+                    hp1_count_ave_ref = per_var_info[var_key][(ref_allele, "ave1")]
+                    hp1_count_ave_alt = per_var_info[var_key][(alt_allele, "ave1")]
                     hp1_frac_ref = round(hp1_count_ref / hp1_cov, 5)
                     hp1_frac_alt = round(hp1_count_alt / hp1_cov, 5)
                 if hp2_cov == 0:
@@ -341,12 +323,8 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
                     hp2_frac_ref = 0
                     hp2_frac_alt = 0
                 else:
-                    hp2_count_ave_ref = per_var_info[(line[0], line[1])][
-                        (line[3].upper(), "ave2")
-                    ]
-                    hp2_count_ave_alt = per_var_info[(line[0], line[1])][
-                        (line[4].upper(), "ave2")
-                    ]
+                    hp2_count_ave_ref = per_var_info[var_key][(ref_allele, "ave2")]
+                    hp2_count_ave_alt = per_var_info[var_key][(alt_allele, "ave2")]
                     hp2_frac_ref = round(hp2_count_ref / hp2_cov, 5)
                     hp2_frac_alt = round(hp2_count_alt / hp2_cov, 5)
                 if hp1_count_alt > 0 or hp1_count_ref > 0:
@@ -461,21 +439,14 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
                         + additional_info
                     )
             elif line[9].startswith(("1/2", "1|2", "2/1", "2|1")):
-                hp1_count_alt = variant_dict_HP[(line[0], line[1])][
-                    (line[4].split(",")[1].upper(), 1)
-                ]
-                hp2_count_alt = variant_dict_HP[(line[0], line[1])][
-                    (line[4].split(",")[1].upper(), 2)
-                ]
-                hp1_count_ref = variant_dict_HP[(line[0], line[1])][
-                    (line[4].split(",")[0].upper(), 1)
-                ]
-                hp2_count_ref = variant_dict_HP[(line[0], line[1])][
-                    (line[4].split(",")[0].upper(), 2)
-                ]
-                hp1_cov = per_var_info[(line[0], line[1])]["h1all"]
-                hp2_cov = per_var_info[(line[0], line[1])]["h2all"]
-                all_cov = per_var_info[(line[0], line[1])]["all"]
+                alt_alleles = line[4].split(",")
+                hp1_count_alt = variant_dict_HP[var_key][(alt_alleles[1].upper(), 1)]
+                hp2_count_alt = variant_dict_HP[var_key][(alt_alleles[1].upper(), 2)]
+                hp1_count_ref = variant_dict_HP[var_key][(alt_alleles[0].upper(), 1)]
+                hp2_count_ref = variant_dict_HP[var_key][(alt_alleles[0].upper(), 2)]
+                hp1_cov = per_var_info[var_key]["h1all"]
+                hp2_cov = per_var_info[var_key]["h2all"]
+                all_cov = per_var_info[var_key]["all"]
                 if all_cov == 0:
                     hp1_frac = 0
                     hp2_frac = 0
@@ -488,11 +459,11 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
                     hp1_frac_ref = 0
                     hp1_frac_alt = 0
                 else:
-                    hp1_count_ave_ref = per_var_info[(line[0], line[1])][
-                        (line[4].split(",")[0].upper(), "ave1")
+                    hp1_count_ave_ref = per_var_info[var_key][
+                        (alt_alleles[0].upper(), "ave1")
                     ]
-                    hp1_count_ave_alt = per_var_info[(line[0], line[1])][
-                        (line[4].split(",")[1].upper(), "ave1")
+                    hp1_count_ave_alt = per_var_info[var_key][
+                        (alt_alleles[1].upper(), "ave1")
                     ]
                     hp1_frac_ref = round(hp1_count_ref / hp1_cov, 5)
                     hp1_frac_alt = round(hp1_count_alt / hp1_cov, 5)
@@ -502,11 +473,11 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
                     hp2_frac_ref = 0
                     hp2_frac_alt = 0
                 else:
-                    hp2_count_ave_ref = per_var_info[(line[0], line[1])][
-                        (line[4].split(",")[0].upper(), "ave2")
+                    hp2_count_ave_ref = per_var_info[var_key][
+                        (alt_alleles[0].upper(), "ave2")
                     ]
-                    hp2_count_ave_alt = per_var_info[(line[0], line[1])][
-                        (line[4].split(",")[1].upper(), "ave2")
+                    hp2_count_ave_alt = per_var_info[var_key][
+                        (alt_alleles[1].upper(), "ave2")
                     ]
                     hp2_frac_ref = round(hp2_count_ref / hp2_cov, 5)
                     hp2_frac_alt = round(hp2_count_alt / hp2_cov, 5)
@@ -623,7 +594,7 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
                         + [":".join(new_hp).replace("|", "/").replace("2/1", "1/2")]
                         + additional_info
                     )
-        os.remove(out + "_temp_VarReadinfo_" + chrom + ".tsv")
+        os.remove(read_info_file)
 
     per_var_info.clear()
     subprocess.run(

@@ -34,18 +34,18 @@ def PofO_dmr(known_dmr, out, out_meth, min_cg, cpg_difference):
         try:
             records_all = tb_dmltest.query(dmr_chrom, dmr_start, dmr_end)
         except:
-            warnings.warn(
-                "iDMR {}:{}-{} was ignored because it does not have any CpG in "
-                "DMLtest file.".format(dmr_chrom, dmr_start, dmr_end)
-            )
+            # warnings.warn(
+            #     "iDMR {}:{}-{} was ignored because it does not have any CpG in "
+            #     "DMLtest file.".format(dmr_chrom, dmr_start, dmr_end)
+            # )
             records_all = "NA"
         try:
             records = tb_calldml.query(dmr_chrom, dmr_start, dmr_end)
         except:
-            warnings.warn(
-                "iDMR {}:{}-{} was ignored because it does not have any CpG in "
-                "DMLtest file.".format(dmr_chrom, dmr_start, dmr_end)
-            )
+            # warnings.warn(
+            #     "iDMR {}:{}-{} was ignored because it does not have any CpG in "
+            #     "DMLtest file.".format(dmr_chrom, dmr_start, dmr_end)
+            # )
             records = "NA"
         num_cg = 0
         hp1_freq = 0
