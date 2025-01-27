@@ -35,7 +35,7 @@ from collections import defaultdict
 import pysam
 import tabix
 
-from patmat.io.vcf import get_chroms_from_vcf
+from patmat.core.allele_processing import process_variant
 from patmat.core.methylation import PofO_dmr, out_freq_methbam, pofo_final_dict
 from patmat.core.phase_processing import (
     alignment_writer,
@@ -50,6 +50,7 @@ from patmat.core.variant_processing import (
 )
 from patmat.io.bam import getChromsFromBAM
 from patmat.io.file_utils import openfile
+from patmat.io.vcf import get_chroms_from_vcf
 
 
 def out_pofo_freq(hp_fre, chrom, output):
@@ -293,307 +294,19 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
 
             if not args.include_all_variants and line[6] not in ["PASS", "."]:
                 continue
-            if line[9].startswith(("0/1", "1/0", "0|1", "1|0")):
-                hp1_count_alt = variant_dict_HP[var_key][(alt_allele, 1)]
-                hp2_count_alt = variant_dict_HP[var_key][(alt_allele, 2)]
-                hp1_count_ref = variant_dict_HP[var_key][(ref_allele, 1)]
-                hp2_count_ref = variant_dict_HP[var_key][(ref_allele, 2)]
-                hp1_cov = per_var_info[var_key]["h1all"]
-                hp2_cov = per_var_info[var_key]["h2all"]
-                all_cov = per_var_info[var_key]["all"]
-                if all_cov == 0:
-                    hp1_frac = 0
-                    hp2_frac = 0
-                else:
-                    hp1_frac = round(hp1_cov / all_cov, 5)
-                    hp2_frac = round(hp2_cov / all_cov, 5)
-                if hp1_cov == 0:
-                    hp1_count_ave_ref = 0
-                    hp1_count_ave_alt = 0
-                    hp1_frac_ref = 0
-                    hp1_frac_alt = 0
-                else:
-                    hp1_count_ave_ref = per_var_info[var_key][(ref_allele, "ave1")]
-                    hp1_count_ave_alt = per_var_info[var_key][(alt_allele, "ave1")]
-                    hp1_frac_ref = round(hp1_count_ref / hp1_cov, 5)
-                    hp1_frac_alt = round(hp1_count_alt / hp1_cov, 5)
-                if hp2_cov == 0:
-                    hp2_count_ave_ref = 0
-                    hp2_count_ave_alt = 0
-                    hp2_frac_ref = 0
-                    hp2_frac_alt = 0
-                else:
-                    hp2_count_ave_ref = per_var_info[var_key][(ref_allele, "ave2")]
-                    hp2_count_ave_alt = per_var_info[var_key][(alt_allele, "ave2")]
-                    hp2_frac_ref = round(hp2_count_ref / hp2_cov, 5)
-                    hp2_frac_alt = round(hp2_count_alt / hp2_cov, 5)
-                if hp1_count_alt > 0 or hp1_count_ref > 0:
-                    hp1_alt_ratio = hp1_count_alt / (hp1_count_alt + hp1_count_ref)
-                    hp1_ref_ratio = hp1_count_ref / (hp1_count_alt + hp1_count_ref)
-                else:
-                    hp1_alt_ratio = 0
-                    hp1_ref_ratio = 0
-                if hp2_count_alt > 0 or hp2_count_ref > 0:
-                    hp2_alt_ratio = hp2_count_alt / (hp2_count_alt + hp2_count_ref)
-                    hp2_ref_ratio = hp2_count_ref / (hp2_count_alt + hp2_count_ref)
-                else:
-                    hp2_alt_ratio = 0
-                    hp2_ref_ratio = 0
-                if args.phased and (line[0], block_id, "agreement") in phase_block_stat:
-                    additional_info = list(
-                        map(
-                            str,
-                            [
-                                all_cov,
-                                hp1_cov,
-                                hp2_cov,
-                                hp1_count_ref,
-                                hp2_count_ref,
-                                hp1_count_alt,
-                                hp2_count_alt,
-                                hp1_frac,
-                                hp2_frac,
-                                hp1_frac_ref,
-                                hp2_frac_ref,
-                                hp1_frac_alt,
-                                hp2_frac_alt,
-                                hp1_count_ave_ref,
-                                hp2_count_ave_ref,
-                                hp1_count_ave_alt,
-                                hp2_count_ave_alt,
-                                blocks_dict[(line[0], block_id)][0],
-                                blocks_dict[(line[0], block_id)][1],
-                                phase_block_stat[(line[0], block_id, "agreement")],
-                                phase_block_stat[(line[0], block_id, "disagreement")],
-                            ],
-                        )
-                    )
-                else:
-                    additional_info = list(
-                        map(
-                            str,
-                            [
-                                all_cov,
-                                hp1_cov,
-                                hp2_cov,
-                                hp1_count_ref,
-                                hp2_count_ref,
-                                hp1_count_alt,
-                                hp2_count_alt,
-                                hp1_frac,
-                                hp2_frac,
-                                hp1_frac_ref,
-                                hp2_frac_ref,
-                                hp1_frac_alt,
-                                hp2_frac_alt,
-                                hp1_count_ave_ref,
-                                hp2_count_ave_ref,
-                                hp1_count_ave_alt,
-                                hp2_count_ave_alt,
-                                "NA",
-                                "NA",
-                                "NA",
-                                "NA",
-                            ],
-                        )
-                    )
-                if (
-                    hp1_count_alt > hp2_count_alt
-                    and hp1_alt_ratio > hp2_alt_ratio
-                    and hp1_alt_ratio >= hp1_ref_ratio
-                    and hp1_count_alt >= min_read_reassignment
-                ) or (
-                    hp2_count_ref > hp1_count_ref
-                    and hp2_ref_ratio > hp1_ref_ratio
-                    and hp2_ref_ratio >= hp2_alt_ratio
-                    and hp2_count_ref >= min_read_reassignment
-                ):
-                    re_assignment_vars[tuple(line[0:2])] = (
-                        line[0:8]
-                        + [":".join(new_ps) + ":PS"]
-                        + ["1|0:" + ":".join(new_hp[1:]) + ":HP2|HP1"]
-                        + additional_info
-                    )
-                elif (
-                    hp2_count_alt > hp1_count_alt
-                    and hp2_alt_ratio > hp1_alt_ratio
-                    and hp2_alt_ratio >= hp2_ref_ratio
-                    and hp2_count_alt >= min_read_reassignment
-                ) or (
-                    hp1_count_ref > hp2_count_ref
-                    and hp1_ref_ratio > hp2_ref_ratio
-                    and hp1_ref_ratio >= hp1_alt_ratio
-                    and hp1_count_ref >= min_read_reassignment
-                ):
-                    re_assignment_vars[tuple(line[0:2])] = (
-                        line[0:8]
-                        + [":".join(new_ps) + ":PS"]
-                        + ["0|1:" + ":".join(new_hp[1:]) + ":HP1|HP2"]
-                        + additional_info
-                    )
-                else:
-                    re_assignment_vars[tuple(line[0:2])] = (
-                        line[0:8]
-                        + [":".join(new_ps)]
-                        + [":".join(new_hp).replace("|", "/").replace("1/0", "0/1")]
-                        + additional_info
-                    )
-            elif line[9].startswith(("1/2", "1|2", "2/1", "2|1")):
-                alt_alleles = line[4].split(",")
-                hp1_count_alt = variant_dict_HP[var_key][(alt_alleles[1].upper(), 1)]
-                hp2_count_alt = variant_dict_HP[var_key][(alt_alleles[1].upper(), 2)]
-                hp1_count_ref = variant_dict_HP[var_key][(alt_alleles[0].upper(), 1)]
-                hp2_count_ref = variant_dict_HP[var_key][(alt_alleles[0].upper(), 2)]
-                hp1_cov = per_var_info[var_key]["h1all"]
-                hp2_cov = per_var_info[var_key]["h2all"]
-                all_cov = per_var_info[var_key]["all"]
-                if all_cov == 0:
-                    hp1_frac = 0
-                    hp2_frac = 0
-                else:
-                    hp1_frac = round(hp1_cov / all_cov, 5)
-                    hp2_frac = round(hp2_cov / all_cov, 5)
-                if hp1_cov == 0:
-                    hp1_count_ave_ref = 0
-                    hp1_count_ave_alt = 0
-                    hp1_frac_ref = 0
-                    hp1_frac_alt = 0
-                else:
-                    hp1_count_ave_ref = per_var_info[var_key][
-                        (alt_alleles[0].upper(), "ave1")
-                    ]
-                    hp1_count_ave_alt = per_var_info[var_key][
-                        (alt_alleles[1].upper(), "ave1")
-                    ]
-                    hp1_frac_ref = round(hp1_count_ref / hp1_cov, 5)
-                    hp1_frac_alt = round(hp1_count_alt / hp1_cov, 5)
-                if hp2_cov == 0:
-                    hp2_count_ave_ref = 0
-                    hp2_count_ave_alt = 0
-                    hp2_frac_ref = 0
-                    hp2_frac_alt = 0
-                else:
-                    hp2_count_ave_ref = per_var_info[var_key][
-                        (alt_alleles[0].upper(), "ave2")
-                    ]
-                    hp2_count_ave_alt = per_var_info[var_key][
-                        (alt_alleles[1].upper(), "ave2")
-                    ]
-                    hp2_frac_ref = round(hp2_count_ref / hp2_cov, 5)
-                    hp2_frac_alt = round(hp2_count_alt / hp2_cov, 5)
-                if hp1_count_alt > 0 or hp1_count_ref > 0:
-                    hp1_alt_ratio = hp1_count_alt / (hp1_count_alt + hp1_count_ref)
-                    hp1_ref_ratio = hp1_count_ref / (hp1_count_alt + hp1_count_ref)
-                else:
-                    hp1_alt_ratio = 0
-                    hp1_ref_ratio = 0
-                if hp2_count_alt > 0 or hp2_count_ref > 0:
-                    hp2_alt_ratio = hp2_count_alt / (hp2_count_alt + hp2_count_ref)
-                    hp2_ref_ratio = hp2_count_ref / (hp2_count_alt + hp2_count_ref)
-                else:
-                    hp2_alt_ratio = 0
-                    hp2_ref_ratio = 0
-                if args.phased and (line[0], block_id, "agreement") in phase_block_stat:
-                    additional_info = list(
-                        map(
-                            str,
-                            [
-                                all_cov,
-                                hp1_cov,
-                                hp2_cov,
-                                hp1_count_ref,
-                                hp2_count_ref,
-                                hp1_count_alt,
-                                hp2_count_alt,
-                                hp1_frac,
-                                hp2_frac,
-                                hp1_frac_ref,
-                                hp2_frac_ref,
-                                hp1_frac_alt,
-                                hp2_frac_alt,
-                                hp1_count_ave_ref,
-                                hp2_count_ave_ref,
-                                hp1_count_ave_alt,
-                                hp2_count_ave_alt,
-                                blocks_dict[(line[0], block_id)][0],
-                                blocks_dict[(line[0], block_id)][1],
-                                phase_block_stat[(line[0], block_id, "agreement")],
-                                phase_block_stat[(line[0], block_id, "disagreement")],
-                            ],
-                        )
-                    )
-                else:
-                    additional_info = list(
-                        map(
-                            str,
-                            [
-                                all_cov,
-                                hp1_cov,
-                                hp2_cov,
-                                hp1_count_ref,
-                                hp2_count_ref,
-                                hp1_count_alt,
-                                hp2_count_alt,
-                                hp1_frac,
-                                hp2_frac,
-                                hp1_frac_ref,
-                                hp2_frac_ref,
-                                hp1_frac_alt,
-                                hp2_frac_alt,
-                                hp1_count_ave_ref,
-                                hp2_count_ave_ref,
-                                hp1_count_ave_alt,
-                                hp2_count_ave_alt,
-                                "NA",
-                                "NA",
-                                "NA",
-                                "NA",
-                            ],
-                        )
-                    )
-
-                if (
-                    hp1_count_alt > hp2_count_alt
-                    and hp1_alt_ratio > hp2_alt_ratio
-                    and hp1_alt_ratio >= hp1_ref_ratio
-                    and hp1_count_alt >= min_read_reassignment
-                ) or (
-                    hp2_count_ref > hp1_count_ref
-                    and hp2_ref_ratio > hp1_ref_ratio
-                    and hp2_ref_ratio >= hp2_alt_ratio
-                    and hp2_count_ref >= min_read_reassignment
-                ):
-                    re_assignment_vars[tuple(line[0:2])] = (
-                        line[0:8]
-                        + [":".join(new_ps) + ":PS"]
-                        + ["1|2:" + ":".join(new_hp[1:]) + ":Ref_HP2|HP1"]
-                        + additional_info
-                    )
-
-                elif (
-                    hp2_count_alt > hp1_count_alt
-                    and hp2_alt_ratio > hp1_alt_ratio
-                    and hp2_alt_ratio >= hp2_ref_ratio
-                    and hp2_count_alt >= min_read_reassignment
-                ) or (
-                    hp1_count_ref > hp2_count_ref
-                    and hp1_ref_ratio > hp2_ref_ratio
-                    and hp1_ref_ratio >= hp1_alt_ratio
-                    and hp1_count_ref >= min_read_reassignment
-                ):
-                    re_assignment_vars[tuple(line[0:2])] = (
-                        line[0:8]
-                        + [":".join(new_ps) + ":PS"]
-                        + ["1|2:" + ":".join(new_hp[1:]) + ":Ref_HP1|HP2"]
-                        + additional_info
-                    )
-                else:
-                    re_assignment_vars[tuple(line[0:2])] = (
-                        line[0:8]
-                        + [":".join(new_ps)]
-                        + [":".join(new_hp).replace("|", "/").replace("2/1", "1/2")]
-                        + additional_info
-                    )
+            if line[9].startswith(
+                ("0/1", "1/0", "0|1", "1|0", "1/2", "1|2", "2/1", "2|1")
+            ):
+                re_assignment_vars[tuple(line[0:2])] = process_variant(
+                    line,
+                    new_ps,
+                    new_hp,
+                    variant_dict_HP,
+                    per_var_info,
+                    min_read_reassignment,
+                    phase_block_stat,
+                    blocks_dict,
+                )
         os.remove(read_info_file)
 
     per_var_info.clear()
