@@ -96,6 +96,45 @@ def build_read_dict_HP_temp(read_info_file):
     return read_dict_HP_temp
 
 
+def process_strand_seq_vcf(args, vcf, chrom):
+    """Process strand-seq VCF file and return phasing information.
+
+    Args:
+        args: Command line arguments
+        vcf: Path to main VCF file
+        chrom: Chromosome being processed
+
+    Returns:
+        tuple: (final_dict, strand_phased_vars, phase_block_stat, blocks_dict)
+        phase_block_stat and blocks_dict will be None if not phased
+
+    Raises:
+        Exception: If no strand-seq VCF is provided
+    """
+    if args.strand_vcf is None:
+        raise Exception("No strand-seq VCF is given.")
+
+    vcf_strand = os.path.abspath(args.strand_vcf)
+
+    if not args.phased:
+        final_dict, strand_phased_vars = strand_vcf2dict_phased(
+            vcf_strand, vcf, args.include_all_variants, chrom
+        )
+        return final_dict, strand_phased_vars, None, None
+
+    else:
+        blocks_phased, blocks_dict = get_block(vcf, chrom)
+        final_dict, strand_phased_vars, phase_block_stat = vcf2dict_phased(
+            blocks_phased,
+            vcf_strand,
+            vcf,
+            chrom,
+            args.include_all_variants,
+            args.ignore_blocks_single,
+        )
+        return final_dict, strand_phased_vars, phase_block_stat, blocks_dict
+
+
 def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
     args = _parse_arguments(raw_arguments or sys.argv[1:])
     """
@@ -155,29 +194,12 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
 
     for chrom in sorted(chroms.keys()):
         print("#############  Processing chromosome {}  #############".format(chrom))
-        if args.strand_vcf is not None and not args.phased:
-            vcf_strand = os.path.abspath(args.strand_vcf)
-            final_dict, strand_phased_vars = strand_vcf2dict_phased(
-                vcf_strand, vcf, args.include_all_variants, chrom
-            )
-        elif args.strand_vcf is not None and args.phased:
-            vcf_strand = os.path.abspath(args.strand_vcf)
-            blocks_phased, blocks_dict = get_block(vcf, chrom)
-            (final_dict, strand_phased_vars, phase_block_stat) = vcf2dict_phased(
-                blocks_phased,
-                vcf_strand,
-                vcf,
-                chrom,
-                args.include_all_variants,
-                args.ignore_blocks_single,
-            )
-        else:
-            raise Exception("No strand-seq vcf is given.")
+        final_dict, strand_phased_vars, phase_block_stat, blocks_dict = (
+            process_strand_seq_vcf(args, vcf, chrom)
+        )
 
         if strand_phased_vars == 0:
-            warnings.warn(
-                "No phased strand-seq variant for {}." " Skipping it.".format(chrom)
-            )
+            warnings.warn(f"No phased strand-seq variant for {chrom}, skipping it.")
             continue
 
         read_info_file = out + "_temp_VarReadinfo_" + chrom + ".tsv"
@@ -281,10 +303,7 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
 
         records_chrom = vcf_tb.query(chrom, 0, chroms[chrom] + 1)
         for line in records_chrom:
-            ref_allele = line[3].upper()
-            alt_allele = line[4].upper()
             var_key = (line[0], line[1])
-            block_id = line[9].split(":")[-1]
             new_ps = line[8].split(":")
             new_hp = line[9].split(":")
             if "PS" in new_ps:
