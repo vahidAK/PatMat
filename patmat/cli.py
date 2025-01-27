@@ -220,90 +220,27 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
 
         read_dict_HP_temp_reass = defaultdict(lambda: defaultdict(int))
         per_var_info = defaultdict(lambda: defaultdict(int))
-        reads_hap_temp = dict()
-        for key, val in read_dict_HP_temp.items():
-            hp1_count = val["1"]
-            hp2_count = val["2"]
-            if (
-                hp1_count > hp2_count
-                and hp1_count / (hp1_count + hp2_count) >= hapRatio
-                and hp1_count >= minvariant
-            ):
-                reads_hap_temp[key] = 1
-            elif (
-                hp2_count > hp1_count
-                and hp2_count / (hp1_count + hp2_count) >= hapRatio
-                and hp2_count >= minvariant
-            ):
-                reads_hap_temp[key] = 2
-        with open(read_info_file) as VarReadInfo:
-            for line in VarReadInfo:
-                line = line.rstrip().split("\t")
-                read_count = hp1_count = hp2_count = hp1_count_read = hp2_count_read = 0
-                for read_info in line[3].split(","):
-                    read_info = read_info.split(":")
-                    read_key = (line[0], read_info[0])
-                    per_var_info[(line[0], line[1])]["all"] += 1
-                    read_count += 1
-                    hp1_count_read += read_dict_HP_temp[read_key]["1"]
-                    hp2_count_read += read_dict_HP_temp[read_key]["2"]
-                    if read_key in reads_hap_temp and line[2] != "noninfo":
-                        if reads_hap_temp[read_key] == 1:
-                            hp1_count += 1
-                        elif reads_hap_temp[read_key] == 2:
-                            hp2_count += 1
+        reads_hap_temp = build_reads_hap_temp(hapRatio, minvariant, read_dict_HP_temp)
 
-                per_var_info[tuple(line[0:2])][(line[2], "ave1")] = round(
-                    hp1_count_read / read_count, 5
-                )
-                per_var_info[tuple(line[0:2])][(line[2], "ave2")] = round(
-                    hp2_count_read / read_count, 5
-                )
-                for read_info in line[3].split(","):
-                    read_info = read_info.split(":")
-                    read_key = (line[0], read_info[0])
-                    if (
-                        hp1_count > hp2_count
-                        and hp1_count / (hp1_count + hp2_count) >= hapRatio
-                        and hp1_count >= minvariant
-                    ):
-                        read_dict_HP_temp_reass[read_key]["1"] += 1
-                    elif (
-                        hp2_count > hp1_count
-                        and hp2_count / (hp1_count + hp2_count) >= hapRatio
-                        and hp2_count >= minvariant
-                    ):
-                        read_dict_HP_temp_reass[read_key]["2"] += 1
+        update_per_var_info(
+            hapRatio,
+            minvariant,
+            read_info_file,
+            read_dict_HP_temp,
+            read_dict_HP_temp_reass,
+            per_var_info,
+            reads_hap_temp,
+        )
+
         reads_hap_temp.clear()
         read_dict_HP_temp.clear()
-        for key, val in read_dict_HP_temp_reass.items():
-            hp1_count = val["1"]
-            hp2_count = val["2"]
-            if (
-                hp1_count > hp2_count
-                and hp1_count / (hp1_count + hp2_count) >= hapRatio
-                and hp1_count >= minvariant
-            ):
-                reads_hap[key] = 1
-            elif (
-                hp2_count > hp1_count
-                and hp2_count / (hp1_count + hp2_count) >= hapRatio
-                and hp2_count >= minvariant
-            ):
-                reads_hap[key] = 2
+        add_reads_hap(hapRatio, minvariant, reads_hap, read_dict_HP_temp_reass)
         read_dict_HP_temp_reass.clear()
-        variant_dict_HP = defaultdict(lambda: defaultdict(int))
-        for line, read_info, read_key in read_info_iter(read_info_file):
-            var_key = (line[0], line[1])
-            hap = reads_hap.get(read_key)
-            if hap:
-                per_var_info[var_key][f"h{hap}all"] += 1
-                if line[2] != "noninfo":
-                    variant_dict_HP[var_key][(line[2], hap)] += 1
+
+        variant_dict_HP = build_variant_dict_HP(reads_hap, read_info_file, per_var_info)
 
         records_chrom = vcf_tb.query(chrom, 0, chroms[chrom] + 1)
         for line in records_chrom:
-            var_key = (line[0], line[1])
             new_ps = line[8].split(":")
             new_hp = line[9].split(":")
             if "PS" in new_ps:
@@ -715,6 +652,105 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
                 )
             )
         )
+
+
+def build_variant_dict_HP(reads_hap, read_info_file, per_var_info):
+    variant_dict_HP = defaultdict(lambda: defaultdict(int))
+    for line, read_info, read_key in read_info_iter(read_info_file):
+        var_key = (line[0], line[1])
+        hap = reads_hap.get(read_key)
+        if hap:
+            per_var_info[var_key][f"h{hap}all"] += 1
+            if line[2] != "noninfo":
+                variant_dict_HP[var_key][(line[2], hap)] += 1
+    return variant_dict_HP
+
+
+def add_reads_hap(hapRatio, minvariant, reads_hap, read_dict_HP_temp_reass):
+    for key, val in read_dict_HP_temp_reass.items():
+        hp1_count = val["1"]
+        hp2_count = val["2"]
+        if (
+            hp1_count > hp2_count
+            and hp1_count / (hp1_count + hp2_count) >= hapRatio
+            and hp1_count >= minvariant
+        ):
+            reads_hap[key] = 1
+        elif (
+            hp2_count > hp1_count
+            and hp2_count / (hp1_count + hp2_count) >= hapRatio
+            and hp2_count >= minvariant
+        ):
+            reads_hap[key] = 2
+
+
+def update_per_var_info(
+    hapRatio,
+    minvariant,
+    read_info_file,
+    read_dict_HP_temp,
+    read_dict_HP_temp_reass,
+    per_var_info,
+    reads_hap_temp,
+):
+    with open(read_info_file) as VarReadInfo:
+        for line in VarReadInfo:
+            line = line.rstrip().split("\t")
+            read_count = hp1_count = hp2_count = hp1_count_read = hp2_count_read = 0
+            for read_info in line[3].split(","):
+                read_info = read_info.split(":")
+                read_key = (line[0], read_info[0])
+                per_var_info[(line[0], line[1])]["all"] += 1
+                read_count += 1
+                hp1_count_read += read_dict_HP_temp[read_key]["1"]
+                hp2_count_read += read_dict_HP_temp[read_key]["2"]
+                if read_key in reads_hap_temp and line[2] != "noninfo":
+                    if reads_hap_temp[read_key] == 1:
+                        hp1_count += 1
+                    elif reads_hap_temp[read_key] == 2:
+                        hp2_count += 1
+
+            per_var_info[tuple(line[0:2])][(line[2], "ave1")] = round(
+                hp1_count_read / read_count, 5
+            )
+            per_var_info[tuple(line[0:2])][(line[2], "ave2")] = round(
+                hp2_count_read / read_count, 5
+            )
+            for read_info in line[3].split(","):
+                read_info = read_info.split(":")
+                read_key = (line[0], read_info[0])
+                if (
+                    hp1_count > hp2_count
+                    and hp1_count / (hp1_count + hp2_count) >= hapRatio
+                    and hp1_count >= minvariant
+                ):
+                    read_dict_HP_temp_reass[read_key]["1"] += 1
+                elif (
+                    hp2_count > hp1_count
+                    and hp2_count / (hp1_count + hp2_count) >= hapRatio
+                    and hp2_count >= minvariant
+                ):
+                    read_dict_HP_temp_reass[read_key]["2"] += 1
+
+
+def build_reads_hap_temp(hapRatio, minvariant, read_dict_HP_temp):
+    reads_hap_temp = dict()
+    for key, val in read_dict_HP_temp.items():
+        hp1_count = val["1"]
+        hp2_count = val["2"]
+        if (
+            hp1_count > hp2_count
+            and hp1_count / (hp1_count + hp2_count) >= hapRatio
+            and hp1_count >= minvariant
+        ):
+            reads_hap_temp[key] = 1
+        elif (
+            hp2_count > hp1_count
+            and hp2_count / (hp1_count + hp2_count) >= hapRatio
+            and hp2_count >= minvariant
+        ):
+            reads_hap_temp[key] = 2
+    return reads_hap_temp
 
 
 def _parse_arguments(raw_arguments: typing.List[str]) -> argparse.Namespace:
