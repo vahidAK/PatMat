@@ -46,16 +46,11 @@ from patmat.core.haplotype import (
 from patmat.core.methylation import PofO_dmr, out_freq_methbam, pofo_final_dict
 from patmat.core.phase_processing import (
     alignment_writer,
-    get_block,
     pofo_sv_write,
     write_sam_phase,
 )
 from patmat.core.variant_assignment import process_variant_assignments
-from patmat.core.variant_processing import (
-    per_read_variant,
-    strand_vcf2dict_phased,
-    vcf2dict_phased,
-)
+from patmat.core.variant_processing import per_read_variant, process_strand_seq_vcf
 from patmat.io.bam import getChromsFromBAM
 from patmat.io.file_utils import openfile
 from patmat.io.vcf import get_chroms_from_vcf
@@ -80,45 +75,6 @@ def out_pofo_freq(hp_fre, chrom, output):
                 line = line.rstrip().split("\t")
                 if line[0] == chrom:
                     output.write("\t".join(line) + "\n")
-
-
-def process_strand_seq_vcf(args, vcf, chrom):
-    """Process strand-seq VCF file and return phasing information.
-
-    Args:
-        args: Command line arguments
-        vcf: Path to main VCF file
-        chrom: Chromosome being processed
-
-    Returns:
-        tuple: (final_dict, strand_phased_vars, phase_block_stat, blocks_dict)
-        phase_block_stat and blocks_dict will be None if not phased
-
-    Raises:
-        Exception: If no strand-seq VCF is provided
-    """
-    if args.strand_vcf is None:
-        raise Exception("No strand-seq VCF is given.")
-
-    vcf_strand = os.path.abspath(args.strand_vcf)
-
-    if not args.phased:
-        final_dict, strand_phased_vars = strand_vcf2dict_phased(
-            vcf_strand, vcf, args.include_all_variants, chrom
-        )
-        return final_dict, strand_phased_vars, None, None
-
-    else:
-        blocks_phased, blocks_dict = get_block(vcf, chrom)
-        final_dict, strand_phased_vars, phase_block_stat = vcf2dict_phased(
-            blocks_phased,
-            vcf_strand,
-            vcf,
-            chrom,
-            args.include_all_variants,
-            args.ignore_blocks_single,
-        )
-        return final_dict, strand_phased_vars, phase_block_stat, blocks_dict
 
 
 def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:

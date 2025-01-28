@@ -8,8 +8,48 @@ import pysam
 import tabix
 from tqdm import tqdm
 
+from patmat.core.phase_processing import get_block
 from patmat.io.bam import openalignment
 from patmat.io.file_utils import openfile
+
+
+def process_strand_seq_vcf(args, vcf, chrom):
+    """Process strand-seq VCF file and return phasing information.
+
+    Args:
+        args: Command line arguments
+        vcf: Path to main VCF file
+        chrom: Chromosome being processed
+
+    Returns:
+        tuple: (final_dict, strand_phased_vars, phase_block_stat, blocks_dict)
+        phase_block_stat and blocks_dict will be None if not phased
+
+    Raises:
+        Exception: If no strand-seq VCF is provided
+    """
+    if args.strand_vcf is None:
+        raise Exception("No strand-seq VCF is given.")
+
+    vcf_strand = os.path.abspath(args.strand_vcf)
+
+    if not args.phased:
+        final_dict, strand_phased_vars = strand_vcf2dict_phased(
+            vcf_strand, vcf, args.include_all_variants, chrom
+        )
+        return final_dict, strand_phased_vars, None, None
+
+    else:
+        blocks_phased, blocks_dict = get_block(vcf, chrom)
+        final_dict, strand_phased_vars, phase_block_stat = vcf2dict_phased(
+            blocks_phased,
+            vcf_strand,
+            vcf,
+            chrom,
+            args.include_all_variants,
+            args.ignore_blocks_single,
+        )
+        return final_dict, strand_phased_vars, phase_block_stat, blocks_dict
 
 
 def get_variant_info(
