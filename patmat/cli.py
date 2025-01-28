@@ -43,12 +43,14 @@ from patmat.core.phase_processing import (
     pofo_sv_write,
     write_sam_phase,
 )
+from patmat.core.variant_assignment import process_variant_assignments
 from patmat.core.variant_processing import (
     per_read_variant,
     strand_vcf2dict_phased,
     vcf2dict_phased,
 )
 from patmat.io.bam import getChromsFromBAM
+from patmat.io.bed import process_dmr_regions
 from patmat.io.file_utils import openfile
 from patmat.io.vcf import get_chroms_from_vcf
 
@@ -266,19 +268,15 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
         os.remove(read_info_file)
 
     per_var_info.clear()
-    subprocess.run(
-        "sed '1d' {} | awk -F'\t' '{{print $1,$2-100000,$3+100000}}' OFS='\t'"
-        " | awk '{{if ($2<0) {{$2=0}}; print}}' OFS='\t' "
-        "| sort -k1,1 -k2,2n | bedtools merge > {}"
-        "".format(known_dmr, out + "_temp_knownDMR.tsv"),
-        shell=True,
-        check=True,
-    )
+
+    temp_DMR_file = out + "_temp_knownDMR.tsv"
+    process_dmr_regions(known_dmr, temp_DMR_file)
+
     subprocess.run(
         "samtools view -h --remove-tag HP,PS -@ {} "
         "--regions-file {} {}"
         " | sed '/^@PG/d' | gzip > {}".format(
-            processes, out + "_temp_knownDMR.tsv", bam_file, out + "_TempAtDMRs.sam.gz"
+            processes, temp_DMR_file, bam_file, out + "_TempAtDMRs.sam.gz"
         ),
         shell=True,
         check=True,
@@ -353,194 +351,9 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
     chrom_hp_origin = pofo_final_dict(chrom_hp_origin_count, args.min_pofo_score)
 
     print("################## Assigning PofO to Variants ##################")
-    info_out_dict = defaultdict(lambda: defaultdict(int))
-    with openfile(vcf) as vf_file:
-        assignment_file = open(out + "_PofO_Assigned.vcf", "w")
-        assignment_file_info = open(out + "_Variant_Assignment_info.tsv", "w")
-        for line in vf_file:
-            if line.startswith("##"):
-                assignment_file.write(line)
-            elif line.startswith("#"):
-                assignment_file.write(line)
-                assignment_file_info.write(
-                    line.rstrip() + "\tNumAllReads\t"
-                    "NumReadsHP1\tNumReadsHP2\t"
-                    "NumReadsHP1RefOrLeftAllele\tNumReadsHP2RefOrLeftAllele\t"
-                    "NumReadsHP1AltOrRightAllele\tNumReadsHP2AltOrRightAllele\t"
-                    "FracReadsHP1\tFracReadsHP2\t"
-                    "FracHP1ReadsWithRefOrLeftAllele\tFracHP2ReadsWithRefOrLeftAllele\t"
-                    "FracHP1ReadsWithAltOrRightAllele\tFracHP2ReadsWithAltOrLeftAllele\t"
-                    "MeanNumherOfHP1-InitialPhasedVariantsAccrossReadsMappedToRef/LeftAllele\t"
-                    "MeanNumherOfHP2-InitialPhasedVariantsAccrossReadsMappedToRef/LeftAllele\t"
-                    "MeanNumherOfHP1-InitialPhasedVariantsAccrossReadsMappedToAlt/RightAllele\t"
-                    "MeanNumherOfHP2-InitialPhasedVariantsAccrossReadsMappedToAlt/RightAllele\t"
-                    "BlockStart\tBlockEnd\t"
-                    "NumberOfSupportiveStrandSeqPhasedVariantsAtThePhasedBlock\t"
-                    "NumberOfConflictingStrandSeqPhasedVariantsAtThePhasedBlock\t"
-                    "NumReadsMaternal\tNumReadsPaternal\t"
-                    "NumReadsMaternalRefOrLeftAllele\t"
-                    "NumReads_PaternalRefOrLeftAllele\t"
-                    "NumReads_MaternalAltOrRightAllele\t"
-                    "NumReads_PaternalAltOrRightAllele\t\t"
-                    "FracReadsMaternal\tFracReadsPaternal\t"
-                    "FracMaternalReadsWithRefOrLeftAllele\tFracPaternalReadsWithRefOrLeftAllele\t"
-                    "FracMaternalReadsWithAltOrRightAllele\tFracPaternalReadsWithAltOrRightAllele\n"
-                )
-            else:
-                line = line.rstrip().split("\t")
-                snv_var = False
-                indel_var = False
-                if line[9].startswith(
-                    ("0/1", "1/0", "0|1", "1|0", "1/2", "1|2", "2/1", "2|1")
-                ):
-                    if (len(line[3]) == 1 and len(line[4]) == 1) or (
-                        len(line[3]) == 1 and len(line[4]) == 3 and "," in line[4]
-                    ):
-                        snv_var = True
-                        info_out_dict[line[0]]["all_het_snvs"] += 1
-                    else:
-                        indel_var = True
-                        info_out_dict[line[0]]["all_het_indels"] += 1
-                if tuple(line[0:2]) in re_assignment_vars:
-                    var_info = re_assignment_vars[tuple(line[0:2])]
-                    if (
-                        not var_info[9].startswith(("1|0", "0|1", "1|2"))
-                        or not line[0] in chrom_hp_origin
-                    ):
-                        assignment_file_info.write(
-                            "\t".join(var_info + ["NA"] * 12) + "\n"
-                        )
-                        out_line = (
-                            "\t".join(var_info[0:10])
-                            .replace(":PS", "")
-                            .replace("1|0", "0/1")
-                            .replace("2|1", "1/2")
-                            .replace("|", "/")
-                            .replace(":Ref_HP1/HP2", "")
-                            .replace(":Ref_HP2/HP1", "")
-                            .replace(":HP1/HP2", "")
-                            .replace(":HP2/HP1", "")
-                        )
-                        assignment_file.write(out_line + "\n")
-                        continue
-
-                    (
-                        hp1_count,
-                        hp2_count,
-                        hp1_count_ref,
-                        hp2_count_ref,
-                        hp1_count_alt,
-                        hp2_count_alt,
-                        hp1_frac,
-                        hp2_frac,
-                        hp1_ref_frac,
-                        hp2_ref_frac,
-                        hp1_alt_frac,
-                        hp2_alt_frac,
-                    ) = var_info[11:23]
-                    if snv_var and var_info[9].startswith(("1|0", "0|1", "1|2")):
-                        info_out_dict[line[0]]["pofo_het_snvs"] += 1
-                    elif indel_var and var_info[9].startswith(("1|0", "0|1", "1|2")):
-                        info_out_dict[line[0]]["pofo_het_indels"] += 1
-
-                    if chrom_hp_origin[line[0]]["HP1"][0] == "maternal":
-                        out_line = (
-                            "\t".join(var_info[0:10])
-                            .replace("HP1", "Mat")
-                            .replace("HP2", "Pat")
-                        )
-                        assignment_file.write(out_line + "\n")
-                        assignment_file_info.write(
-                            out_line
-                            + "\t"
-                            + "\t".join(
-                                var_info[10:]
-                                + [
-                                    hp1_count,
-                                    hp2_count,
-                                    hp1_count_ref,
-                                    hp2_count_ref,
-                                    hp1_count_alt,
-                                    hp2_count_alt,
-                                    hp1_frac,
-                                    hp2_frac,
-                                    hp1_ref_frac,
-                                    hp2_ref_frac,
-                                    hp1_alt_frac,
-                                    hp2_alt_frac,
-                                ]
-                            )
-                            + "\n"
-                        )
-
-                    elif chrom_hp_origin[line[0]]["HP1"][0] == "paternal":
-                        if var_info[9].startswith("1|0"):
-                            out_line = (
-                                "\t".join(var_info[0:10])
-                                .replace("1|0", "0|1")
-                                .replace("HP1", "Pat")
-                                .replace("HP2", "Mat")
-                            )
-                        elif var_info[9].startswith("0|1"):
-                            out_line = (
-                                "\t".join(var_info[0:10])
-                                .replace("0|1", "1|0")
-                                .replace("HP1", "Pat")
-                                .replace("HP2", "Mat")
-                            )
-                        else:
-                            out_line = (
-                                "\t".join(var_info[0:10])
-                                .replace("HP1", "Pat")
-                                .replace("HP2", "Mat")
-                            )
-                            continue
-                        assignment_file.write(out_line + "\n")
-                        assignment_file_info.write(
-                            out_line
-                            + "\t"
-                            + "\t".join(
-                                var_info[10:]
-                                + [
-                                    hp2_count,
-                                    hp1_count,
-                                    hp2_count_ref,
-                                    hp1_count_ref,
-                                    hp2_count_alt,
-                                    hp1_count_alt,
-                                    hp2_frac,
-                                    hp1_frac,
-                                    hp2_ref_frac,
-                                    hp1_ref_frac,
-                                    hp2_alt_frac,
-                                    hp1_alt_frac,
-                                ]
-                            )
-                            + "\n"
-                        )
-
-                else:
-                    if "PS" in line[8].split(":"):
-                        ps_index = line[8].split(":").index("PS")
-                        new_ps = line[8].split(":")
-                        new_hp = line[9].split(":")
-                        new_ps.pop(ps_index)
-                        new_hp.pop(ps_index)
-                    else:
-                        new_ps = line[8].split(":")
-                        new_hp = line[9].split(":")
-                    out_line = (
-                        "\t".join(line[0:8] + [":".join(new_ps)] + [":".join(new_hp)])
-                        .replace("1|0", "0/1")
-                        .replace("2|1", "1/2")
-                        .replace("|", "/")
-                    )
-                    assignment_file.write(out_line + "\n")
-                    assignment_file_info.write(
-                        out_line + "\t" + "\t".join(["NA"] * 33) + "\n"
-                    )
-    assignment_file.close()
-    assignment_file_info.close()
+    info_out_dict = process_variant_assignments(
+        vcf, out, re_assignment_vars, chrom_hp_origin
+    )
 
     if args.sv_vcf is not None:
         print("################## Assigning PofO to SVs ##################")
