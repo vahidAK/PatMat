@@ -50,9 +50,9 @@ from patmat.core.variant_processing import (
     vcf2dict_phased,
 )
 from patmat.io.bam import getChromsFromBAM
-from patmat.io.bed import process_dmr_regions
 from patmat.io.file_utils import openfile
 from patmat.io.vcf import get_chroms_from_vcf
+from patmat.io.write import write_merged_dmr_regions, write_scores
 
 
 def out_pofo_freq(hp_fre, chrom, output):
@@ -270,7 +270,7 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
     per_var_info.clear()
 
     temp_DMR_file = out + "_temp_knownDMR.tsv"
-    process_dmr_regions(known_dmr, temp_DMR_file)
+    write_merged_dmr_regions(known_dmr, temp_DMR_file)
 
     subprocess.run(
         "samtools view -h --remove-tag HP,PS -@ {} "
@@ -402,43 +402,8 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
     )
     subprocess.run("rm {}*".format(out + "_Temp"), shell=True, check=True)
 
-    out_scores = open(out + "_PofO_Scores.tsv", "w")
-    out_scores.write(
-        "Chromosome\tOrigin_HP1\tOrigin_HP2\tPofO_Assignment_Score\t"
-        "NormalizedNum_Differentially_Methylated_CGs_Supported_PofO_Assignment\t"
-        "NormalizedNum_Differentially_Methylated_CGs_Conflicted_PofO_Assignment\t"
-        "Num_Differentially_Methylated_CGs_Supported_PofO_Assignment\t"
-        "Num_Differentially_Methylated_CGs_Conflicted_PofO_Assignment\t"
-        "Num_iDMRs_Supported_PofO_Assignment\t"
-        "Num_iDMRs_Conflicted_PofO_Assignment\t"
-        "Num_All_Differentially_Methylated_CGs_At_Supporting_iDMRs\t"
-        "Num_All_Differentially_Methylated_CGs_At_Conflicting_iDMRs\t"
-        "Num_All_CGs_CouldBeExaminedInBothHaplotypes_At_Supporting_iDMRs\t"
-        "Num_All_CGs_CouldBeExaminedInBothHaplotypes_At_Conflicting_iDMRs\n"
-    )
-    for chrom, val in chrom_hp_origin.items():
-        for hp, score in val.items():
-            if hp == "HP1":
-                origin_hp1 = score[0]
-                if origin_hp1 == "maternal":
-                    origin_hp2 = "Paternal"
-                    origin_hp1 = "Maternal"
-                elif origin_hp1 == "paternal":
-                    origin_hp2 = "Maternal"
-                    origin_hp1 = "Paternal"
-                out_scores.write(
-                    "\t".join(
-                        [
-                            chrom,
-                            origin_hp1,
-                            origin_hp2,
-                            str(round(score[1] / (score[1] + score[2]), 5)),
-                        ]
-                        + list(map(str, score[1:]))
-                    )
-                    + "\n"
-                )
-    out_scores.close()
+    write_scores(out, chrom_hp_origin)
+
     if not args.include_all_variants:
         print(
             'Per chromosome info for the variants with "PASS"'
