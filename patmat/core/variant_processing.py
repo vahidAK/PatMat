@@ -265,48 +265,35 @@ def per_read_variant(
     """
     outfile = open(out_file, "w")
     for chrom, feed_list in vcf_dict.items():
-        bamiter, bam, count = openalignment(bam_file, chrom)
-        if count > 0:
-            feed_list = [
+        # TODO: is this really necessary? only getting the count
+        # does it break if bam_file has no alignments? do we see that?
+        # bamiter, bam, count = openalignment(bam_file, chrom)
+        if True:  #  count > 0:
+            vcf_info_list = [
                 list(feed_list)[x : x + chunk] for x in range(0, len(feed_list), chunk)
             ]
-            feed_list = [
-                feed_list[x : x + processes]
-                for x in range(0, len(feed_list), processes)
-            ]
-            description = "Tagging variants to reads from {}: ".format(chrom)
-            with tqdm(
-                total=len(feed_list),
-                desc=description,
-                bar_format="{l_bar}{bar} [ Estimated time left: {remaining} ]",
-            ) as pbar:
-                for vcf_info_list in feed_list:
-                    p = mp.Pool(len(vcf_info_list))
-                    results = p.starmap(
-                        get_variant_info,
-                        list(
-                            zip(
-                                vcf_info_list,
-                                repeat(bam_file),
-                                repeat(chrom),
-                                repeat(mapping_quality),
-                                repeat(include_supplementary),
-                            )
-                        ),
+            p = mp.Pool(processes)
+            results = p.starmap(
+                get_variant_info,
+                list(
+                    zip(
+                        vcf_info_list,
+                        repeat(bam_file),
+                        repeat(chrom),
+                        repeat(mapping_quality),
+                        repeat(include_supplementary),
                     )
-                    p.close()
-                    p.join()
-                    for result in results:
-                        if result is not None:
-                            for key, val in result.items():
-                                outfile.write(
-                                    "\t".join(map(str, key))
-                                    + "\t"
-                                    + ",".join(val)
-                                    + "\n"
-                                )
+                ),
+            )
+            p.close()
+            p.join()
+            for result in results:
+                if result is not None:
+                    for key, val in result.items():
+                        outfile.write(
+                            "\t".join(map(str, key)) + "\t" + ",".join(val) + "\n"
+                        )
 
-                    pbar.update(1)
         else:
             warnings.warn(
                 "{} does not have any mapped reads in alignment "
