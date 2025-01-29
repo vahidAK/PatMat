@@ -5,14 +5,30 @@ from collections import defaultdict
 
 import tabix
 
+from patmat.core.subprocess_calls import run_command
 from patmat.io.file_utils import openfile
 
 
-def PofO_dmr(known_dmr, out, out_meth, min_cg, cpg_difference):
+def PofO_dmr(known_dmr, out, min_cg, cpg_difference):
     """
     This function maps differentially methylated CpGs
     to the known iDMRs for PofO assignment
     """
+
+    out_meth = open(out + "_CpG-Methylation-Status-at-DMRs.tsv", "w")
+    dmr_file = openfile(known_dmr)
+    header = next(dmr_file).rstrip()
+    out_meth.write(
+        header + "\tAll_CpGs_At_iDMR_CouldBeExaminedInBothHaplotypes\t"
+        "DifferentiallyMethylatedCpGs_HypermethylatedOnHP1\t"
+        "DifferentiallyMethylatedCpGs_HypermethylatedOnHP2\t"
+        "MeanDiffMethylationOf_DifferentiallyMethylatedCpGs_HypermethylatedOnHP1\t"
+        "MeanDiffMethylationOf_DifferentiallyMethylatedCpGs_HypermethylatedOnHP2\t"
+        "MethylationFrequency_HP1\tMethylationFrequency_HP2\t"
+        "Included_Or_Ignored_For_PofO_Assignment\n"
+    )
+    dmr_file.close()
+
     tb_calldml = tabix.open(out + "_Temp_callDML.tsv.gz")
     tb_dmltest = tabix.open(out + "_Temp_DMLtest.tsv.gz")
     dmr_file = openfile(known_dmr)
@@ -365,42 +381,47 @@ def pofo_final_dict(chrom_hp_origin_count, min_pofo_score):
     return chrom_hp_origin
 
 
+def process_cpg_mod_freq(input_file, output_file, is_modkit=False):
+    """Process CpG modification frequency files from either modkit or aligned_bam_to_cpg_scores.
+
+    Args:
+        input_file (str): Path to input bed file
+        output_file (str): Path to output file
+        is_modkit (bool): True if input is from modkit, False if from aligned_bam_to_cpg_scores
+    """
+    # Write header first
+    with open(output_file, "w") as out:
+        out.write("Chromosome\tStart\tEnd\tCov\tMod\tFreq\n")
+
+    # Process file content
+    with open(input_file) as f:
+        with open(output_file, "a") as out:
+            for line in f:
+                fields = line.strip().split("\t")
+
+                if is_modkit:
+                    # For modkit output: check if modification type is 'm'
+                    if len(fields) > 3 and fields[3] == "m":
+                        chrom, start, end = fields[0:3]
+                        cov, mod = fields[9], fields[11]
+                        freq = float(mod) / float(cov) if float(cov) != 0 else 0
+                        out.write(f"{chrom}\t{start}\t{end}\t{cov}\t{mod}\t{freq}\n")
+                else:
+                    # For aligned_bam_to_cpg_scores output
+                    chrom, start, end = fields[0:3]
+                    cov, mod = fields[5], fields[6]
+                    freq = float(mod) / float(cov) if float(cov) != 0 else 0
+                    out.write(f"{chrom}\t{start}\t{end}\t{cov}\t{mod}\t{freq}\n")
+
+
 def out_freq_methbam(out, processes, reference, pbcg, pb_tech):
     out_freqhp1 = out + "_Temp_NonPofO_HP1-HP2_MethylationHP1.tsv"
     out_freqhp2 = out + "_Temp_NonPofO_HP1-HP2_MethylationHP2.tsv"
     out_dir = os.path.dirname(out)
     out_pref = os.path.basename(out)
-    if not pb_tech:
-        subprocess.run(
-            "modkit pileup -t {} --prefix {} "
-            "--partition-tag HP --combine-strands --cpg -r {} "
-            "{} {}".format(
-                processes,
-                out_pref + "_Temp-NonPofO_CpGModFreq",
-                reference,
-                out + "_Temp-NonPofO_dmr.bam",
-                out_dir,
-            ),
-            shell=True,
-            check=True,
-        )
+    if pb_tech:
 
-        subprocess.run(
-            "awk -F'\t' '$4==\"m\" {{print $1,$2,$3,$10,$12,$12/$10}}' OFS='\t' {} | "
-            "sed '1i Chromosome\tStart\tEnd\tCov\tMod\tFreq' > {} "
-            "".format(out + "_Temp-NonPofO_CpGModFreq_1.bed", out_freqhp1),
-            shell=True,
-            check=True,
-        )
-        subprocess.run(
-            "awk -F'\t' '$4==\"m\" {{print $1,$2,$3,$10,$12,$12/$10}}' OFS='\t' {} | "
-            "sed '1i Chromosome\tStart\tEnd\tCov\tMod\tFreq' > {} "
-            "".format(out + "_Temp-NonPofO_CpGModFreq_2.bed", out_freqhp2),
-            shell=True,
-            check=True,
-        )
-    else:
-        subprocess.run(
+        run_command(
             "aligned_bam_to_cpg_scores --bam {} --output-prefix {}"
             " --model {} --threads {} --modsites-mode reference "
             "--ref {}".format(
@@ -410,24 +431,36 @@ def out_freq_methbam(out, processes, reference, pbcg, pb_tech):
                 processes,
                 reference,
             ),
-            shell=True,
-            check=True,
         )
 
-        subprocess.run(
-            "awk -F'\t' '{{print $1,$2,$3,$6,$7,$7/$6}}' OFS='\t' {} | "
-            "sed '1i Chromosome\tStart\tEnd\tCov\tMod\tFreq' > {} "
-            "".format(out + "_Temp-NonPofO_CpGModFreq.hap1.bed", out_freqhp1),
-            shell=True,
-            check=True,
+        # process cpg for aligned_bam_to_cpg_scores output
+        process_cpg_mod_freq(
+            out + "_Temp-NonPofO_CpGModFreq.hap1.bed", out_freqhp1, is_modkit=False
         )
-        subprocess.run(
-            "awk -F'\t' '{{print $1,$2,$3,$6,$7,$7/$6}}' OFS='\t' {} | "
-            "sed '1i Chromosome\tStart\tEnd\tCov\tMod\tFreq' > {} "
-            "".format(out + "_Temp-NonPofO_CpGModFreq.hap2.bed", out_freqhp2),
-            shell=True,
-            check=True,
+        process_cpg_mod_freq(
+            out + "_Temp-NonPofO_CpGModFreq.hap2.bed", out_freqhp2, is_modkit=False
         )
-    subprocess.run(
-        "rm {}*".format(out + "_Temp-NonPofO_CpGModFreq"), shell=True, check=True
+    else:
+        run_command(
+            "modkit pileup -t {} --prefix {} "
+            "--partition-tag HP --combine-strands --cpg -r {} "
+            "{} {}".format(
+                processes,
+                out_pref + "_Temp-NonPofO_CpGModFreq",
+                reference,
+                out + "_Temp-NonPofO_dmr.bam",
+                out_dir,
+            ),
+        )
+
+        # process cpg for modkit output
+        process_cpg_mod_freq(
+            out + "_Temp-NonPofO_CpGModFreq_1.bed", out_freqhp1, is_modkit=True
+        )
+        process_cpg_mod_freq(
+            out + "_Temp-NonPofO_CpGModFreq_2.bed", out_freqhp2, is_modkit=True
+        )
+
+    run_command(
+        "rm {}*".format(out + "_Temp-NonPofO_CpGModFreq"),
     )

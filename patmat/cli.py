@@ -26,7 +26,6 @@ __license__ = "GPLv3"
 
 import argparse
 import os
-import subprocess
 import sys
 import typing
 import warnings
@@ -49,6 +48,7 @@ from patmat.core.phase_processing import (
     pofo_sv_write,
     write_sam_phase,
 )
+from patmat.core.subprocess_calls import bgzip_and_tabix, run_command
 from patmat.core.variant_assignment import process_variant_assignments
 from patmat.core.variant_processing import per_read_variant, process_strand_seq_vcf
 from patmat.io.bam import getChromsFromBAM
@@ -188,32 +188,31 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
     temp_DMR_file = out + "_temp_knownDMR.tsv"
     write_merged_dmr_regions(known_dmr, temp_DMR_file)
 
-    subprocess.run(
+    temp_at_DMRs_file = out + "_TempAtDMRs.sam.gz"
+    run_command(
         "samtools view -h --remove-tag HP,PS -@ {} "
         "--regions-file {} {}"
         " | sed '/^@PG/d' | gzip > {}".format(
-            processes, temp_DMR_file, bam_file, out + "_TempAtDMRs.sam.gz"
-        ),
-        shell=True,
-        check=True,
+            processes, temp_DMR_file, bam_file, temp_at_DMRs_file
+        )
     )
-    subprocess.run("rm {}*".format(out + "_temp"), shell=True, check=True)
+    run_command("rm {}*".format(out + "_temp"))
 
+    temp_non_pofo_dmr_file = out + "_Temp-NonPofO_dmr.sam.gz"
     write_sam_phase(
-        out + "_TempAtDMRs.sam.gz",
-        out + "_Temp-NonPofO_dmr.sam.gz",
+        temp_at_DMRs_file,
+        temp_non_pofo_dmr_file,
         reads_hap,
         args.mapping_quality,
         args.include_supplementary,
     )
 
-    subprocess.run(
+    temp_non_fomo_dmr_bam_file = out + "_Temp-NonPofO_dmr.bam"
+    run_command(
         "gunzip -c {0} | samtools sort -@ {1} -o {2} && "
         "samtools index -@ {1} {2}".format(
-            out + "_Temp-NonPofO_dmr.sam.gz", processes, out + "_Temp-NonPofO_dmr.bam"
+            temp_non_pofo_dmr_file, processes, temp_non_fomo_dmr_bam_file
         ),
-        shell=True,
-        check=True,
     )
     out_freqhp1 = out + "_Temp_NonPofO_HP1-HP2_MethylationHP1.tsv"
     out_freqhp2 = out + "_Temp_NonPofO_HP1-HP2_MethylationHP2.tsv"
@@ -221,7 +220,7 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
         out, processes, reference, os.path.abspath(args.pb_cpg_tools_model), args.pacbio
     )
 
-    subprocess.run(
+    run_command(
         "{} {} {} {} {} {} {} {} {} {} {}".format(
             "Rscript",
             os.path.join(os.path.dirname(os.path.realpath(__file__)), "DMA_UsingDSS.R"),
@@ -235,35 +234,11 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
             args.pvalue,
             dss_processes,
         ),
-        shell=True,
-        check=True,
     )
-    subprocess.run(
-        "bgzip -f {0} && tabix -f -S 1 -p bed {0}.gz"
-        "".format(out + "_Temp_DMLtest.tsv"),
-        shell=True,
-        check=True,
-    )
-    subprocess.run(
-        "bgzip -f {0} && tabix -f -S 1 -p bed {0}.gz"
-        "".format(out + "_Temp_callDML.tsv"),
-        shell=True,
-        check=True,
-    )
-    out_meth = open(out + "_CpG-Methylation-Status-at-DMRs.tsv", "w")
-    dmr_file = openfile(known_dmr)
-    header = next(dmr_file).rstrip()
-    out_meth.write(
-        header + "\tAll_CpGs_At_iDMR_CouldBeExaminedInBothHaplotypes\t"
-        "DifferentiallyMethylatedCpGs_HypermethylatedOnHP1\t"
-        "DifferentiallyMethylatedCpGs_HypermethylatedOnHP2\t"
-        "MeanDiffMethylationOf_DifferentiallyMethylatedCpGs_HypermethylatedOnHP1\t"
-        "MeanDiffMethylationOf_DifferentiallyMethylatedCpGs_HypermethylatedOnHP2\t"
-        "MethylationFrequency_HP1\tMethylationFrequency_HP2\t"
-        "Included_Or_Ignored_For_PofO_Assignment\n"
-    )
-    dmr_file.close()
-    chrom_hp_origin_count = PofO_dmr(known_dmr, out, out_meth, min_cg, cpg_difference)
+    bgzip_and_tabix(out + "_Temp_DMLtest.tsv")
+    bgzip_and_tabix(out + "_Temp_callDML.tsv")
+
+    chrom_hp_origin_count = PofO_dmr(known_dmr, out, min_cg, cpg_difference)
     chrom_hp_origin = pofo_final_dict(chrom_hp_origin_count, args.min_pofo_score)
 
     print("################## Assigning PofO to Variants ##################")
@@ -286,37 +261,34 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
             )
 
     print("############ Preparing PofO Tagged Alignment File #############")
-    infile_bam = pysam.AlignmentFile(bam_file, "rb")
-    cramHeader = infile_bam.header.to_dict()
-    if "PG" in cramHeader:
-        cramHeader = cramHeader.pop("PG")
-    outfile_bam = pysam.AlignmentFile(
-        out + "_PofO_Tagged.cram",
-        "wc",
-        template=infile_bam,
-        header=cramHeader,
-        reference_filename=reference,
-    )
-    for chrom in list(bam_choms) + ["*"]:
-        alignment_writer(
-            infile_bam,
-            chrom,
-            reads_hap,
-            chrom_hp_origin,
-            outfile_bam,
-            args.mapping_quality,
-            args.include_supplementary,
-        )
+    pofo_tagged_cram_file = out + "_PofO_Tagged.cram"
+    with pysam.AlignmentFile(bam_file, "rb") as infile_bam:
+        cramHeader = infile_bam.header.to_dict()
+        if "PG" in cramHeader:
+            cramHeader = cramHeader.pop("PG")
+        with pysam.AlignmentFile(
+            pofo_tagged_cram_file,
+            "wc",
+            template=infile_bam,
+            header=cramHeader,
+            reference_filename=reference,
+        ) as outfile_bam:
+            for chrom in list(bam_choms) + ["*"]:
+                alignment_writer(
+                    infile_bam,
+                    chrom,
+                    reads_hap,
+                    chrom_hp_origin,
+                    outfile_bam,
+                    args.mapping_quality,
+                    args.include_supplementary,
+                )
 
-    outfile_bam.close()
-    infile_bam.close()
-    subprocess.run(
+    run_command(
         "samtools sort -@ {0} {1} -o {1} && samtools index -@ {0} -c {1}"
-        "".format(processes, out + "_PofO_Tagged.cram"),
-        shell=True,
-        check=True,
+        "".format(processes, pofo_tagged_cram_file),
     )
-    subprocess.run("rm {}*".format(out + "_Temp"), shell=True, check=True)
+    run_command("rm {}*".format(out + "_Temp"))
 
     write_scores(out, chrom_hp_origin)
 
