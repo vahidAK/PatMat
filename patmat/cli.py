@@ -103,37 +103,14 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
         raise Exception("It seems that vcf file " "is not index by tabix.")
     vcf_tb = tabix.open(vcf)
 
-    sites_to_ignore = set()
     if args.black_list is not None:
-        if not os.path.isfile(vcf + ".tbi"):
-            raise Exception(
-                "Black list is given but it seems that"
-                " the vcf file is not indexed (file ends with"
-                " .tbi was not found)."
-            )
-        tb_vcf = tabix.open(vcf)
-        black_list_file = os.path.abspath(args.black_list)
-        with openfile(black_list_file) as bl:
-            for line in bl:
-                line = line.rstrip().split("\t")
-                try:
-                    records = tb_vcf.query(line[0], int(line[1]), int(line[2]) + 1)
-                except:
-                    warnings.warn(
-                        "{}:{}-{} region from black list does not exist in the "
-                        "vcf file. Skipping it.".format(line[0], line[1], line[2])
-                    )
-                    records = "NA"
-                if records != "NA":
-                    for record in records:
-                        sites_to_ignore.add((record[0], str(int(record[1]) - 1)))
+        sites_to_ignore = build_sites_to_ignore(vcf, args.black_list)
 
     chroms = get_chroms_from_vcf(vcf)
     bam_choms = getChromsFromBAM(bam_file)
 
     reads_hap = dict()
     re_assignment_vars = dict()
-
     for chrom in sorted(chroms.keys()):
         print("#############  Processing chromosome {}  #############".format(chrom))
         final_dict, strand_phased_vars, phase_block_stat, blocks_dict = (
@@ -369,6 +346,33 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
                 )
             )
         )
+
+
+def build_sites_to_ignore(vcf, black_list):
+    sites_to_ignore = set()
+    if not os.path.isfile(vcf + ".tbi"):
+        raise Exception(
+            "Black list is given but it seems that"
+            " the vcf file is not indexed (file ends with"
+            " .tbi was not found)."
+        )
+    tb_vcf = tabix.open(vcf)
+    black_list_file = os.path.abspath(black_list)
+    with openfile(black_list_file) as bl:
+        for line in bl:
+            line = line.rstrip().split("\t")
+            try:
+                records = tb_vcf.query(line[0], int(line[1]), int(line[2]) + 1)
+            except:
+                warnings.warn(
+                    "{}:{}-{} region from black list does not exist in the "
+                    "vcf file. Skipping it.".format(line[0], line[1], line[2])
+                )
+                records = "NA"
+            if records != "NA":
+                for record in records:
+                    sites_to_ignore.add((record[0], str(int(record[1]) - 1)))
+    return sites_to_ignore
 
 
 def _parse_arguments(raw_arguments: typing.List[str]) -> argparse.Namespace:
