@@ -116,8 +116,8 @@ def determine_reassignment(
         )
 
     # Default - no reassignment
-    ## CHECK: this version does replace "1/0" with "0/1", so it gets slightly different results.
-    ## do we NEED to replace? version below does it.
+    ## CHECK: the original version replaces "1/0" with "0/1", so we get slightly different results below.
+    ## do we NEED to replace? other version below does it to keep similar results.
     # else:
     #     hp_replacement = "2/1" if hp1_fmt == "1|2" else "1/0"
     #     return (

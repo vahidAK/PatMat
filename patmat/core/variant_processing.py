@@ -251,7 +251,7 @@ def get_variant_info(
     return read_var_list
 
 
-def per_read_variant(
+def write_per_read_variant_file(
     vcf_dict,
     bam_file,
     chunk,

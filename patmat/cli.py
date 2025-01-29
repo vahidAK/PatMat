@@ -38,7 +38,6 @@ from patmat.core.allele_processing import process_variant
 from patmat.core.haplotype import (
     add_reads_hap,
     build_read_dict_HP_temp,
-    build_reads_hap_temp,
     build_variant_dict_HP,
     update_per_var_info,
 )
@@ -50,7 +49,10 @@ from patmat.core.phase_processing import (
 )
 from patmat.core.subprocess_calls import bgzip_and_tabix, run_command
 from patmat.core.variant_assignment import process_variant_assignments
-from patmat.core.variant_processing import per_read_variant, process_strand_seq_vcf
+from patmat.core.variant_processing import (
+    process_strand_seq_vcf,
+    write_per_read_variant_file,
+)
 from patmat.io.bam import getChromsFromBAM
 from patmat.io.file_utils import openfile
 from patmat.io.vcf import get_chroms_from_vcf
@@ -83,18 +85,16 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
     The main function that uses user's inputs and other functions to phase and
     assign PofO to variants and methylation.
     """
-    hapRatio = args.hapratio
-    minvariant = args.min_variant
+    hap_ratio = args.hapratio
+    min_variant = args.min_variant
     min_cg = args.min_cg
     bam_file = os.path.abspath(args.bam)
     processes = args.processes
-    dss_processes = args.dss_processes
-    if dss_processes is None:
-        dss_processes = processes
+    dss_processes = args.dss_processes or processes
     cpg_difference = args.cpg_difference
     chunk = args.chunk_size
     min_read_reassignment = args.min_read_number
-    out = os.path.abspath(args.output)
+    out_prefix = os.path.abspath(args.output)
     reference = os.path.abspath(args.reference)
     vcf = os.path.abspath(args.vcf)
     known_dmr = os.path.abspath(args.known_dmr)
@@ -121,8 +121,8 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
             warnings.warn(f"No phased strand-seq variant for {chrom}, skipping it.")
             continue
 
-        read_info_file = out + "_temp_VarReadinfo_" + chrom + ".tsv"
-        per_read_variant(
+        read_info_file = out_prefix + "_temp_VarReadinfo_" + chrom + ".tsv"
+        write_per_read_variant_file(
             final_dict,
             bam_file,
             chunk,
@@ -136,24 +136,16 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
             warnings.warn("No phased read for {}." " Skipping it.".format(chrom))
             continue
 
-        read_dict_HP_temp_reass = defaultdict(lambda: defaultdict(int))
-        per_var_info = defaultdict(lambda: defaultdict(int))
-        reads_hap_temp = build_reads_hap_temp(hapRatio, minvariant, read_dict_HP_temp)
-
-        update_per_var_info(
-            hapRatio,
-            minvariant,
+        per_var_info, read_dict_HP_temp_reass = update_per_var_info(
+            hap_ratio,
+            min_variant,
             read_info_file,
             read_dict_HP_temp,
-            read_dict_HP_temp_reass,
-            per_var_info,
-            reads_hap_temp,
         )
 
-        reads_hap_temp.clear()
-        read_dict_HP_temp.clear()
-        add_reads_hap(hapRatio, minvariant, reads_hap, read_dict_HP_temp_reass)
-        read_dict_HP_temp_reass.clear()
+        # read_dict_HP_temp.clear()
+        add_reads_hap(hap_ratio, min_variant, reads_hap, read_dict_HP_temp_reass)
+        # read_dict_HP_temp_reass.clear()
 
         variant_dict_HP = build_variant_dict_HP(reads_hap, read_info_file, per_var_info)
 
@@ -185,10 +177,10 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
 
     per_var_info.clear()
 
-    temp_DMR_file = out + "_temp_knownDMR.tsv"
+    temp_DMR_file = out_prefix + "_temp_knownDMR.tsv"
     write_merged_dmr_regions(known_dmr, temp_DMR_file)
 
-    temp_at_DMRs_file = out + "_TempAtDMRs.sam.gz"
+    temp_at_DMRs_file = out_prefix + "_TempAtDMRs.sam.gz"
     run_command(
         "samtools view -h --remove-tag HP,PS -@ {} "
         "--regions-file {} {}"
@@ -196,9 +188,9 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
             processes, temp_DMR_file, bam_file, temp_at_DMRs_file
         )
     )
-    run_command("rm {}*".format(out + "_temp"))
+    run_command("rm {}*".format(out_prefix + "_temp"))
 
-    temp_non_pofo_dmr_file = out + "_Temp-NonPofO_dmr.sam.gz"
+    temp_non_pofo_dmr_file = out_prefix + "_Temp-NonPofO_dmr.sam.gz"
     write_sam_phase(
         temp_at_DMRs_file,
         temp_non_pofo_dmr_file,
@@ -207,17 +199,21 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
         args.include_supplementary,
     )
 
-    temp_non_fomo_dmr_bam_file = out + "_Temp-NonPofO_dmr.bam"
+    temp_non_fomo_dmr_bam_file = out_prefix + "_Temp-NonPofO_dmr.bam"
     run_command(
         "gunzip -c {0} | samtools sort -@ {1} -o {2} && "
         "samtools index -@ {1} {2}".format(
             temp_non_pofo_dmr_file, processes, temp_non_fomo_dmr_bam_file
         ),
     )
-    out_freqhp1 = out + "_Temp_NonPofO_HP1-HP2_MethylationHP1.tsv"
-    out_freqhp2 = out + "_Temp_NonPofO_HP1-HP2_MethylationHP2.tsv"
+    out_freqhp1 = out_prefix + "_Temp_NonPofO_HP1-HP2_MethylationHP1.tsv"
+    out_freqhp2 = out_prefix + "_Temp_NonPofO_HP1-HP2_MethylationHP2.tsv"
     out_freq_methbam(
-        out, processes, reference, os.path.abspath(args.pb_cpg_tools_model), args.pacbio
+        out_prefix,
+        processes,
+        reference,
+        os.path.abspath(args.pb_cpg_tools_model),
+        args.pacbio,
     )
 
     run_command(
@@ -226,7 +222,7 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
             os.path.join(os.path.dirname(os.path.realpath(__file__)), "DMA_UsingDSS.R"),
             out_freqhp1,
             out_freqhp2,
-            out + "_Temp",
+            out_prefix + "_Temp",
             args.equal_disp,
             args.smoothing_flag,
             args.smoothing_span,
@@ -235,15 +231,15 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
             dss_processes,
         ),
     )
-    bgzip_and_tabix(out + "_Temp_DMLtest.tsv")
-    bgzip_and_tabix(out + "_Temp_callDML.tsv")
+    bgzip_and_tabix(out_prefix + "_Temp_DMLtest.tsv")
+    bgzip_and_tabix(out_prefix + "_Temp_callDML.tsv")
 
-    chrom_hp_origin_count = PofO_dmr(known_dmr, out, min_cg, cpg_difference)
+    chrom_hp_origin_count = PofO_dmr(known_dmr, out_prefix, min_cg, cpg_difference)
     chrom_hp_origin = pofo_final_dict(chrom_hp_origin_count, args.min_pofo_score)
 
     print("################## Assigning PofO to Variants ##################")
     info_out_dict = process_variant_assignments(
-        vcf, out, re_assignment_vars, chrom_hp_origin
+        vcf, out_prefix, re_assignment_vars, chrom_hp_origin
     )
 
     if args.sv_vcf is not None:
@@ -252,16 +248,16 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
         for sv_file in all_sv_files:
             pofo_sv_write(
                 sv_file,
-                out,
+                out_prefix,
                 chrom_hp_origin,
                 reads_hap,
                 min_read_reassignment,
                 args.include_all_variants,
-                args.hapratio,
+                hap_ratio,
             )
 
     print("############ Preparing PofO Tagged Alignment File #############")
-    pofo_tagged_cram_file = out + "_PofO_Tagged.cram"
+    pofo_tagged_cram_file = out_prefix + "_PofO_Tagged.cram"
     with pysam.AlignmentFile(bam_file, "rb") as infile_bam:
         cramHeader = infile_bam.header.to_dict()
         if "PG" in cramHeader:
@@ -288,9 +284,9 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
         "samtools sort -@ {0} {1} -o {1} && samtools index -@ {0} -c {1}"
         "".format(processes, pofo_tagged_cram_file),
     )
-    run_command("rm {}*".format(out + "_Temp"))
+    run_command("rm {}*".format(out_prefix + "_Temp"))
 
-    write_scores(out, chrom_hp_origin)
+    write_scores(out_prefix, chrom_hp_origin)
 
     if not args.include_all_variants:
         print(

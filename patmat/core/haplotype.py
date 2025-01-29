@@ -55,14 +55,16 @@ def add_reads_hap(hapRatio, minvariant, reads_hap, read_dict_HP_temp_reass):
 
 
 def update_per_var_info(
-    hapRatio,
-    minvariant,
+    hap_ratio,
+    min_variant,
     read_info_file,
     read_dict_HP_temp,
-    read_dict_HP_temp_reass,
-    per_var_info,
-    reads_hap_temp,
 ):
+
+    reads_hap_temp = build_reads_hap_temp(hap_ratio, min_variant, read_dict_HP_temp)
+
+    per_var_info = defaultdict(lambda: defaultdict(int))
+    read_dict_HP_temp_reass = defaultdict(lambda: defaultdict(int))
     with open(read_info_file) as VarReadInfo:
         for line in VarReadInfo:
             line = line.rstrip().split("\t")
@@ -91,16 +93,18 @@ def update_per_var_info(
                 read_key = (line[0], read_info[0])
                 if (
                     hp1_count > hp2_count
-                    and hp1_count / (hp1_count + hp2_count) >= hapRatio
-                    and hp1_count >= minvariant
+                    and hp1_count / (hp1_count + hp2_count) >= hap_ratio
+                    and hp1_count >= min_variant
                 ):
                     read_dict_HP_temp_reass[read_key]["1"] += 1
                 elif (
                     hp2_count > hp1_count
-                    and hp2_count / (hp1_count + hp2_count) >= hapRatio
-                    and hp2_count >= minvariant
+                    and hp2_count / (hp1_count + hp2_count) >= hap_ratio
+                    and hp2_count >= min_variant
                 ):
                     read_dict_HP_temp_reass[read_key]["2"] += 1
+
+    return per_var_info, read_dict_HP_temp_reass
 
 
 def build_reads_hap_temp(hapRatio, minvariant, read_dict_HP_temp):
