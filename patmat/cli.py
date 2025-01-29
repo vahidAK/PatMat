@@ -113,8 +113,16 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
     re_assignment_vars = dict()
     for chrom in sorted(chroms.keys()):
         print("#############  Processing chromosome {}  #############".format(chrom))
+
         final_dict, strand_phased_vars, phase_block_stat, blocks_dict = (
-            process_strand_seq_vcf(args, vcf, chrom)
+            process_strand_seq_vcf(
+                vcf,
+                chrom,
+                args.strand_vcf,
+                args.phased,
+                args.include_all_variants,
+                args.ignore_blocks_single,
+            )
         )
 
         if strand_phased_vars == 0:
@@ -143,9 +151,7 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
             read_dict_HP_temp,
         )
 
-        # read_dict_HP_temp.clear()
         add_reads_hap(hap_ratio, min_variant, reads_hap, read_dict_HP_temp_reass)
-        # read_dict_HP_temp_reass.clear()
 
         variant_dict_HP = build_variant_dict_HP(reads_hap, read_info_file, per_var_info)
 

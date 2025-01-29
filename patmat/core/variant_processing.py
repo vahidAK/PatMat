@@ -13,7 +13,9 @@ from patmat.io.bam import openalignment
 from patmat.io.file_utils import openfile
 
 
-def process_strand_seq_vcf(args, vcf, chrom):
+def process_strand_seq_vcf(
+    vcf, chrom, strand_vcf, phased, include_all_variants, ignore_blocks_single
+):
     """Process strand-seq VCF file and return phasing information.
 
     Args:
@@ -28,14 +30,14 @@ def process_strand_seq_vcf(args, vcf, chrom):
     Raises:
         Exception: If no strand-seq VCF is provided
     """
-    if args.strand_vcf is None:
+    if strand_vcf is None:
         raise Exception("No strand-seq VCF is given.")
 
-    vcf_strand = os.path.abspath(args.strand_vcf)
+    vcf_strand = os.path.abspath(strand_vcf)
 
-    if not args.phased:
+    if not phased:
         final_dict, strand_phased_vars = strand_vcf2dict_phased(
-            vcf_strand, vcf, args.include_all_variants, chrom
+            vcf_strand, vcf, include_all_variants, chrom
         )
         return final_dict, strand_phased_vars, None, None
 
@@ -46,8 +48,8 @@ def process_strand_seq_vcf(args, vcf, chrom):
             vcf_strand,
             vcf,
             chrom,
-            args.include_all_variants,
-            args.ignore_blocks_single,
+            include_all_variants,
+            ignore_blocks_single,
         )
         return final_dict, strand_phased_vars, phase_block_stat, blocks_dict
 
