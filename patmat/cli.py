@@ -157,22 +157,18 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
 
         records_chrom = vcf_tb.query(chrom, 0, chroms[chrom] + 1)
         for line in records_chrom:
-            new_ps = line[8].split(":")
-            new_hp = line[9].split(":")
-            if "PS" in new_ps:
-                ps_index = new_ps.index("PS")
-                new_ps.pop(ps_index)
-                new_hp.pop(ps_index)
+            format_values = dict(zip(line[8].split(":"), line[9].split(":")))
+            if "PS" in format_values:
+                del format_values["PS"]
 
             if not args.include_all_variants and line[6] not in ["PASS", "."]:
                 continue
-            if line[9].startswith(
+            if format_values["GT"].startswith(
                 ("0/1", "1/0", "0|1", "1|0", "1/2", "1|2", "2/1", "2|1")
             ):
                 re_assignment_vars[tuple(line[0:2])] = process_variant(
                     line,
-                    new_ps,
-                    new_hp,
+                    format_values,
                     variant_dict_HP,
                     per_var_info,
                     min_read_reassignment,

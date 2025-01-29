@@ -54,25 +54,19 @@ def build_additional_info(
 
 
 def determine_reassignment(
-    line,
     counts,
     ratios,
-    new_ps,
-    new_hp,
+    format_values,
     min_read_reassignment,
-    additional_info,
     reassignment_format,
 ):
     """Determine variant reassignment based on allele stats.
 
     Args:
-        line (list): VCF line fields
         counts (dict): Variant allele counts
         ratios (dict): Variant allele ratios
-        new_ps (list): Updated PS format fields
-        new_hp (list): Updated HP format fields
+        format_values (dict): Updated format fields
         min_read_reassignment (int): Minimum reads for reassignment
-        additional_info (list): Additional variant info
         reassignment_format (tuple): Format strings for reassignment (hp1, hp2, label1, label2)
     """
     hp1_fmt, hp2_fmt, label1, label2 = reassignment_format
@@ -89,12 +83,8 @@ def determine_reassignment(
         and ratios["hp2_ref_ratio"] >= ratios["hp2_alt_ratio"]
         and counts["hp2_count_ref"] >= min_read_reassignment
     ):
-        return (
-            line[0:8]
-            + [":".join(new_ps) + ":PS"]
-            + [f"{hp1_fmt}:" + ":".join(new_hp[1:]) + f":{label1}"]
-            + additional_info
-        )
+        format_values["GT"] = hp1_fmt
+        format_values["PS"] = label1
 
     # Check conditions for HP1|HP2 reassignment
     elif (
@@ -108,34 +98,17 @@ def determine_reassignment(
         and ratios["hp1_ref_ratio"] >= ratios["hp1_alt_ratio"]
         and counts["hp1_count_ref"] >= min_read_reassignment
     ):
-        return (
-            line[0:8]
-            + [":".join(new_ps) + ":PS"]
-            + [f"{hp2_fmt}:" + ":".join(new_hp[1:]) + f":{label2}"]
-            + additional_info
-        )
-
-    # Default - no reassignment
-    ## CHECK: the original version replaces "1/0" with "0/1", so we get slightly different results below.
-    ## do we NEED to replace? other version below does it to keep similar results.
-    # else:
-    #     hp_replacement = "2/1" if hp1_fmt == "1|2" else "1/0"
-    #     return (
-    #         line[0:8] +
-    #         [":".join(new_ps)] +
-    #         [":".join(new_hp).replace("|", "/").replace(hp_replacement, hp1_fmt.replace("|", "/"))] +
-    #         additional_info
-    #     )
+        format_values["GT"] = hp2_fmt
+        format_values["PS"] = label2
 
     # Default - no reassignment
     else:
-        new_hp_str = ":".join(new_hp).replace("|", "/")
-        if hp1_fmt == "1|2":
-            new_hp_str = new_hp_str.replace("2/1", "1/2")
-        else:
-            new_hp_str = new_hp_str.replace("1/0", "0/1")
-
-        return line[0:8] + [":".join(new_ps)] + [new_hp_str] + additional_info
+        format_values["GT"] = (
+            format_values["GT"]
+            .replace("|", "/")
+            .replace("2/1", "1/2")
+            .replace("1/0", "0/1")
+        )
 
 
 def calculate_allele_stats(
@@ -199,8 +172,7 @@ def calculate_coverage_ratios(counts, per_var_info, var_key, ref_allele, alt_all
 
 def process_variant(
     line,
-    new_ps,
-    new_hp,
+    format_values,
     variant_dict_HP,
     per_var_info,
     min_read_reassignment,
@@ -211,7 +183,7 @@ def process_variant(
     var_key = tuple(line[0:2])
 
     # Handle biallelic vs multiallelic
-    if new_hp[0] in ("0/1", "1/0", "0|1", "1|0"):
+    if format_values["GT"] in ("0/1", "1/0", "0|1", "1|0"):
         ref_allele = line[3].upper()
         alt_allele = line[4].upper()
         reassignment_format = ("1|0", "0|1", "HP2|HP1", "HP1|HP2")
@@ -228,13 +200,18 @@ def process_variant(
         counts, ratios, line, phase_block_stat, blocks_dict
     )
 
-    return determine_reassignment(
-        line,
+    determine_reassignment(
         counts,
         ratios,
-        new_ps,
-        new_hp,
+        format_values,
         min_read_reassignment,
-        additional_info,
         reassignment_format,
+    )
+
+    # Return variant columns
+    return (
+        line[0:8]
+        + [":".join(format_values.keys())]
+        + [":".join(format_values.values())]
+        + additional_info
     )
