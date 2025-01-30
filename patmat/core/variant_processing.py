@@ -3,7 +3,6 @@ import os
 import warnings
 from collections import defaultdict
 from itertools import repeat
-import datetime
 
 import pysam
 import tabix
@@ -55,183 +54,184 @@ def process_strand_seq_vcf(
         return final_dict, strand_phased_vars, phase_block_stat, blocks_dict
 
 
+from collections import defaultdict
+from typing import DefaultDict, Dict, List, Tuple
+
+import pysam
+
+
+def process_read_base(
+    pileupread: pysam.PileupRead, ref: str, alt: str, query_position: int
+) -> str:
+    """Helper function to process and return read base for single alternative."""
+    if len(ref) == 1 and len(alt) == 1:  # mismatch
+        return pileupread.alignment.query_sequence[query_position].upper()
+
+    elif len(ref) > 1 and len(alt) == 1:  # deletion
+        if pileupread.indel < 0 and abs(pileupread.indel) == len(ref) - 1:
+            return pileupread.alignment.query_sequence[query_position].upper()
+        elif pileupread.indel == 0:
+            return pileupread.alignment.query_sequence[
+                query_position : query_position + len(ref)
+            ].upper()
+
+    elif len(ref) == 1 and len(alt) > 1:  # insertion
+        if pileupread.indel > 0 and pileupread.indel == len(alt) - 1:
+            return pileupread.alignment.query_sequence[
+                query_position : query_position + len(alt)
+            ].upper()
+        elif pileupread.indel == 0:
+            return pileupread.alignment.query_sequence[query_position].upper()
+
+    return None
+
+
+def process_complex_read_base(
+    pileupread: pysam.PileupRead, ref: str, alt: str, query_position: int
+) -> str:
+    """Helper function to process and return read base for complex variants."""
+    if len(ref) == 1 and len(alt) == 1:  # mismatch
+        return pileupread.alignment.query_sequence[query_position].upper()
+
+    elif len(ref) > 1 and len(ref) > len(alt):  # deletion
+        if pileupread.indel < 0 and abs(pileupread.indel) == len(ref) - len(alt):
+            return pileupread.alignment.query_sequence[
+                query_position : query_position + len(ref) - abs(pileupread.indel)
+            ].upper()
+        elif pileupread.indel == 0:
+            return pileupread.alignment.query_sequence[
+                query_position : query_position + len(ref)
+            ].upper()
+
+    elif len(alt) > 1 and len(alt) > len(ref):  # insertion
+        if pileupread.indel > 0 and pileupread.indel == len(alt) - len(ref):
+            return pileupread.alignment.query_sequence[
+                query_position : query_position + len(alt)
+            ].upper()
+        elif pileupread.indel == 0:
+            return pileupread.alignment.query_sequence[
+                query_position : query_position + len(ref)
+            ].upper()
+
+    return None
+
+
+def process_simple_variant(
+    pileupread: pysam.PileupRead,
+    ref: str,
+    alt: str,
+    gt: str,
+    chrom: str,
+    position: int,
+    ext_key: Tuple[str, str],
+) -> Tuple[str, str, str]:
+    """Process a simple variant (not 1/2) and return base, haplotype, and key."""
+    read_base = process_read_base(pileupread, ref, alt, pileupread.query_position)
+    if read_base is None:
+        return "noninfo", "NA", (chrom, position + 1, "noninfo")
+
+    hapt = "NA"
+    if read_base == ref:
+        hapt = "2" if gt == "1|0" else "1" if gt == "0|1" else "NA"
+    elif read_base == alt:
+        hapt = "1" if gt == "1|0" else "2" if gt == "0|1" else "NA"
+    else:
+        read_base = "noninfo"
+
+    return read_base, hapt, (chrom, position + 1, read_base)
+
+
+def process_complex_variant(
+    pileupread: pysam.PileupRead,
+    ref: str,
+    alt: Tuple[str, str],
+    chrom: str,
+    position: int,
+    ext_key: Tuple[str, str],
+) -> Tuple[str, str, str]:
+    """Process a complex variant (1/2) and return base, haplotype, and key."""
+    alt1, alt2 = alt
+    if len(ref) > 1 and len(alt1) > 1 and len(alt2) > 1:
+        return "noninfo", "NA", (chrom, position + 1, "noninfo")
+
+    read_base1 = process_complex_read_base(
+        pileupread, ref, alt1, pileupread.query_position
+    )
+    read_base2 = process_complex_read_base(
+        pileupread, ref, alt2, pileupread.query_position
+    )
+
+    if read_base1 and (read_base1 == alt1 or read_base1 == alt2):
+        return read_base1, "NA", (chrom, position + 1, read_base1)
+    elif read_base2 and (read_base2 == alt1 or read_base2 == alt2):
+        return read_base2, "NA", (chrom, position + 1, read_base2)
+    else:
+        return "noninfo", "NA", (chrom, position + 1, "noninfo")
+
+
 def get_variant_info(
-    feed_list,
-    alignment_file,
-    chrom,
-    mapping_quality,
-    include_supplementary,
-):
+    feed_list: List[Tuple],
+    alignment_file: str,
+    chrom: str,
+    mapping_quality: int,
+    include_supplementary: bool,
+) -> DefaultDict[Tuple, List[str]]:
     """
-    This function maps each read to heterozygous variants and returns a list of
-    haplotype 1, haplotype 2, and unphased variants mapped to each read.
+    Maps each read to heterozygous variants and returns a list of haplotype 1,
+    haplotype 2, and unphased variants mapped to each read.
+
+    Args:
+        feed_list: List of variant information tuples
+        alignment_file: Path to the alignment file
+        chrom: Chromosome name
+        mapping_quality: Minimum mapping quality threshold
+        include_supplementary: Whether to include supplementary alignments
+
+    Returns:
+        Dictionary mapping variant information to list of read information
     """
     read_var_list = defaultdict(list)
     samfile = pysam.AlignmentFile(alignment_file, "rb")
 
     varinfo_dict = {varinfo[1]: varinfo for varinfo in feed_list}
-    # lists are sorted, so get min and max position to fetch pileup:
-    min_pos = feed_list[0][1]
-    max_pos = feed_list[-1][1]
-    sam_pileup = samfile.pileup(chrom, min_pos, max_pos + 1, truncate=True)
+    min_pos, max_pos = feed_list[0][1], feed_list[-1][1]
 
-    for pileupcolumn in sam_pileup:
-        # Check if this column is present in our variant list:
+    for pileupcolumn in samfile.pileup(chrom, min_pos, max_pos + 1, truncate=True):
         if pileupcolumn.pos not in varinfo_dict:
             continue
+
         pileupcolumn.set_min_base_quality(0)
         gt, position, ref, alt = varinfo_dict[pileupcolumn.pos]
+
         for pileupread in pileupcolumn.pileups:
-            read_mq = pileupread.alignment.mapping_quality
-            if read_mq < mapping_quality:
+            # Filter reads based on quality and supplementary status
+            if pileupread.alignment.mapping_quality < mapping_quality:
                 continue
             if pileupread.alignment.is_supplementary and not include_supplementary:
                 continue
-            read_id = pileupread.alignment.query_name
-            flag = pileupread.alignment.flag
-            ext_key = (read_id, str(flag))  # ,str(read_mq),str(read_start+1))
-            read_base = None
-            read_base1 = None
-            read_base2 = None
-            hapt = "NA"
+
+            # Create extended key for read identification
+            ext_key = (pileupread.alignment.query_name, str(pileupread.alignment.flag))
+
+            # Handle deletions and reference skips
             if pileupread.is_del or pileupread.is_refskip:
                 read_var_list[(chrom, position + 1, "noninfo")].append(
-                    ":".join((*ext_key, hapt))
+                    ":".join((*ext_key, "NA"))
                 )
                 continue
-            if gt != "1/2":
-                if len(ref) == 1 and len(alt) == 1:  # dealing with mismatches
-                    read_base = pileupread.alignment.query_sequence[
-                        pileupread.query_position
-                    ].upper()
-                elif len(ref) > 1 and len(alt) == 1:  # dealing with deletions
-                    if pileupread.indel < 0 and abs(pileupread.indel) == len(ref) - 1:
-                        read_base = pileupread.alignment.query_sequence[
-                            pileupread.query_position
-                        ].upper()
-                    elif pileupread.indel == 0:
-                        read_base = pileupread.alignment.query_sequence[
-                            pileupread.query_position : pileupread.query_position
-                            + len(ref)
-                        ].upper()
-                    else:
-                        read_var_list[(chrom, position + 1, "noninfo")].append(
-                            ":".join((*ext_key, hapt))
-                        )
-                        continue
-                elif len(ref) == 1 and len(alt) > 1:  # dealing with insertions
-                    if pileupread.indel > 0 and pileupread.indel == len(alt) - 1:
-                        read_base = pileupread.alignment.query_sequence[
-                            pileupread.query_position : pileupread.query_position
-                            + len(alt)
-                        ].upper()
-                    elif pileupread.indel == 0:
-                        read_base = pileupread.alignment.query_sequence[
-                            pileupread.query_position
-                        ].upper()
-                    else:
-                        read_var_list[(chrom, position + 1, "noninfo")].append(
-                            ":".join((*ext_key, hapt))
-                        )
-                        continue
 
-                if read_base == ref:
-                    if gt == "1|0":
-                        hapt = "2"
-                    elif gt == "0|1":
-                        hapt = "1"
-                elif read_base == alt:
-                    if gt == "1|0":
-                        hapt = "1"
-                    elif gt == "0|1":
-                        hapt = "2"
-                else:
-                    read_base = "noninfo"
-                read_var_list[(chrom, position + 1, read_base)].append(
-                    ":".join((*ext_key, hapt))
+            # Process variant based on genotype
+            if gt != "1/2":
+                read_base, hapt, key = process_simple_variant(
+                    pileupread, ref, alt, gt, chrom, position, ext_key
+                )
+            else:
+                read_base, hapt, key = process_complex_variant(
+                    pileupread, ref, alt, chrom, position, ext_key
                 )
 
-            else:
-                alt1, alt2 = alt
-                if len(ref) > 1 and len(alt1) > 1 and len(alt2) > 1:
-                    read_var_list[(chrom, position + 1, "noninfo")].append(
-                        ":".join((*ext_key, hapt))
-                    )
-                    continue
-                if len(ref) == 1 and len(alt1) == 1:  # dealing with mismatches
-                    read_base1 = pileupread.alignment.query_sequence[
-                        pileupread.query_position
-                    ].upper()
-                elif len(ref) > 1 and len(ref) > len(alt1):  # dealing with deletions
-                    if pileupread.indel < 0 and abs(pileupread.indel) == len(ref) - len(
-                        alt1
-                    ):
-                        read_base1 = pileupread.alignment.query_sequence[
-                            pileupread.query_position : pileupread.query_position
-                            + len(ref)
-                            - abs(pileupread.indel)
-                        ].upper()
-                    elif pileupread.indel == 0:
-                        read_base1 = pileupread.alignment.query_sequence[
-                            pileupread.query_position : pileupread.query_position
-                            + len(ref)
-                        ].upper()
-                elif len(alt1) > 1 and len(alt1) > len(ref):  # dealing with insertions
-                    if pileupread.indel > 0 and pileupread.indel == len(alt1) - len(
-                        ref
-                    ):
-                        read_base1 = pileupread.alignment.query_sequence[
-                            pileupread.query_position : pileupread.query_position
-                            + len(alt1)
-                        ].upper()
-                    elif pileupread.indel == 0:
-                        read_base1 = pileupread.alignment.query_sequence[
-                            pileupread.query_position : pileupread.query_position
-                            + len(ref)
-                        ].upper()
-                if len(ref) == 1 and len(alt2) == 1:  # dealing with mismatches
-                    read_base2 = pileupread.alignment.query_sequence[
-                        pileupread.query_position
-                    ].upper()
-                elif len(ref) > 1 and len(ref) > len(alt2):  # dealing with deletions
-                    if pileupread.indel < 0 and abs(pileupread.indel) == len(ref) - len(
-                        alt2
-                    ):
-                        read_base2 = pileupread.alignment.query_sequence[
-                            pileupread.query_position : pileupread.query_position
-                            + len(ref)
-                            - abs(pileupread.indel)
-                        ].upper()
-                    elif pileupread.indel == 0:
-                        read_base2 = pileupread.alignment.query_sequence[
-                            pileupread.query_position : pileupread.query_position
-                            + len(ref)
-                        ].upper()
-                elif len(alt2) > 1 and len(alt2) > len(ref):  # dealing with insertions
-                    if pileupread.indel > 0 and pileupread.indel == len(alt2) - len(
-                        ref
-                    ):
-                        read_base2 = pileupread.alignment.query_sequence[
-                            pileupread.query_position : pileupread.query_position
-                            + len(alt2)
-                        ].upper()
-                    elif pileupread.indel == 0:
-                        read_base2 = pileupread.alignment.query_sequence[
-                            pileupread.query_position : pileupread.query_position
-                            + len(ref)
-                        ].upper()
-                if read_base1 == alt1 or read_base1 == alt2:
-                    read_var_list[(chrom, position + 1, read_base1)].append(
-                        ":".join((*ext_key, hapt))
-                    )
-                elif read_base2 == alt1 or read_base2 == alt2:
-                    read_var_list[(chrom, position + 1, read_base2)].append(
-                        ":".join((*ext_key, hapt))
-                    )
-                else:
-                    read_var_list[(chrom, position + 1, "noninfo")].append(
-                        ":".join((*ext_key, hapt))
-                    )
+            read_var_list[key].append(":".join((*ext_key, hapt)))
+
     return read_var_list
 
 

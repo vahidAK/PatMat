@@ -1,18 +1,31 @@
 from collections import defaultdict
+from typing import Dict, List, Optional, Tuple, Union
 
 
-## ALLELE STATS:
 def build_additional_info(
-    counts, ratios, line, phase_block_stat=None, blocks_dict=None
-):
+    counts: Dict[str, int],
+    ratios: Dict[str, float],
+    line: List[str],
+    phase_block_stat: Optional[Dict[Tuple[str, str, str], int]] = None,
+    blocks_dict: Optional[Dict[Tuple[str, str], Tuple[str, str]]] = None,
+) -> List[str]:
     """Build additional variant info for output.
 
     Args:
-        counts (dict): Variant allele counts
-        ratios (dict): Variant allele ratios
-        line (list): VCF line fields
-        phase_block_stat (dict, optional): Phase block statistics
-        blocks_dict (dict, optional): Block information
+        counts: Dictionary containing allele counts with keys:
+            all_cov, hp1_cov, hp2_cov, hp1_count_ref, hp2_count_ref,
+            hp1_count_alt, hp2_count_alt
+        ratios: Dictionary containing allele ratios with keys:
+            hp1_frac, hp2_frac, hp1_frac_ref, hp2_frac_ref, hp1_frac_alt,
+            hp2_frac_alt, hp1_count_ave_ref, hp2_count_ave_ref,
+            hp1_count_ave_alt, hp2_count_ave_alt
+        line: VCF line fields
+        phase_block_stat: Optional dictionary mapping (chrom, block_id, stat_type)
+            to phase block statistics
+        blocks_dict: Optional dictionary mapping (chrom, block_id) to block boundaries
+
+    Returns:
+        List of strings containing the formatted additional variant information
     """
     base_info = [
         counts["all_cov"],
@@ -54,20 +67,23 @@ def build_additional_info(
 
 
 def determine_reassignment(
-    counts,
-    ratios,
-    format_values,
-    min_read_reassignment,
-    reassignment_format,
-):
-    """Determine variant reassignment based on allele stats.
+    counts: Dict[str, int],
+    ratios: Dict[str, float],
+    format_values: Dict[str, str],
+    min_read_reassignment: int,
+    reassignment_format: Tuple[str, str, str, str],
+) -> None:
+    """Determine variant reassignment based on allele stats and update format values.
 
     Args:
-        counts (dict): Variant allele counts
-        ratios (dict): Variant allele ratios
-        format_values (dict): Updated format fields
-        min_read_reassignment (int): Minimum reads for reassignment
-        reassignment_format (tuple): Format strings for reassignment (hp1, hp2, label1, label2)
+        counts: Dictionary containing allele counts with keys:
+            hp1_count_alt, hp2_count_alt, hp1_count_ref, hp2_count_ref
+        ratios: Dictionary containing allele ratios with keys:
+            hp1_alt_ratio, hp2_alt_ratio, hp1_ref_ratio, hp2_ref_ratio
+        format_values: Dictionary containing format field values to be updated
+        min_read_reassignment: Minimum number of reads required for reassignment
+        reassignment_format: Tuple containing (hp1_format, hp2_format, label1, label2)
+            for formatting reassigned variants
     """
     hp1_fmt, hp2_fmt, label1, label2 = reassignment_format
 
@@ -112,9 +128,26 @@ def determine_reassignment(
 
 
 def calculate_allele_stats(
-    variant_dict_HP, per_var_info, var_key, ref_allele, alt_allele
-):
-    """Calculate allele counts and ratios for a variant."""
+    variant_dict_HP: Dict[Tuple[str, str], Dict[Tuple[str, int], int]],
+    per_var_info: Dict[
+        Tuple[str, str], Dict[Union[str, Tuple[str, str]], Union[int, float]]
+    ],
+    var_key: Tuple[str, str],
+    ref_allele: str,
+    alt_allele: str,
+) -> Tuple[Dict[str, int], Dict[str, float]]:
+    """Calculate allele counts and ratios for a variant.
+
+    Args:
+        variant_dict_HP: Dictionary mapping (chrom, pos) to allele counts per haplotype
+        per_var_info: Dictionary mapping (chrom, pos) to variant statistics
+        var_key: Tuple of (chromosome, position)
+        ref_allele: Reference allele string
+        alt_allele: Alternate allele string
+
+    Returns:
+        Tuple of (counts_dict, ratios_dict) containing allele statistics
+    """
     counts = {
         "hp1_count_alt": variant_dict_HP[var_key][(alt_allele, 1)],
         "hp2_count_alt": variant_dict_HP[var_key][(alt_allele, 2)],
@@ -131,8 +164,27 @@ def calculate_allele_stats(
     return counts, ratios
 
 
-def calculate_coverage_ratios(counts, per_var_info, var_key, ref_allele, alt_allele):
-    """Calculate coverage ratios for alleles."""
+def calculate_coverage_ratios(
+    counts: Dict[str, int],
+    per_var_info: Dict[
+        Tuple[str, str], Dict[Union[str, Tuple[str, str]], Union[int, float]]
+    ],
+    var_key: Tuple[str, str],
+    ref_allele: str,
+    alt_allele: str,
+) -> Dict[str, float]:
+    """Calculate coverage ratios for alleles.
+
+    Args:
+        counts: Dictionary containing allele counts
+        per_var_info: Dictionary mapping (chrom, pos) to variant statistics
+        var_key: Tuple of (chromosome, position)
+        ref_allele: Reference allele string
+        alt_allele: Alternate allele string
+
+    Returns:
+        Dictionary containing calculated coverage ratios and averages
+    """
     ratios = defaultdict(int)  # Default all ratios to 0
 
     if counts["all_cov"] > 0:
