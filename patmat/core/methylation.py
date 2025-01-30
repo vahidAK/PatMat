@@ -1,7 +1,7 @@
 import os
-import subprocess
 import warnings
 from collections import defaultdict
+from typing import DefaultDict, Dict, List, TextIO, Tuple, Union
 
 import tabix
 
@@ -9,12 +9,21 @@ from patmat.core.subprocess_calls import run_command
 from patmat.io.file_utils import openfile
 
 
-def PofO_dmr(known_dmr, out, min_cg, cpg_difference):
-    """
-    This function maps differentially methylated CpGs
-    to the known iDMRs for PofO assignment
-    """
+def PofO_dmr(
+    known_dmr: str, out: str, min_cg: int, cpg_difference: float
+) -> DefaultDict[Tuple[str, str], DefaultDict[str, int]]:
+    """Map differentially methylated CpGs to known iDMRs for PofO assignment.
 
+    Args:
+        known_dmr: Path to file containing known imprinted DMRs
+        out: Output file prefix
+        min_cg: Minimum number of CpGs required in a DMR
+        cpg_difference: Minimum required difference in methylation between haplotypes
+
+    Returns:
+        Nested defaultdict mapping (chrom, parent_origin) to stats about DMRs
+        Contains counts for scores, differences, DMR counts etc. per chromosome/parent
+    """
     out_meth = open(out + "_CpG-Methylation-Status-at-DMRs.tsv", "w")
     dmr_file = openfile(known_dmr)
     header = next(dmr_file).rstrip()
@@ -314,7 +323,20 @@ def PofO_dmr(known_dmr, out, min_cg, cpg_difference):
     return chrom_hp_origin_count
 
 
-def pofo_final_dict(chrom_hp_origin_count, min_pofo_score):
+def pofo_final_dict(
+    chrom_hp_origin_count: DefaultDict[Tuple[str, str], DefaultDict[str, int]],
+    min_pofo_score: float,
+) -> DefaultDict[str, Dict[str, List[Union[str, int, float]]]]:
+    """Generate final parent-of-origin assignments from DMR statistics.
+
+    Args:
+        chrom_hp_origin_count: Input statistics from PofO_dmr containing counts
+            per chromosome/parent
+        min_pofo_score: Minimum score threshold for PofO assignment
+
+    Returns:
+        Dictionary mapping chromosomes to haplotype origin assignments and statistics
+    """
     chrom_hp_origin = defaultdict(dict)
     for key, val in chrom_hp_origin_count.items():
         chrom, origin = key
@@ -381,13 +403,18 @@ def pofo_final_dict(chrom_hp_origin_count, min_pofo_score):
     return chrom_hp_origin
 
 
-def process_cpg_mod_freq(input_file, output_file, is_modkit=False):
-    """Process CpG modification frequency files from either modkit or aligned_bam_to_cpg_scores.
+def process_cpg_mod_freq(
+    input_file: str, output_file: str, is_modkit: bool = False
+) -> None:
+    """Process CpG modification frequency files from methylation tools.
+
+    Handles output from either modkit or aligned_bam_to_cpg_scores to produce
+    standardized CpG modification frequency files.
 
     Args:
-        input_file (str): Path to input bed file
-        output_file (str): Path to output file
-        is_modkit (bool): True if input is from modkit, False if from aligned_bam_to_cpg_scores
+        input_file: Path to input BED file
+        output_file: Path to output file
+        is_modkit: True if input is from modkit, False if from aligned_bam_to_cpg_scores
     """
     # Write header first
     with open(output_file, "w") as out:
@@ -414,7 +441,21 @@ def process_cpg_mod_freq(input_file, output_file, is_modkit=False):
                     out.write(f"{chrom}\t{start}\t{end}\t{cov}\t{mod}\t{freq}\n")
 
 
-def out_freq_methbam(out, processes, reference, pbcg, pb_tech):
+def out_freq_methbam(
+    out: str, processes: int, reference: str, pbcg: str, pb_tech: bool
+) -> None:
+    """Run methylation frequency analysis and process outputs.
+
+    Runs either modkit or aligned_bam_to_cpg_scores based on technology,
+    then processes the outputs into standardized format.
+
+    Args:
+        out: Output file prefix path
+        processes: Number of parallel processes to use
+        reference: Path to reference genome
+        pbcg: Path to PacBio CpG model file
+        pb_tech: True if using PacBio data, False if ONT
+    """
     out_freqhp1 = out + "_Temp_NonPofO_HP1-HP2_MethylationHP1.tsv"
     out_freqhp2 = out + "_Temp_NonPofO_HP1-HP2_MethylationHP2.tsv"
     out_dir = os.path.dirname(out)
