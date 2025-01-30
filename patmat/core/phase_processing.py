@@ -2,19 +2,37 @@ import gzip
 import os
 import warnings
 from collections import defaultdict
+from typing import DefaultDict, Dict, List, Set, Tuple
 
 import pysam
 
 from patmat.io.file_utils import openfile
 
 
-def get_block(vcf, chrom):
+def get_block(
+    vcf: str, chrom: str
+) -> Tuple[List[Tuple[str, int, int]], Dict[Tuple[str, str], Tuple[str, str]]]:
+    """Extract phased blocks from VCF file for a given chromosome.
+
+    Args:
+        vcf: Path to VCF file
+        chrom: Chromosome to process
+
+    Returns:
+        Tuple containing:
+            - List of (chrom, start, end) tuples for each block
+            - Dictionary mapping (chrom, block_id) to (start, end) strings
     """
-    In case --phased option is provided this function extracts "
-    "phased blocks from vcf file.
-    """
-    blocks_dict = defaultdict(set)
-    final = list()
+
+    def extract_blocks(line: List[str]) -> Tuple[Tuple[str, str], int]:
+        """Extract block information from a VCF line."""
+        block_id = line[9].split(":")[-1]
+        position = int(line[1])
+        return ((line[0], block_id), position)
+
+    blocks_dict: DefaultDict[Tuple[str, str], Set[int]] = defaultdict(set)
+
+    # Extract block positions
     with openfile(vcf) as vp:
         for line in vp:
             if line.startswith("#"):
@@ -22,50 +40,83 @@ def get_block(vcf, chrom):
             line = line.rstrip().split("\t")
             if line[0] != chrom or "|" not in line[9].split(":")[0]:
                 continue
-            blocks_dict[(line[0], line[9].split(":")[-1])].add(int(line[1]))
-    for key, val in blocks_dict.items():
-        val = sorted(val)
-        final.append((key[0], val[0], val[-1]))
-        blocks_dict[key] = (str(val[0]), str(val[-1]))
-    return final, blocks_dict
+            key, pos = extract_blocks(line)
+            blocks_dict[key].add(pos)
+
+    # Build final block lists
+    final: List[Tuple[str, int, int]] = []
+    formatted_blocks: Dict[Tuple[str, str], Tuple[str, str]] = {}
+
+    for key, positions in blocks_dict.items():
+        sorted_pos = sorted(positions)
+        final.append((key[0], sorted_pos[0], sorted_pos[-1]))
+        formatted_blocks[key] = (str(sorted_pos[0]), str(sorted_pos[-1]))
+
+    return final, formatted_blocks
 
 
-def get_sv_pofo(feed_list, alignment_file):
+def get_sv_pofo(
+    feed_list: List[Tuple[str, int, Set[str]]], alignment_file: str
+) -> Tuple[DefaultDict[Tuple[str, int], int], DefaultDict[Tuple[str, int], int]]:
+    """Map reads to haplotypes for structural variants.
+
+    Args:
+        feed_list: List of (chrom, position, read_ids) tuples
+        alignment_file: Path to BAM/CRAM file
+
+    Returns:
+        Tuple of two defaultdicts mapping (chrom, pos) to counts for each haplotype
     """
-    This function maps each read to heterozygous variants and returns a list of
-    haplotype 1, haplotype 2, and unphased variants mapped to each read.
-    """
-    sv_hp_dict1 = defaultdict(int)
-    sv_hp_dict2 = defaultdict(int)
+
+    def process_pileup_read(
+        pileupread: pysam.PileupRead,
+        sv_reads: Set[str],
+        sv_hp_dict1: DefaultDict[Tuple[str, int], int],
+        sv_hp_dict2: DefaultDict[Tuple[str, int], int],
+        position: Tuple[str, int],
+    ) -> None:
+        """Process a single pileup read and update haplotype counts."""
+        read_id = pileupread.alignment.query_name
+        try:
+            hp_tag = pileupread.alignment.get_tag("HP")
+        except:
+            return
+
+        if read_id in sv_reads:
+            if hp_tag == 1:
+                sv_hp_dict1[position] += 1
+                sv_hp_dict2[position] += 0
+            elif hp_tag == 2:
+                sv_hp_dict1[position] += 0
+                sv_hp_dict2[position] += 1
+
+    sv_hp_dict1: DefaultDict[Tuple[str, int], int] = defaultdict(int)
+    sv_hp_dict2: DefaultDict[Tuple[str, int], int] = defaultdict(int)
+
     samfile = pysam.AlignmentFile(alignment_file, "rb")
-    for varinfo in feed_list:
-        chrom, position, sv_reads = varinfo
+
+    for chrom, position, sv_reads in feed_list:
         try:
             sam_pileup = samfile.pileup(chrom, position, position + 1, truncate=True)
-        except:  # The cordiniate is not found so ignore it
+        except:
             warnings.warn(
-                "Variant {} {} did not find or do not have any map "
-                "reads in the alignment file. Check if correct"
-                "bam file is given or bam is indexed and not corrupted."
-                " Skipping it.".format(chrom, position + 1)
+                f"Variant {chrom} {position + 1} not found or no mapped "
+                f"reads in alignment file. Check if correct BAM file is "
+                f"given or BAM is indexed and not corrupted. Skipping it."
             )
             continue
+
         for pileupcolumn in sam_pileup:
             pileupcolumn.set_min_base_quality(0)
             if pileupcolumn.pos == position:
                 for pileupread in pileupcolumn.pileups:
-                    read_id = pileupread.alignment.query_name
-                    try:
-                        hp_tag = pileupread.alignment.get_tag("HP")
-                    except:
-                        continue
-                    if read_id in sv_reads:
-                        if hp_tag == 1:
-                            sv_hp_dict1[(chrom, position)] += 1
-                            sv_hp_dict2[(chrom, position)] += 0
-                        elif hp_tag == 2:
-                            sv_hp_dict1[(chrom, position)] += 0
-                            sv_hp_dict2[(chrom, position)] += 1
+                    process_pileup_read(
+                        pileupread,
+                        sv_reads,
+                        sv_hp_dict1,
+                        sv_hp_dict2,
+                        (chrom, position),
+                    )
 
     return sv_hp_dict1, sv_hp_dict2
 
