@@ -3,6 +3,7 @@ import os
 import warnings
 from collections import defaultdict
 from itertools import repeat
+from typing import DefaultDict, Dict, List, Tuple
 
 import pysam
 import tabix
@@ -52,12 +53,6 @@ def process_strand_seq_vcf(
             ignore_blocks_single,
         )
         return final_dict, strand_phased_vars, phase_block_stat, blocks_dict
-
-
-from collections import defaultdict
-from typing import DefaultDict, Dict, List, Tuple
-
-import pysam
 
 
 def process_read_base(
