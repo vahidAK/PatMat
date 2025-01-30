@@ -3,6 +3,7 @@ import os
 import warnings
 from collections import defaultdict
 from itertools import repeat
+import datetime
 
 import pysam
 import tabix
@@ -67,189 +68,170 @@ def get_variant_info(
     """
     read_var_list = defaultdict(list)
     samfile = pysam.AlignmentFile(alignment_file, "rb")
-    for varinfo in feed_list:
-        gt, position, ref, alt = varinfo
-        try:
-            sam_pileup = samfile.pileup(chrom, position, position + 1, truncate=True)
-        except:  # The cordiniate is not found so ignore it
-            warnings.warn(
-                "Variant {} {} did not find or do not have any map "
-                "reads in the alignment file. Check if correct"
-                "bam file is given or bam is indexed and not corrupted."
-                " Skipping it.".format(chrom, position + 1)
-            )
+
+    varinfo_dict = {varinfo[1]: varinfo for varinfo in feed_list}
+    # lists are sorted, so get min and max position to fetch pileup:
+    min_pos = feed_list[0][1]
+    max_pos = feed_list[-1][1]
+    sam_pileup = samfile.pileup(chrom, min_pos, max_pos + 1, truncate=True)
+
+    for pileupcolumn in sam_pileup:
+        # Check if this column is present in our variant list:
+        if pileupcolumn.pos not in varinfo_dict:
             continue
-        for pileupcolumn in sam_pileup:
-            pileupcolumn.set_min_base_quality(0)
-            if pileupcolumn.pos == position:
-                for pileupread in pileupcolumn.pileups:
-                    read_mq = pileupread.alignment.mapping_quality
-                    if read_mq < mapping_quality:
-                        continue
-                    if (
-                        pileupread.alignment.is_supplementary
-                        and not include_supplementary
-                    ):
-                        continue
-                    read_id = pileupread.alignment.query_name
-                    flag = pileupread.alignment.flag
-                    ext_key = (read_id, str(flag))  # ,str(read_mq),str(read_start+1))
-                    read_base = None
-                    read_base1 = None
-                    read_base2 = None
-                    hapt = "NA"
-                    if pileupread.is_del or pileupread.is_refskip:
+        pileupcolumn.set_min_base_quality(0)
+        gt, position, ref, alt = varinfo_dict[pileupcolumn.pos]
+        for pileupread in pileupcolumn.pileups:
+            read_mq = pileupread.alignment.mapping_quality
+            if read_mq < mapping_quality:
+                continue
+            if pileupread.alignment.is_supplementary and not include_supplementary:
+                continue
+            read_id = pileupread.alignment.query_name
+            flag = pileupread.alignment.flag
+            ext_key = (read_id, str(flag))  # ,str(read_mq),str(read_start+1))
+            read_base = None
+            read_base1 = None
+            read_base2 = None
+            hapt = "NA"
+            if pileupread.is_del or pileupread.is_refskip:
+                read_var_list[(chrom, position + 1, "noninfo")].append(
+                    ":".join((*ext_key, hapt))
+                )
+                continue
+            if gt != "1/2":
+                if len(ref) == 1 and len(alt) == 1:  # dealing with mismatches
+                    read_base = pileupread.alignment.query_sequence[
+                        pileupread.query_position
+                    ].upper()
+                elif len(ref) > 1 and len(alt) == 1:  # dealing with deletions
+                    if pileupread.indel < 0 and abs(pileupread.indel) == len(ref) - 1:
+                        read_base = pileupread.alignment.query_sequence[
+                            pileupread.query_position
+                        ].upper()
+                    elif pileupread.indel == 0:
+                        read_base = pileupread.alignment.query_sequence[
+                            pileupread.query_position : pileupread.query_position
+                            + len(ref)
+                        ].upper()
+                    else:
                         read_var_list[(chrom, position + 1, "noninfo")].append(
                             ":".join((*ext_key, hapt))
                         )
                         continue
-                    if gt != "1/2":
-                        if len(ref) == 1 and len(alt) == 1:  # dealing with mismatches
-                            read_base = pileupread.alignment.query_sequence[
-                                pileupread.query_position
-                            ].upper()
-                        elif len(ref) > 1 and len(alt) == 1:  # dealing with deletions
-                            if (
-                                pileupread.indel < 0
-                                and abs(pileupread.indel) == len(ref) - 1
-                            ):
-                                read_base = pileupread.alignment.query_sequence[
-                                    pileupread.query_position
-                                ].upper()
-                            elif pileupread.indel == 0:
-                                read_base = pileupread.alignment.query_sequence[
-                                    pileupread.query_position : pileupread.query_position
-                                    + len(ref)
-                                ].upper()
-                            else:
-                                read_var_list[(chrom, position + 1, "noninfo")].append(
-                                    ":".join((*ext_key, hapt))
-                                )
-                                continue
-                        elif len(ref) == 1 and len(alt) > 1:  # dealing with insertions
-                            if (
-                                pileupread.indel > 0
-                                and pileupread.indel == len(alt) - 1
-                            ):
-                                read_base = pileupread.alignment.query_sequence[
-                                    pileupread.query_position : pileupread.query_position
-                                    + len(alt)
-                                ].upper()
-                            elif pileupread.indel == 0:
-                                read_base = pileupread.alignment.query_sequence[
-                                    pileupread.query_position
-                                ].upper()
-                            else:
-                                read_var_list[(chrom, position + 1, "noninfo")].append(
-                                    ":".join((*ext_key, hapt))
-                                )
-                                continue
-
-                        if read_base == ref:
-                            if gt == "1|0":
-                                hapt = "2"
-                            elif gt == "0|1" and read_base == ref:
-                                hapt = "1"
-                        elif read_base == alt:
-                            if gt == "1|0" and read_base == alt:
-                                hapt = "1"
-                            elif gt == "0|1" and read_base == alt:
-                                hapt = "2"
-                        else:
-                            read_base = "noninfo"
-                        read_var_list[(chrom, position + 1, read_base)].append(
+                elif len(ref) == 1 and len(alt) > 1:  # dealing with insertions
+                    if pileupread.indel > 0 and pileupread.indel == len(alt) - 1:
+                        read_base = pileupread.alignment.query_sequence[
+                            pileupread.query_position : pileupread.query_position
+                            + len(alt)
+                        ].upper()
+                    elif pileupread.indel == 0:
+                        read_base = pileupread.alignment.query_sequence[
+                            pileupread.query_position
+                        ].upper()
+                    else:
+                        read_var_list[(chrom, position + 1, "noninfo")].append(
                             ":".join((*ext_key, hapt))
                         )
+                        continue
 
-                    else:
-                        alt1, alt2 = alt
-                        if len(ref) > 1 and len(alt1) > 1 and len(alt2) > 1:
-                            read_var_list[(chrom, position + 1, "noninfo")].append(
-                                ":".join((*ext_key, hapt))
-                            )
-                            continue
-                        if len(ref) == 1 and len(alt1) == 1:  # dealing with mismatches
-                            read_base1 = pileupread.alignment.query_sequence[
-                                pileupread.query_position
-                            ].upper()
-                        elif len(ref) > 1 and len(ref) > len(
-                            alt1
-                        ):  # dealing with deletions
-                            if pileupread.indel < 0 and abs(pileupread.indel) == len(
-                                ref
-                            ) - len(alt1):
-                                read_base1 = pileupread.alignment.query_sequence[
-                                    pileupread.query_position : pileupread.query_position
-                                    + len(ref)
-                                    - abs(pileupread.indel)
-                                ].upper()
-                            elif pileupread.indel == 0:
-                                read_base1 = pileupread.alignment.query_sequence[
-                                    pileupread.query_position : pileupread.query_position
-                                    + len(ref)
-                                ].upper()
-                        elif len(alt1) > 1 and len(alt1) > len(
-                            ref
-                        ):  # dealing with insertions
-                            if pileupread.indel > 0 and pileupread.indel == len(
-                                alt1
-                            ) - len(ref):
-                                read_base1 = pileupread.alignment.query_sequence[
-                                    pileupread.query_position : pileupread.query_position
-                                    + len(alt1)
-                                ].upper()
-                            elif pileupread.indel == 0:
-                                read_base1 = pileupread.alignment.query_sequence[
-                                    pileupread.query_position : pileupread.query_position
-                                    + len(ref)
-                                ].upper()
-                        if len(ref) == 1 and len(alt2) == 1:  # dealing with mismatches
-                            read_base2 = pileupread.alignment.query_sequence[
-                                pileupread.query_position
-                            ].upper()
-                        elif len(ref) > 1 and len(ref) > len(
-                            alt2
-                        ):  # dealing with deletions
-                            if pileupread.indel < 0 and abs(pileupread.indel) == len(
-                                ref
-                            ) - len(alt2):
-                                read_base2 = pileupread.alignment.query_sequence[
-                                    pileupread.query_position : pileupread.query_position
-                                    + len(ref)
-                                    - abs(pileupread.indel)
-                                ].upper()
-                            elif pileupread.indel == 0:
-                                read_base2 = pileupread.alignment.query_sequence[
-                                    pileupread.query_position : pileupread.query_position
-                                    + len(ref)
-                                ].upper()
-                        elif len(alt2) > 1 and len(alt2) > len(
-                            ref
-                        ):  # dealing with insertions
-                            if pileupread.indel > 0 and pileupread.indel == len(
-                                alt2
-                            ) - len(ref):
-                                read_base2 = pileupread.alignment.query_sequence[
-                                    pileupread.query_position : pileupread.query_position
-                                    + len(alt2)
-                                ].upper()
-                            elif pileupread.indel == 0:
-                                read_base2 = pileupread.alignment.query_sequence[
-                                    pileupread.query_position : pileupread.query_position
-                                    + len(ref)
-                                ].upper()
-                        if read_base1 == alt1 or read_base1 == alt2:
-                            read_var_list[(chrom, position + 1, read_base1)].append(
-                                ":".join((*ext_key, hapt))
-                            )
-                        elif read_base2 == alt1 or read_base2 == alt2:
-                            read_var_list[(chrom, position + 1, read_base2)].append(
-                                ":".join((*ext_key, hapt))
-                            )
-                        else:
-                            read_var_list[(chrom, position + 1, "noninfo")].append(
-                                ":".join((*ext_key, hapt))
-                            )
+                if read_base == ref:
+                    if gt == "1|0":
+                        hapt = "2"
+                    elif gt == "0|1":
+                        hapt = "1"
+                elif read_base == alt:
+                    if gt == "1|0":
+                        hapt = "1"
+                    elif gt == "0|1":
+                        hapt = "2"
+                else:
+                    read_base = "noninfo"
+                read_var_list[(chrom, position + 1, read_base)].append(
+                    ":".join((*ext_key, hapt))
+                )
+
+            else:
+                alt1, alt2 = alt
+                if len(ref) > 1 and len(alt1) > 1 and len(alt2) > 1:
+                    read_var_list[(chrom, position + 1, "noninfo")].append(
+                        ":".join((*ext_key, hapt))
+                    )
+                    continue
+                if len(ref) == 1 and len(alt1) == 1:  # dealing with mismatches
+                    read_base1 = pileupread.alignment.query_sequence[
+                        pileupread.query_position
+                    ].upper()
+                elif len(ref) > 1 and len(ref) > len(alt1):  # dealing with deletions
+                    if pileupread.indel < 0 and abs(pileupread.indel) == len(ref) - len(
+                        alt1
+                    ):
+                        read_base1 = pileupread.alignment.query_sequence[
+                            pileupread.query_position : pileupread.query_position
+                            + len(ref)
+                            - abs(pileupread.indel)
+                        ].upper()
+                    elif pileupread.indel == 0:
+                        read_base1 = pileupread.alignment.query_sequence[
+                            pileupread.query_position : pileupread.query_position
+                            + len(ref)
+                        ].upper()
+                elif len(alt1) > 1 and len(alt1) > len(ref):  # dealing with insertions
+                    if pileupread.indel > 0 and pileupread.indel == len(alt1) - len(
+                        ref
+                    ):
+                        read_base1 = pileupread.alignment.query_sequence[
+                            pileupread.query_position : pileupread.query_position
+                            + len(alt1)
+                        ].upper()
+                    elif pileupread.indel == 0:
+                        read_base1 = pileupread.alignment.query_sequence[
+                            pileupread.query_position : pileupread.query_position
+                            + len(ref)
+                        ].upper()
+                if len(ref) == 1 and len(alt2) == 1:  # dealing with mismatches
+                    read_base2 = pileupread.alignment.query_sequence[
+                        pileupread.query_position
+                    ].upper()
+                elif len(ref) > 1 and len(ref) > len(alt2):  # dealing with deletions
+                    if pileupread.indel < 0 and abs(pileupread.indel) == len(ref) - len(
+                        alt2
+                    ):
+                        read_base2 = pileupread.alignment.query_sequence[
+                            pileupread.query_position : pileupread.query_position
+                            + len(ref)
+                            - abs(pileupread.indel)
+                        ].upper()
+                    elif pileupread.indel == 0:
+                        read_base2 = pileupread.alignment.query_sequence[
+                            pileupread.query_position : pileupread.query_position
+                            + len(ref)
+                        ].upper()
+                elif len(alt2) > 1 and len(alt2) > len(ref):  # dealing with insertions
+                    if pileupread.indel > 0 and pileupread.indel == len(alt2) - len(
+                        ref
+                    ):
+                        read_base2 = pileupread.alignment.query_sequence[
+                            pileupread.query_position : pileupread.query_position
+                            + len(alt2)
+                        ].upper()
+                    elif pileupread.indel == 0:
+                        read_base2 = pileupread.alignment.query_sequence[
+                            pileupread.query_position : pileupread.query_position
+                            + len(ref)
+                        ].upper()
+                if read_base1 == alt1 or read_base1 == alt2:
+                    read_var_list[(chrom, position + 1, read_base1)].append(
+                        ":".join((*ext_key, hapt))
+                    )
+                elif read_base2 == alt1 or read_base2 == alt2:
+                    read_var_list[(chrom, position + 1, read_base2)].append(
+                        ":".join((*ext_key, hapt))
+                    )
+                else:
+                    read_var_list[(chrom, position + 1, "noninfo")].append(
+                        ":".join((*ext_key, hapt))
+                    )
     return read_var_list
 
 
@@ -271,9 +253,12 @@ def write_per_read_variant_file(
         # does it break if bam_file has no alignments? do we see that?
         # bamiter, bam, count = openalignment(bam_file, chrom)
         if True:  #  count > 0:
+            # sort by position:
+            feed_list = sorted(feed_list, key=lambda x: x[1])
             vcf_info_list = [
                 list(feed_list)[x : x + chunk] for x in range(0, len(feed_list), chunk)
             ]
+
             p = mp.Pool(processes)
             results = p.starmap(
                 get_variant_info,
@@ -289,6 +274,7 @@ def write_per_read_variant_file(
             )
             p.close()
             p.join()
+
             for result in results:
                 if result is not None:
                     for key, val in result.items():
