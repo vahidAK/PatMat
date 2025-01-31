@@ -2,7 +2,7 @@ import gzip
 import os
 import warnings
 from collections import defaultdict
-from typing import DefaultDict, Dict, List, Set, Tuple
+from typing import DefaultDict, Dict, List, Optional, Set, TextIO, Tuple, Union
 
 import pysam
 
@@ -121,19 +121,111 @@ def get_sv_pofo(
     return sv_hp_dict1, sv_hp_dict2
 
 
+def count_reads_haplotypes(
+    chromosome: str, reads_hap: Dict[Tuple[str, str], int], read_column: str
+) -> DefaultDict[int, int]:
+    """Count reads for each haplotype from the RNAMES column.
+
+    Args:
+        chromosome: Chromosome name
+        reads_hap: Dictionary mapping (chrom, read_id) to haplotype assignment (1 or 2)
+        read_column: VCF column containing read names (RNAMES=read1,read2,...)
+
+    Returns:
+        DefaultDict mapping haplotype (1 or 2) to read count
+    """
+    hp_counts = defaultdict(int)
+    for read_ID in read_column.split("RNAMES=")[1].split(";")[0].split(","):
+        hap = reads_hap.get((chromosome, read_ID))
+        if hap:
+            hp_counts[hap] += 1
+    return hp_counts
+
+
+def determine_haplotype_from_counts(
+    hp_counts: DefaultDict[int, int], hapratio: float, min_read_reassignment: int
+) -> Optional[str]:
+    """Determine dominant haplotype based on read counts and thresholds.
+
+    Args:
+        hp_counts: Dictionary mapping haplotype (1 or 2) to read count
+        hapratio: Minimum ratio required for haplotype assignment
+        min_read_reassignment: Minimum number of reads required for reassignment
+
+    Returns:
+        "HP1", "HP2", or None if no haplotype is dominant
+    """
+    for hap in [1, 2]:
+        if (
+            hp_counts[hap] >= min_read_reassignment
+            and hp_counts[hap] / (hp_counts[1] + hp_counts[2]) >= hapratio
+        ):
+            return f"HP{hap}"
+    return None
+
+
+def write_sv_line(
+    line: List[str],
+    format_values: Dict[str, str],
+    additional_values: List[str],
+    replace_patterns: List[Tuple[str, str]],
+    sv_assignment_file: TextIO,
+    sv_assignment_info_file: TextIO,
+) -> None:
+    """Write a single structural variant line to output files.
+
+    Args:
+        line: List of VCF fields
+        format_values: Dictionary of FORMAT field values
+        additional_values: List of additional values to append
+        replace_patterns: List of string replacement tuples (old, new)
+        sv_assignment_file: Main VCF output file handle
+        sv_assignment_info_file: Info file handle for extra statistics
+    """
+    value_string = ":".join(format_values.values())
+    for pattern in replace_patterns:
+        value_string = value_string.replace(pattern[0], pattern[1])
+
+    line_out = (
+        line[0:8]
+        + [":".join(format_values.keys())]
+        + [value_string]
+        + additional_values
+    )
+    sv_assignment_file.write("\t".join(line_out[0:-4]) + "\n")
+    sv_assignment_info_file.write("\t".join(line_out) + "\n")
+
+
 def pofo_sv_write(
-    sv_file,
-    out,
-    chrom_hp_origin,
-    reads_hap,
-    min_read_reassignment,
-    include_all_variants,
-    hapratio,
-):
+    sv_file: str,
+    out: str,
+    chrom_hp_origin: Dict[str, Dict[str, List[Union[str, int, float]]]],
+    reads_hap: Dict[Tuple[str, str], int],
+    min_read_reassignment: int,
+    include_all_variants: bool,
+    hapratio: float,
+) -> None:
+    """Write parent-of-origin assignments for structural variants.
+
+    Process structural variants from VCF file and write parent-of-origin assignments
+    based on haplotype read counts and chromosome assignments.
+
+    Args:
+        sv_file: Input structural variants VCF file path
+        out: Output file prefix path
+        chrom_hp_origin: Dictionary mapping chromosomes to haplotype parent-of-origin assignments
+                        and statistics. Structure: {chrom: {"HP1": [origin, stats...], "HP2": [origin, stats...]}}
+        reads_hap: Dictionary mapping (chromosome, read_id) tuples to haplotype assignment (1 or 2)
+        min_read_reassignment: Minimum number of reads required to reassign a variant
+        include_all_variants: Whether to process variants that don't pass filters
+        hapratio: Minimum ratio of reads required to assign a haplotype
+    """
+
+    # Start
     sv_assignment_file = open(
         out + "_" + os.path.basename(sv_file) + "_PofO_Assignment_SVs.vcf", "w"
     )
-    sv_assignment_file_info = open(
+    sv_assignment_info_file = open(
         out + "_" + os.path.basename(sv_file) + "_Variant_Assignment_SVs_info.tsv", "w"
     )
     with openfile(sv_file) as vf:
@@ -143,7 +235,7 @@ def pofo_sv_write(
                 continue
             elif line.startswith("#"):
                 sv_assignment_file.write(line)
-                sv_assignment_file_info.write(
+                sv_assignment_info_file.write(
                     line.rstrip() + "\tNumHp1ReadsFromColumn8\t"
                     "NumHp2ReadsFromColumn8"
                     "\tNumMaternalReadsFromColumn8"
@@ -151,194 +243,131 @@ def pofo_sv_write(
                 )
                 continue
             line = line.rstrip().split("\t")
-            gt = line[9].split(":")[0]
-            if "PS" in line[8].split(":"):
-                ps_index = line[8].split(":").index("PS")
-                new_ps = line[8].split(":")
-                new_hp = line[9].split(":")
-                new_ps.pop(ps_index)
-                new_hp.pop(ps_index)
-            else:
-                new_ps = line[8].split(":")
-                new_hp = line[9].split(":")
+            chromosome = line[0]
+            format_values = dict(zip(line[8].split(":"), line[9].split(":")))
+            if "PS" in format_values:
+                del format_values["PS"]
+
+            gt = format_values["GT"]
+            replace_patterns = []
             if not include_all_variants and line[6] not in ["PASS", "."]:
-                line_out = (
-                    line[0:8]
-                    + [":".join(new_ps)]
-                    + [
-                        ":".join(new_hp)
-                        .replace("|", "/")
-                        .replace("1/0", "0/1")
-                        .replace("2/1", "1/2")
-                    ]
-                    + ["NA"] * 4
-                )
-                sv_assignment_file.write("\t".join(line_out[0:-4]) + "\n")
-                sv_assignment_file_info.write("\t".join(line_out) + "\n")
-                continue
-            if line[0] in chrom_hp_origin:
+                replace_patterns = [("|", "/"), ("1/0", "0/1"), ("2/1", "1/2")]
+                additional_values = ["NA"] * 4
+
+            elif chromosome in chrom_hp_origin:
                 if gt in ["0/1", "1/0", "0|1", "1|0"] and "RNAMES=" in line[7]:
-                    hp1_count = 0
-                    hp2_count = 0
-                    for read_ID in line[7].split("RNAMES=")[1].split(";")[0].split(","):
-                        if (line[0], read_ID) in reads_hap:
-                            if reads_hap[(line[0], read_ID)] == 1:
-                                hp1_count += 1
-                            elif reads_hap[(line[0], read_ID)] == 2:
-                                hp2_count += 1
-                    if (
-                        hp1_count > hp2_count
-                        and hp1_count / (hp1_count + hp2_count) >= hapratio
-                        and hp1_count >= min_read_reassignment
-                    ):
-                        if chrom_hp_origin[line[0]]["HP1"][0] == "maternal":
-                            line_out = (
-                                line[0:8]
-                                + [":".join(new_ps) + ":PS"]
-                                + ["1|0:" + ":".join(new_hp[1:]) + ":Mat"]
-                                + [
-                                    str(hp1_count),
-                                    str(hp2_count),
-                                    str(hp2_count),
-                                    str(hp1_count),
-                                ]
-                            )
-                            sv_assignment_file.write("\t".join(line_out[0:-4]) + "\n")
-                            sv_assignment_file_info.write("\t".join(line_out) + "\n")
-                        if chrom_hp_origin[line[0]]["HP1"][0] == "paternal":
-                            line_out = (
-                                line[0:8]
-                                + [":".join(new_ps) + ":PS"]
-                                + ["0|1:" + ":".join(new_hp[1:]) + ":Pat"]
-                                + [
-                                    str(hp1_count),
-                                    str(hp2_count),
-                                    str(hp1_count),
-                                    str(hp2_count),
-                                ]
-                            )
-                            sv_assignment_file.write("\t".join(line_out[0:-4]) + "\n")
-                            sv_assignment_file_info.write("\t".join(line_out) + "\n")
-                    elif (
-                        hp2_count > hp1_count
-                        and hp2_count / (hp1_count + hp2_count) >= hapratio
-                        and hp2_count >= min_read_reassignment
-                    ):
-                        if chrom_hp_origin[line[0]]["HP2"][0] == "maternal":
-                            line_out = (
-                                line[0:8]
-                                + [":".join(new_ps) + ":PS"]
-                                + ["1|0:" + ":".join(new_hp[1:]) + ":Mat"]
-                                + [
-                                    str(hp1_count),
-                                    str(hp2_count),
-                                    str(hp1_count),
-                                    str(hp2_count),
-                                ]
-                            )
-                            sv_assignment_file.write("\t".join(line_out[0:-4]) + "\n")
-                            sv_assignment_file_info.write("\t".join(line_out) + "\n")
-                        if chrom_hp_origin[line[0]]["HP2"][0] == "paternal":
-                            line_out = (
-                                line[0:8]
-                                + [":".join(new_ps) + ":PS"]
-                                + ["0|1:" + ":".join(new_hp[1:]) + ":Pat"]
-                                + [
-                                    str(hp1_count),
-                                    str(hp2_count),
-                                    str(hp2_count),
-                                    str(hp1_count),
-                                ]
-                            )
-                            sv_assignment_file.write("\t".join(line_out[0:-4]) + "\n")
-                            sv_assignment_file_info.write("\t".join(line_out) + "\n")
-                    else:
-                        line_out = (
-                            line[0:8]
-                            + [":".join(new_ps)]
-                            + [line[9].replace("|", "/").replace("1/0", "0/1")]
-                            + [str(hp1_count), str(hp2_count), "NA", "NA"]
-                        )
-                        sv_assignment_file.write("\t".join(line_out[0:-4]) + "\n")
-                        sv_assignment_file_info.write("\t".join(line_out) + "\n")
-                else:
-                    line_out = (
-                        line[0:8]
-                        + [":".join(new_ps)]
-                        + [
-                            line[9]
-                            .replace("|", "/")
-                            .replace("1/0", "0/1")
-                            .replace("2/1", "1/2")
-                        ]
-                        + ["NA"] * 4
+                    hp_counts = count_reads_haplotypes(
+                        chromosome, reads_hap, read_column=line[7]
                     )
-                    sv_assignment_file.write("\t".join(line_out[0:-4]) + "\n")
-                    sv_assignment_file_info.write("\t".join(line_out) + "\n")
+                    haplotype = determine_haplotype_from_counts(
+                        hp_counts, hapratio, min_read_reassignment
+                    )
+                    if haplotype == "HP1":
+                        if chrom_hp_origin[chromosome]["HP1"][0] == "maternal":
+                            format_values["PS"] = "Mat"
+                            format_values["GT"] = "1|0"
+                            additional_values = [
+                                str(hp_counts[1]),
+                                str(hp_counts[2]),
+                                str(hp_counts[2]),
+                                str(hp_counts[1]),
+                            ]
+                        elif chrom_hp_origin[chromosome]["HP1"][0] == "paternal":
+                            format_values["PS"] = "Pat"
+                            format_values["GT"] = "0|1"
+                            additional_values = [
+                                str(hp_counts[1]),
+                                str(hp_counts[2]),
+                                str(hp_counts[1]),
+                                str(hp_counts[2]),
+                            ]
+                        else:
+                            raise RuntimeError("Unknown assignment.")
+                    elif haplotype == "HP2":
+                        if chrom_hp_origin[chromosome]["HP2"][0] == "maternal":
+                            format_values["PS"] = "Mat"
+                            format_values["GT"] = "1|0"
+                            additional_values = [
+                                str(hp_counts[1]),
+                                str(hp_counts[2]),
+                                str(hp_counts[1]),
+                                str(hp_counts[2]),
+                            ]
+
+                        elif chrom_hp_origin[chromosome]["HP2"][0] == "paternal":
+                            format_values["PS"] = "Pat"
+                            format_values["GT"] = "0|1"
+                            additional_values = [
+                                str(hp_counts[1]),
+                                str(hp_counts[2]),
+                                str(hp_counts[2]),
+                                str(hp_counts[1]),
+                            ]
+                        else:
+                            raise RuntimeError("Unknown assignment.")
+                    else:
+                        replace_patterns = [("1/0", "0/1")]
+                        additional_values = [
+                            str(hp_counts[1]),
+                            str(hp_counts[2]),
+                            "NA",
+                            "NA",
+                        ]
+                else:
+                    replace_patterns = [("|", "/"), ("1/0", "0/1"), ("2/1", "1/2")]
+                    additional_values = ["NA"] * 4
             else:
                 if gt in ["0/1", "1/0", "0|1", "1|0"] and "RNAMES=" in line[7]:
-                    hp1_count = 0
-                    hp2_count = 0
-                    for read_ID in line[7].split("RNAMES=")[1].split(";")[0].split(","):
-                        if (line[0], read_ID) in reads_hap:
-                            if reads_hap[(line[0], read_ID)] == 1:
-                                hp1_count += 1
-                            elif reads_hap[(line[0], read_ID)] == 2:
-                                hp2_count += 1
-                    if (
-                        hp1_count > hp2_count
-                        and hp1_count / (hp1_count + hp2_count) >= hapratio
-                        and hp1_count >= min_read_reassignment
-                    ):
-                        line_out = (
-                            line[0:8]
-                            + [":".join(new_ps) + ":PS"]
-                            + ["1|0:" + ":".join(new_hp[1:]) + ":HP1"]
-                            + [str(hp1_count), str(hp2_count), "NA", "NA"]
-                        )
-                        sv_assignment_file.write("\t".join(line_out[0:-4]) + "\n")
-                        sv_assignment_file_info.write("\t".join(line_out) + "\n")
-                    elif (
-                        hp2_count > hp1_count
-                        and hp2_count / (hp1_count + hp2_count) >= hapratio
-                        and hp2_count >= min_read_reassignment
-                    ):
-                        line_out = (
-                            line[0:8]
-                            + [":".join(new_ps) + ":PS"]
-                            + ["0|1:" + ":".join(new_hp[1:]) + ":HP2"]
-                            + [str(hp1_count), str(hp2_count), "NA", "NA"]
-                        )
-                        sv_assignment_file.write("\t".join(line_out[0:-4]) + "\n")
-                        sv_assignment_file_info.write("\t".join(line_out) + "\n")
-                    else:
-                        line_out = (
-                            line[0:8]
-                            + [":".join(new_ps)]
-                            + [line[9].replace("|", "/").replace("1/0", "0/1")]
-                            + [str(hp1_count), str(hp2_count), "NA", "NA"]
-                        )
-                        sv_assignment_file.write("\t".join(line_out[0:-4]) + "\n")
-                        sv_assignment_file_info.write("\t".join(line_out) + "\n")
-                else:
-                    line_out = (
-                        line[0:8]
-                        + [":".join(new_ps)]
-                        + [
-                            line[9]
-                            .replace("|", "/")
-                            .replace("1/0", "0/1")
-                            .replace("2/1", "1/2")
-                        ]
-                        + ["NA"] * 4
+                    hp_counts = count_reads_haplotypes(
+                        chromosome, reads_hap, read_column=line[7]
                     )
-                    sv_assignment_file.write("\t".join(line_out[0:-4]) + "\n")
-                    sv_assignment_file_info.write("\t".join(line_out) + "\n")
+                    haplotype = determine_haplotype_from_counts(
+                        hp_counts, hapratio, min_read_reassignment
+                    )
+
+                    additional_values = [
+                        str(hp_counts[1]),
+                        str(hp_counts[2]),
+                        "NA",
+                        "NA",
+                    ]
+                    if haplotype == "HP1":
+                        format_values["GT"] = "1|0"
+                        format_values["PS"] = haplotype
+                    elif haplotype == "HP2":
+                        format_values["GT"] = "0|1"
+                        format_values["PS"] = haplotype
+                    else:
+                        replace_patterns = [("1/0", "0/1")]
+                else:
+                    additional_values = ["NA"] * 4
+                    replace_patterns = [("|", "/"), ("1/0", "0/1"), ("2/1", "1/2")]
+            write_sv_line(
+                line,
+                format_values,
+                additional_values,
+                replace_patterns,
+                sv_assignment_file,
+                sv_assignment_info_file,
+            )
 
 
 def write_sam_phase(
-    in_file, out_file, reads_hap, mapping_quality, include_supplementary
-):
+    in_file: str,
+    out_file: str,
+    reads_hap: Dict[Tuple[str, str], int],
+    mapping_quality: int,
+    include_supplementary: bool,
+) -> None:
+    """Write SAM/BAM file with haplotype tags based on read assignments.
+
+    Args:
+        in_file: Input SAM/BAM file path
+        out_file: Output file path for gzipped SAM
+        reads_hap: Dictionary mapping (chrom, read_id) to haplotype assignment (1 or 2)
+        mapping_quality: Minimum mapping quality threshold
+        include_supplementary: Whether to include supplementary alignments
+    """
     out_nonpofo_bam = gzip.open(out_file, "wb")
     with openfile(in_file) as sf:
         for line in sf:
@@ -371,14 +400,30 @@ def write_sam_phase(
 
 
 def alignment_writer(
-    bam,
-    chrom,
-    reads_hap,
-    chrom_hp_origin,
-    outfile,
-    mapping_quality,
-    include_supplementary,
-):
+    bam: pysam.AlignmentFile,
+    chrom: str,
+    reads_hap: Dict[Tuple[str, str], int],
+    chrom_hp_origin: Dict[str, Dict[str, List[Union[str, int, float]]]],
+    outfile: pysam.AlignmentFile,
+    mapping_quality: int,
+    include_supplementary: bool,
+) -> None:
+    """Write alignments with correct haplotype tags based on parent of origin.
+
+    Processes alignments for a chromosome and writes them to output with
+    haplotype tags set based on parent of origin assignments. Handles maternal/paternal
+    assignments differently.
+
+    Args:
+        bam: Input BAM file handle
+        chrom: Chromosome to process
+        reads_hap: Dictionary mapping (chrom, read_id) to haplotype assignment (1 or 2)
+        chrom_hp_origin: Dictionary mapping chromosomes to haplotype parent-of-origin assignments.
+                        Structure: {chrom: {"HP1": [origin, stats...], "HP2": [origin, stats...]}}
+        outfile: Output BAM file handle
+        mapping_quality: Minimum mapping quality threshold
+        include_supplementary: Whether to include supplementary alignments
+    """
     bamiter = bam.fetch(chrom)
     if chrom in chrom_hp_origin and chrom_hp_origin[chrom]["HP1"][0] == "maternal":
         for read in bamiter:
