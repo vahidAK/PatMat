@@ -29,7 +29,6 @@ import os
 import sys
 import typing
 import warnings
-from collections import defaultdict
 
 import pysam
 import tabix
