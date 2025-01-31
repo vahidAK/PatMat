@@ -1,8 +1,21 @@
+from typing import Optional, Set, Tuple, Union
+
 import pysam
 
 
-def getChromsFromBAM(filename):
-    chroms = set()
+def get_chroms_from_bam(filename: str) -> Set[str]:
+    """Get set of chromosome names from a BAM file.
+
+    Args:
+        filename: Path to indexed BAM file
+
+    Returns:
+        Set of chromosome names from the BAM index, excluding '*' and empty entries
+
+    Raises:
+        ValueError: If BAM file is not indexed
+    """
+    chroms: Set[str] = set()
     stats = pysam.idxstats(filename)
     for row in stats.split("\n"):
         fields = row.split("\t")
@@ -11,11 +24,32 @@ def getChromsFromBAM(filename):
     return chroms
 
 
-def openalignment(alignment_file, window):
-    """
-    Opens an alignment file and creates bam iterator
+def open_alignment(
+    alignment_file: str, window: Optional[str]
+) -> Tuple[
+    Union[pysam.libcalignmentfile.IteratorRowRegion, str], pysam.AlignmentFile, int
+]:
+    """Open an alignment file and create BAM iterator for specified region.
+
+    Args:
+        alignment_file: Path to BAM/CRAM file
+        window: Optional region string in format "chrom[:start[-end]]"
+               Examples: "chr1", "chr1:1000", "chr1:1000-2000"
+
+    Returns:
+        Tuple containing:
+            - BAM iterator for specified region (or empty string if invalid)
+            - Open BAM file handle
+            - Number of reads in region (0 if unspecified or invalid)
+
+    Notes:
+        Window string format supports three variants:
+        - Chromosome only: "chr1"
+        - Chromosome and start: "chr1:1000"
+        - Chromosome, start and end: "chr1:1000-2000"
     """
     bam = pysam.AlignmentFile(alignment_file, "rb")
+
     if window is not None:
         window_chrom = window.split(":")[0]
         if len(window.split(":")) == 2:
@@ -39,4 +73,5 @@ def openalignment(alignment_file, window):
     else:
         bamiter = bam.fetch(until_eof=True)
         count = 0
+
     return bamiter, bam, count

@@ -52,7 +52,7 @@ from patmat.core.variant_processing import (
     process_strand_seq_vcf,
     write_per_read_variant_file,
 )
-from patmat.io.bam import getChromsFromBAM
+from patmat.io.bam import get_chroms_from_bam
 from patmat.io.file_utils import openfile
 from patmat.io.vcf import get_chroms_from_vcf
 from patmat.io.write import write_merged_dmr_regions, write_scores
@@ -106,7 +106,7 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
         sites_to_ignore = build_sites_to_ignore(vcf, args.black_list)
 
     chroms = get_chroms_from_vcf(vcf)
-    bam_choms = getChromsFromBAM(bam_file)
+    bam_choms = get_chroms_from_bam(bam_file)
 
     reads_hap = dict()
     re_assignment_vars = dict()

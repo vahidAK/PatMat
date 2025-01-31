@@ -319,7 +319,7 @@ def write_per_read_variant_file(
     for chrom, feed_list in vcf_dict.items():
         # TODO: is this really necessary? only getting the count
         # does it break if bam_file has no alignments? do we see that?
-        # bamiter, bam, count = openalignment(bam_file, chrom)
+        # bamiter, bam, count = open_alignment(bam_file, chrom)
         if True:  #  count > 0:
             # sort by position:
             feed_list = sorted(feed_list, key=lambda x: x[1])
