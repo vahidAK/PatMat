@@ -3,30 +3,45 @@ import os
 import warnings
 from collections import defaultdict
 from itertools import repeat
-from typing import DefaultDict, Dict, List, Tuple
+from typing import Any, DefaultDict, Dict, List, Optional, Sequence, Set, Tuple, Union
 
 import pysam
 import tabix
 from tqdm import tqdm
 
 from patmat.core.phase_processing import get_block
-from patmat.io.bam import openalignment
 from patmat.io.file_utils import openfile
 
 
 def process_strand_seq_vcf(
-    vcf, chrom, strand_vcf, phased, include_all_variants, ignore_blocks_single
-):
+    vcf: str,
+    chrom: str,
+    strand_vcf: Optional[str],
+    phased: bool,
+    include_all_variants: bool,
+    ignore_blocks_single: bool,
+) -> Tuple[
+    DefaultDict[str, Set[Tuple]],
+    int,
+    Optional[DefaultDict[Tuple[str, str, str], int]],
+    Optional[Dict[Tuple[str, str], Tuple[str, str]]],
+]:
     """Process strand-seq VCF file and return phasing information.
 
     Args:
-        args: Command line arguments
         vcf: Path to main VCF file
         chrom: Chromosome being processed
+        strand_vcf: Path to strand-seq VCF file
+        phased: Whether input VCF is phased
+        include_all_variants: Whether to include variants not marked as PASS
+        ignore_blocks_single: Whether to ignore single variant blocks
 
     Returns:
-        tuple: (final_dict, strand_phased_vars, phase_block_stat, blocks_dict)
-        phase_block_stat and blocks_dict will be None if not phased
+        Tuple containing:
+            - Dictionary mapping chromosomes to sets of variant tuples
+            - Number of strand phased variants
+            - Dictionary of phase block statistics (None if not phased)
+            - Dictionary of block boundaries (None if not phased)
 
     Raises:
         Exception: If no strand-seq VCF is provided
@@ -57,8 +72,18 @@ def process_strand_seq_vcf(
 
 def process_read_base(
     pileupread: pysam.PileupRead, ref: str, alt: str, query_position: int
-) -> str:
-    """Helper function to process and return read base for single alternative."""
+) -> Optional[str]:
+    """Process and return read base for single alternative.
+
+    Args:
+        pileupread: Pileup read object
+        ref: Reference allele
+        alt: Alternative allele
+        query_position: Position in query sequence
+
+    Returns:
+        Processed base string or None if invalid/unprocessable
+    """
     if len(ref) == 1 and len(alt) == 1:  # mismatch
         return pileupread.alignment.query_sequence[query_position].upper()
 
@@ -83,8 +108,18 @@ def process_read_base(
 
 def process_complex_read_base(
     pileupread: pysam.PileupRead, ref: str, alt: str, query_position: int
-) -> str:
-    """Helper function to process and return read base for complex variants."""
+) -> Optional[str]:
+    """Process and return read base for complex variants.
+
+    Args:
+        pileupread: Pileup read object
+        ref: Reference allele
+        alt: Alternative allele
+        query_position: Position in query sequence
+
+    Returns:
+        Processed base string or None if invalid/unprocessable
+    """
     if len(ref) == 1 and len(alt) == 1:  # mismatch
         return pileupread.alignment.query_sequence[query_position].upper()
 
@@ -119,8 +154,24 @@ def process_simple_variant(
     chrom: str,
     position: int,
     ext_key: Tuple[str, str],
-) -> Tuple[str, str, str]:
-    """Process a simple variant (not 1/2) and return base, haplotype, and key."""
+) -> Tuple[str, str, Tuple[str, int, str]]:
+    """Process a simple variant (not 1/2) and return base, haplotype, and key.
+
+    Args:
+        pileupread: Pileup read object
+        ref: Reference allele
+        alt: Alternative allele
+        gt: Genotype string
+        chrom: Chromosome name
+        position: Variant position
+        ext_key: Tuple of (read_name, flag)
+
+    Returns:
+        Tuple containing:
+            - Read base string
+            - Haplotype assignment ("1", "2", or "NA")
+            - Key tuple (chrom, position+1, read_base)
+    """
     read_base = process_read_base(pileupread, ref, alt, pileupread.query_position)
     if read_base is None:
         return "noninfo", "NA", (chrom, position + 1, "noninfo")
@@ -143,8 +194,23 @@ def process_complex_variant(
     chrom: str,
     position: int,
     ext_key: Tuple[str, str],
-) -> Tuple[str, str, str]:
-    """Process a complex variant (1/2) and return base, haplotype, and key."""
+) -> Tuple[str, str, Tuple[str, int, str]]:
+    """Process a complex variant (1/2) and return base, haplotype, and key.
+
+    Args:
+        pileupread: Pileup read object
+        ref: Reference allele
+        alt: Tuple of two alternative alleles
+        chrom: Chromosome name
+        position: Variant position
+        ext_key: Tuple of (read_name, flag)
+
+    Returns:
+        Tuple containing:
+            - Read base string
+            - Haplotype assignment ("NA" for complex variants)
+            - Key tuple (chrom, position+1, read_base)
+    """
     alt1, alt2 = alt
     if len(ref) > 1 and len(alt1) > 1 and len(alt2) > 1:
         return "noninfo", "NA", (chrom, position + 1, "noninfo")
@@ -165,25 +231,24 @@ def process_complex_variant(
 
 
 def get_variant_info(
-    feed_list: List[Tuple],
+    feed_list: Sequence[Tuple[str, int, str, Union[str, Tuple[str, str]]]],
     alignment_file: str,
     chrom: str,
     mapping_quality: int,
     include_supplementary: bool,
-) -> DefaultDict[Tuple, List[str]]:
-    """
-    Maps each read to heterozygous variants and returns a list of haplotype 1,
-    haplotype 2, and unphased variants mapped to each read.
+) -> DefaultDict[Tuple[str, int, str], Sequence[str]]:
+    """Map each read to heterozygous variants and return haplotype assignments.
 
     Args:
-        feed_list: List of variant information tuples
+        feed_list: List of variant information tuples containing:
+            (genotype, position, reference, alternative)
         alignment_file: Path to the alignment file
         chrom: Chromosome name
         mapping_quality: Minimum mapping quality threshold
         include_supplementary: Whether to include supplementary alignments
 
     Returns:
-        Dictionary mapping variant information to list of read information
+        Dictionary mapping (chrom, pos, base) to sequence of read information strings
     """
     read_var_list = defaultdict(list)
     samfile = pysam.AlignmentFile(alignment_file, "rb")
@@ -231,16 +296,24 @@ def get_variant_info(
 
 
 def write_per_read_variant_file(
-    vcf_dict,
-    bam_file,
-    chunk,
-    processes,
-    out_file,
-    mapping_quality,
-    include_supplementary,
-):
-    """
-    This function extracts per-read information for variants.
+    vcf_dict: Dict[str, Sequence[Tuple[Any, ...]]],
+    bam_file: str,
+    chunk: int,
+    processes: int,
+    out_file: str,
+    mapping_quality: int,
+    include_supplementary: bool,
+) -> None:
+    """Extract and write per-read information for variants.
+
+    Args:
+        vcf_dict: Dictionary mapping chromosomes to sequences of variant tuples
+        bam_file: Path to BAM/CRAM file
+        chunk: Size of chunks for parallel processing
+        processes: Number of parallel processes
+        out_file: Output file path
+        mapping_quality: Minimum mapping quality threshold
+        include_supplementary: Whether to include supplementary alignments
     """
     outfile = open(out_file, "w")
     for chrom, feed_list in vcf_dict.items():
@@ -287,10 +360,19 @@ def write_per_read_variant_file(
     outfile.close()
 
 
-def vcf2dict(vcf_strand, chrom):
-    """
-    Process and converts the strand-seq vcf file to a dictionary
-    for downstream use.
+def vcf2dict(vcf_strand: str, chrom: str) -> DefaultDict[str, Dict[str, str]]:
+    """Process and convert the strand-seq VCF file to a dictionary.
+
+    Args:
+        vcf_strand: Path to strand-seq VCF file
+        chrom: Chromosome to process
+
+    Returns:
+        Nested defaultdict mapping chromosome to position to genotype string
+
+    Notes:
+        Handles special cases for partially phased genotypes (.|0, 0|., etc)
+        converting them to fully phased representation
     """
     vcf_dict = defaultdict(dict)
     vcf_file = openfile(vcf_strand)
@@ -318,10 +400,23 @@ def vcf2dict(vcf_strand, chrom):
     return vcf_dict
 
 
-def strand_vcf2dict_phased(vcf_strand, vcf, include_all_variants, chrom):
-    """
-    Intersects input vcf and strand-seq vcf and stores phased
-    and unphased heterozygous variants into a dictionary for read phasing.
+def strand_vcf2dict_phased(
+    vcf_strand: str, vcf: str, include_all_variants: bool, chrom: str
+) -> Tuple[
+    DefaultDict[str, Set[Tuple[str, int, str, Union[str, Tuple[str, str]]]]], int
+]:
+    """Intersect input VCF and strand-seq VCF to store variants for read phasing.
+
+    Args:
+        vcf_strand: Path to strand-seq VCF file
+        vcf: Path to input VCF file
+        include_all_variants: Whether to include variants not marked as PASS
+        chrom: Chromosome to process
+
+    Returns:
+        Tuple containing:
+            - Dictionary mapping chromosomes to sets of variant tuples
+            - Number of strand phased variants
     """
     final_dict = defaultdict(set)
     vcf_dict = vcf2dict(vcf_strand, chrom)
@@ -362,14 +457,39 @@ def strand_vcf2dict_phased(vcf_strand, vcf, include_all_variants, chrom):
 
 
 def vcf2dict_phased(
-    blocks, vcf_strand, vcf, chrom, include_all_variants, ignore_blocks_single
-):
-    """
-    In case --phased option is given, this function uses phased variants
-    from strand-seq to correct PofO phasing switches across phased blocks
-    . This function then intersects input vcf and strand-seq vcf and
-    stores phased and unphased heterozygous variants into a
-    dictionary for read phasing.
+    blocks: Sequence[Tuple[str, int, int]],
+    vcf_strand: str,
+    vcf: str,
+    chrom: str,
+    include_all_variants: bool,
+    ignore_blocks_single: bool,
+) -> Tuple[
+    DefaultDict[str, Set[Tuple[str, int, str, Union[str, Tuple[str, str]]]]],
+    int,
+    DefaultDict[Tuple[str, str, str], int],
+]:
+    """Process phased variants using strand-seq data for switch correction.
+
+    Process phased blocks to correct switches using strand-seq data, then
+    intersect with input VCF for read phasing.
+
+    Args:
+        blocks: Sequence of (chrom, start, end) tuples defining phase blocks
+        vcf_strand: Path to strand-seq VCF file
+        vcf: Path to input VCF file
+        chrom: Chromosome to process
+        include_all_variants: Whether to include variants not marked as PASS
+        ignore_blocks_single: Whether to ignore single variant blocks
+
+    Returns:
+        Tuple containing:
+            - Dictionary mapping chromosomes to sets of variant tuples
+            - Number of strand phased variants
+            - Dictionary of phase block statistics tracking agreement/disagreement counts
+
+    Notes:
+        Uses sliding window of two variants to detect and correct switches.
+        Handles both single variant blocks and blocks with multiple variants.
     """
     final_dict = defaultdict(set)
     phase_block_stat = defaultdict(int)
