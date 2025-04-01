@@ -590,7 +590,7 @@ def process_cpg_mod_freq(
 
 
 def out_freq_methbam(
-    out: str, processes: int, reference: str, pbcg: str, pb_tech: bool
+    out: str, processes: int, reference: str, pb_tech: bool
 ) -> None:
     """Run methylation frequency analysis and process outputs.
 
@@ -601,7 +601,6 @@ def out_freq_methbam(
         out: Output file prefix path
         processes: Number of parallel processes to use
         reference: Path to reference genome
-        pbcg: Path to PacBio CpG model file
         pb_tech: True if using PacBio data, False if ONT
     """
     out_freqhp1 = out + "_Temp_NonPofO_HP1-HP2_MethylationHP1.tsv"
@@ -612,11 +611,10 @@ def out_freq_methbam(
 
         run_command(
             "aligned_bam_to_cpg_scores --bam {} --output-prefix {}"
-            " --model {} --threads {} --modsites-mode reference "
+            " --threads {} --modsites-mode reference "
             "--ref {}".format(
                 out + "_Temp-NonPofO_dmr.bam",
                 out + "_Temp-NonPofO_CpGModFreq",
-                pbcg,
                 processes,
                 reference,
             ),
@@ -624,10 +622,10 @@ def out_freq_methbam(
 
         # process cpg for aligned_bam_to_cpg_scores output
         process_cpg_mod_freq(
-            out + "_Temp-NonPofO_CpGModFreq.hap1.bed", out_freqhp1, is_modkit=False
+            out + "_Temp-NonPofO_CpGModFreq.hap1.bed.gz", out_freqhp1, is_modkit=False
         )
         process_cpg_mod_freq(
-            out + "_Temp-NonPofO_CpGModFreq.hap2.bed", out_freqhp2, is_modkit=False
+            out + "_Temp-NonPofO_CpGModFreq.hap2.bed.gz", out_freqhp2, is_modkit=False
         )
     else:
         run_command(

@@ -9,10 +9,10 @@ env_path=$(mamba info | grep -i 'active env location' | cut -d'/' -f2- | awk '{p
 r_libPaths=$(mamba info | grep -i 'active env location' | cut -d'/' -f2- | awk '{print "/"$0"/lib/R/library"}') && \
 ln -s $PWD/{patmat,Strand-seq}/* $env_path && \
 mkdir third_parties && cd third_parties && \
-wget https://github.com/PacificBiosciences/pb-CpG-tools/releases/download/v2.3.2/pb-CpG-tools-v2.3.2-x86_64-unknown-linux-gnu.tar.gz && \
-tar -xzf pb-CpG-tools-v2.3.2-x86_64-unknown-linux-gnu.tar.gz && rm *.gz && \
-chmod +x pb-CpG-tools-v2.3.2-x86_64-unknown-linux-gnu/bin/aligned_bam_to_cpg_scores && \
-ln -s $PWD/pb-CpG-tools-v2.3.2-x86_64-unknown-linux-gnu/bin/aligned_bam_to_cpg_scores $env_path
+wget https://github.com/PacificBiosciences/pb-CpG-tools/releases/download/v3.0.0/pb-CpG-tools-v3.0.0-x86_64-unknown-linux-gnu.tar.gz && \
+tar -xzf pb-CpG-tools-v3.0.0-x86_64-unknown-linux-gnu.tar.gz && rm *.gz && \
+chmod +x pb-CpG-tools-v3.0.0-x86_64-unknown-linux-gnu/bin/aligned_bam_to_cpg_scores && \
+ln -s $PWD/pb-CpG-tools-v3.0.0-x86_64-unknown-linux-gnu/bin/aligned_bam_to_cpg_scores $env_path
 patmat.py --version
 # 2- Installing ashleys-qc
 ###################################################################################################################

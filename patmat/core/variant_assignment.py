@@ -403,7 +403,6 @@ def write_paternal_variant(
         )
     else:
         out_line = "\t".join(var_info[0:10]).replace("HP1", "Pat").replace("HP2", "Mat")
-        return  # Skip writing if format doesn't match
 
     assignment_file.write(out_line + "\n")
 

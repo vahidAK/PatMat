@@ -176,7 +176,7 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
                 )
         os.remove(read_info_file)
 
-    per_var_info.clear()
+        per_var_info.clear()
 
     temp_DMR_file = out_prefix + "_temp_knownDMR.tsv"
     write_merged_dmr_regions(known_dmr, temp_DMR_file)
@@ -213,7 +213,6 @@ def main(raw_arguments: typing.Optional[typing.List[str]] = None) -> None:
         out_prefix,
         processes,
         reference,
-        os.path.abspath(args.pb_cpg_tools_model),
         args.pacbio,
     )
 
@@ -490,27 +489,6 @@ def _parse_arguments(raw_arguments: typing.List[str]) -> argparse.Namespace:
             "blocks have only a single variant from strand-seq."
             " By default those blocks will also be considered. "
             "Select this option if you wish to ignore them."
-        ),
-    )
-
-    optional.add_argument(
-        "--pb_cpg_tools_model",
-        "-pbcg",
-        action="store",
-        type=str,
-        required=False,
-        default=os.path.join(
-            "/".join(os.path.dirname(os.path.realpath(__file__)).split("/")[0:-1]),
-            "third_parties",
-            "pb-CpG-tools-v2.3.2-x86_64-unknown-linux-gnu",
-            "models",
-            "pileup_calling_model.v1.tflite",
-        ),
-        help=(
-            "If you have selected --pacbio patmat will use "
-            "aligned_bam_to_cpg_scores tool with "
-            "pileup_calling_model.v1.tflite model for methylation"
-            " extraction. You can also use another model using this option."
         ),
     )
 
