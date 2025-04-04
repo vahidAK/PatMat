@@ -569,7 +569,7 @@ def process_cpg_mod_freq(
         out.write("Chromosome\tStart\tEnd\tCov\tMod\tFreq\n")
 
     # Process file content
-    with open(input_file) as f:
+    with openfile(input_file) as f:
         with open(output_file, "a") as out:
             for line in f:
                 fields = line.strip().split("\t")
