@@ -572,6 +572,8 @@ def process_cpg_mod_freq(
     with openfile(input_file) as f:
         with open(output_file, "a") as out:
             for line in f:
+                if line.startswith("#"):
+                    continue
                 fields = line.strip().split("\t")
 
                 if is_modkit:
