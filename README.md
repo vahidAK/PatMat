@@ -168,7 +168,7 @@ The default imprinted list is for hg38 in patmat. If you are using the T2T refer
 # Outputs
 PatMat will generate multiple outputs.
 ## PofO_Assigned vcf file(s) 
-These files represent the results after assigning the parent-of-origin to variants. For small variant vcf file, for phased 0|1 or 1|0 variants the last column includes Mat|Pat (Ref is maternal and alt is paternal), or Pat|Mat (Ref is paternal and alt is maternal) and for the phased 1|2 variants the last column includes Ref_Mat|Pat (the part before comma on the 5th column, or 1st alt allele, is maternal and the part after comma, or 2nd alt allele, is paternal) or Ref_Pat|Mat (the part before comma on the 5th column, or 1st alt allele, is paternal and the part after comma, or 2nd alt allele, is maternal).  
+These files represent the results after assigning the parent-of-origin to variants. For small variant vcf file, for phased (1|0 or 0|1) variants the last column includes Mat|Pat (1|0. Ref is maternal and alt is paternal), or Pat|Mat (0|1. Ref is paternal and alt is maternal) and for the phased 1|2 variants the last column includes Ref_Mat|Pat (the part before comma on the 5th column, or 1st alt allele, is maternal and the part after comma, or 2nd alt allele, is paternal) or Ref_Pat|Mat (the part before comma on the 5th column, or 1st alt allele, is paternal and the part after comma, or 2nd alt allele, is maternal).  
 If an SV variant vcf file is also provided, PofO results will be PofO_Assignment_SVs.vcf and the parental origin of SV is directly written in the 10th column.  
 
 ## PofO_Tagged.cram
