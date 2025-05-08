@@ -443,7 +443,7 @@ process ashley_qc{
         mkdir ashleys_fail
         for i in `find "${params.output}"/bowtie2_"${params.sample_id}" -name "*.bam" -size -20k`
         do 
-            cp "\$i"* ashleys_fail
+            mv "\$i"* ashleys_fail
         done
         ashleys.py -j "${params.processes}" \
             features \
