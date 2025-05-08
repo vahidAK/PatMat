@@ -439,6 +439,12 @@ process ashley_qc{
             path("ashley_qc_command*")
     script:
         """
+        mkdir ashleys_pass
+        mkdir ashleys_fail
+        for i in `find "${params.output}"/bowtie2_"${params.sample_id}" -name "*.bam" -size -20k`
+        do 
+            mv "\$i"* ashleys_fail
+        done
         ashleys.py -j "${params.processes}" \
             features \
             -f "${params.output}"/bowtie2_"${params.sample_id}" \
@@ -449,9 +455,6 @@ process ashley_qc{
             predict -p ashleys_features.tsv \
             -o ashleys_quality.tsv \
             -m ${params.ashleys_model}
-
-        mkdir ashleys_pass
-        mkdir ashleys_fail
 
         awk 'NR>1 && \$2==1{ print \$1 }' ashleys_quality.tsv | \
             xargs -i cp "${params.output}"/bowtie2_"${params.sample_id}"/{} \
