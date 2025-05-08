@@ -731,7 +731,7 @@ def _parse_arguments(raw_arguments: typing.List[str]) -> argparse.Namespace:
     optional.add_argument(
         "--version",
         action="version",
-        version="%(prog)s 1.4.0_dev",
+        version="%(prog)s 1.4.0",
         help="Print program's version and exit",
     )
     optional.add_argument(
