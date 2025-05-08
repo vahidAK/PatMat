@@ -9,7 +9,7 @@ We will use LongRead-detected variants and their long-range phasing from Strand-
 # Installation
 The workflow is basically two parts: the long-read analysis part and the Strand-seq analysis part. All the tools needed to run the workflow can be installed by downloading/cloning this repository as explained below.  
 
-To use the tools in this repository and run the workflow, you can download the latest release or clone the repository and install the required dependencies in the [patmat_env.yml](https://github.com/vahidAK/PatMat/blob/main/env.yml) as follow:  
+To use the tools in this repository and run the workflow, you can download the latest release or clone the repository and install the required dependencies in the [patmat_env.yml](https://github.com/vahidAK/PatMat/blob/main/patmat_env.yml) as follow:  
 
 **NOTE:** You must have conda and mamba installed before installation.
 
@@ -72,10 +72,10 @@ You can use the -resume flag when rerunning a failed run to start from the step 
   
 ## Running steps separately
 Alternatively, if you already have variant data and just want to run strand-seq steps and patmat, or you want to access all the options from them that may not be covered in the nextflow script, you can run them as follows:  
-For variant calling from long-read data, you can use [Clair3](https://github.com/HKU-BAL/Clair3) or [DeepVariant](https://github.com/google/deepvariant). We also recommend phasing your VCF file after variant calling, either using the internal function of these tools or via [whatshap](https://github.com/whatshap/whatshap) or [longphase](https://github.com/twolinin/longphase) afterwards, and use the phased VCF for patmat.  
+For variant calling from long-read data, you can use [Clair3](https://github.com/HKU-BAL/Clair3) or [DeepVariant](https://github.com/google/deepvariant). We also recommend phasing your VCF file after variant calling, either using the internal function of those tools or via [whatshap](https://github.com/whatshap/whatshap) or [longphase](https://github.com/twolinin/longphase) afterwards, and use the phased VCF for patmat.  
 ### Analysis of strand-seq data
 #### Adapter trimming, alignment, and mark duplicates
-You first need to do adapter trimming, alignment, and mark duplicates of your strand-seq fastq files. Here is an example for paired-read data. You need to run the following command for each cell's fastq(s) separately. Make sure to use unique names for the output files of each cell so you do not overwrite them when analyzing data from the next cell.
+You first need to do adapter trimming, alignment, and mark duplicates of your strand-seq fastq files. Here is an example for paired-end data. You need to run the following command for each cell's fastq(s) separately. Make sure to use unique names for the output files of each cell so you do not overwrite them when analyzing data from the next cell.
 ```
 conda activate patmat
 # Adapter trimming. Run cutadapt -h for more details.
@@ -104,7 +104,7 @@ samtools index -@ number_of_processes StrandSeq_Bams/out_MarkedDup.bam
 rm StrandSeq_Bams/out_temp.bam
 ```
 #### QC of strand-seq bams using Ashleys
-We use ashleys-qc to determine low-quality data and will only use high-quality data for downstream analysis.
+After processing and aligning all the strand-seq fastq files, you need to use ashleys-qc to determine low-quality data and will only use high-quality data for downstream analysis.
 ```
 conda activate ashleys_patmat-wf
 mkdir ashleys_pass
@@ -140,7 +140,7 @@ strandseq_phase.R \
   --inversion_list which_inversion_list_to_use \
   path/to/long-read/vcf
 ```
-You can find hard mask (hard_mask.*.bed), soft mask (soft_mask.*.bed), and inversion (hanlon_2021_BMCgenomics_augmented.*.bed) files in the Strand-seq folder in the PatMat cloned/installed path.  
+You can find hard mask (hard_mask.\*.bed), soft mask (soft_mask.\*.bed), and inversion (hanlon_2021_BMCgenomics_augmented.\*.bed) files in the Strand-seq folder in the PatMat cloned/installed path.  
   
 ### PofO-Aware phasing using patmat
 After getting the phased vcf from the previous step, we can run patmat to do PofO-aware phasing.
