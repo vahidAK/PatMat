@@ -353,7 +353,7 @@ def _parse_arguments(raw_arguments: typing.List[str]) -> argparse.Namespace:
         argparse.Namespace: namespace object with parsed arguments.
     """
     parser = argparse.ArgumentParser(
-        prog="patmat.py",
+        prog="patmat",
         add_help=False,
         description="Phasing reads and Methylation "
         "using strand-seq and nanopore to determine "

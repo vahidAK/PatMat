@@ -13,7 +13,7 @@ def help_message() {
     3- Adapter trimming, alignment, and QC of strand-seq data using cutadapt, 
         bowtie2, and ashleys-qc, respectively.
     4- Phasing small variants via strand-seq data using StrandPhaseR.
-    5- Phasing and PofO assignment by also using LongPhase/WhatsHap phased blocks using patmat.py.
+    5- Phasing and PofO assignment by also using LongPhase/WhatsHap phased blocks using patmat.
     ======================================================================================================================
     Usage:
     To run the nextflow: nextflow run patmat_workflow.nf -with-report -with-conda <specified optiones below>
@@ -24,11 +24,10 @@ def help_message() {
                         (e.g. run bowtie2-build ref.fa ref.fa).
       --bam             Absolute Path to the long-read bam file with methylation tag.
       --output          Absolute Path to output directory
-      --ashleys_model   Absolute Path to ashleys model pkl file.
       --strandseq_fq    Absolute path to the folder with strand-seq fastqs. NOTE: if your data are paired end, 
                         the paired reads must be in two different fastq files and the files must be named like 
-                        UniqueID_R1.fastq and UniqueID_R2.fastq OR *_R1.fq and *_R2.fq (zipped .gz files are 
-                        allowed. e.g. *_R1.fastq.gz). Unique ID will be a unique ID of each seqeunced cell.
+                        UniqueID_R1.fastq and UniqueID_R2.fastq OR *_R1.fq and *_R2.fq (gzipped .gz files are 
+                        allowed. e.g. *_R1.fastq.gz). Unique ID will be a unique ID of each sequenced cell.
       --patmat_dir      Absolute path to the patmat github directory you have cloned/downloaded. /path/to/PatMat
     Optional arguments:
       --bsgenome        BSgenome Genome version to use for strand-seq phasing. Default is
@@ -39,18 +38,19 @@ def help_message() {
                         See other available lists in the PatMat Strand-seq directory. 
       --soft_mask       Absolute path to soft_mask list for strand-seq phasing. default is soft_mask.GRCh38.bed. 
                         See other available lists in the PatMat Strand-seq directory.
-      --inversion_list  path to the inversion_list for strand-seq phasing. Default is hanlon_2021_BMCgenomics_augmented.Merged.GRCh38.bed.
+      --inversion_list  path to the inversion_list for strand-seq phasing. Default is hanlon_2021_BMCgenomics_augmented.GRCh38.bed.
                         See other available lists in the PatMat Strand-seq directory.
       --sample_id       Sample id. Will be also used as output prefix. Default is Sample
-      --hifi            Select this option if long-read data is from PacBio
+      --hifi            Select this option if long-read data is from PacBio.
+      --ashleys_model   Absolute Path to ashleys model pkl file. Default model is svc_default.pkl.
       --processes       Number of processes. Default is 10.
       --single          Select this if strand-seq is single-end and not paired
-      --whatshap        Slelect this if you want to use whatshap instead of longphase
+      --longphase       Slelect this if you want to use longphase instead of whatshap
       --deepvar_model   <WGS|WES|PACBIO|ONT_R104|HYBRID_PACBIO_ILLUMINA>. Type of model to use 
                         for variant calling using deepvariant. Default is ONT_R104. 
       --clair3          Slelect this if you want to use clair3 instead of deepvariant
       --clair3_model    Specify the absolute path to clair3 model using this option if you want 
-                        to use clair3 instead of deepvariant.
+                        to use clair3 instead of deepvariant. Default model is r1041_e82_400bps_sup_v420.
       --adapter_3R1     3 prime adapter of R1 for adapter trimming step. Default is
                         AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNNNATCTCGTATGCCGTCTTCTGCTTG
       --adapter_5R1     5 prime adapter of R1 for adapter trimming step. Default is
@@ -73,7 +73,7 @@ if (params.help){
 params.reference = "reference file: not specified"
 params.bam= "bam file: not specified"
 params.output= "output directory: not specified"
-params.ashleys_model= "ashleys model: not specified"
+params.ashleys_model= "${params.patmat_dir}/third_parties/ashleys-qc-0.2.0/models/svc_default.pkl"
 params.deepvar_model= "ONT_R104"
 params.strandseq_fq= "strand-seq fastqs folder: not specified"
 params.patmat_dir= "PatMat dir"
@@ -83,15 +83,15 @@ params.bsgenome= "BSgenome.Hsapiens.UCSC.hg38"
 params.known_dmr= "${params.patmat_dir}/patmat/Imprinted_DMR_List_V1.GRCh38.tsv"
 params.hard_mask= "${params.patmat_dir}/Strand-seq/hard_mask.GRCh38.bed"
 params.soft_mask= "${params.patmat_dir}/Strand-seq/soft_mask.GRCh38.bed"
-params.inversion_list= "${params.patmat_dir}/Strand-seq/hanlon_2021_BMCgenomics_augmented.Merged.GRCh38.bed"
+params.inversion_list= "${params.patmat_dir}/Strand-seq/hanlon_2021_BMCgenomics_augmented.GRCh38.bed"
 params.adapter_3R1= "AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNNNATCTCGTATGCCGTCTTCTGCTTG"
 params.adapter_5R1= "AATGATACGGCGACCACCGAGATCTACACNNNNNNNNACACTCTTTCCCTACACGACGCTCTTCCGATCT"
 params.adapter_3R2= "AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTNNNNNNNNGTGTAGATCTCGGTGGTCGCCGTATCATT"
 params.adapter_5R2= "CAAGCAGAAGACGGCATACGAGATNNNNNNNNGTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT"
-params.clair3_model = "clair3 model: not specified. --clair3 is false and deepvariant will be used."
+params.clair3_model = "${params.patmat_dir}/third_parties/clair3_models/r1041_e82_400bps_sup_v420"
 params.clair3 = false
 params.single = false
-params.whatshap = false
+params.longphase = false
 params.hifi = false
 
 def selected_params() {
@@ -113,7 +113,7 @@ def selected_params() {
     --clair3 ${params.clair3}
     --clair3_model ${params.clair3_model}
     --single ${params.single}
-    --whatshap ${params.whatshap}
+    --longphase ${params.longphase}
     --hifi ${params.hifi}
     --adapter_3R1 ${params.adapter_3R1}
     --adapter_5R1 ${params.adapter_5R1}
@@ -133,7 +133,7 @@ else {
 // Small Variant Calling
 process small_variant_calling{
     tag "${params.sample_id}"
-    conda '/projects/vakbari_prj/anaconda3/envs/clair3_patmat-wf'
+    conda 'clair3_patmat-wf'
     publishDir "${params.output}/small_variant_results_${params.sample_id}", mode: 'copy'
     input:
         path(bam)
@@ -206,7 +206,7 @@ process small_variant_calling{
 // SV Calling
 process large_variant_calling{
     tag "${params.sample_id}"
-    conda '/projects/vakbari_prj/anaconda3/envs/patmat'
+    conda 'patmat'
     publishDir "${params.output}/sniffles_results_${params.sample_id}", mode: 'copy'
     input:
         path(bam)
@@ -231,7 +231,7 @@ process large_variant_calling{
 // Phasing Long Reads
 process phase_long_reads{
     tag "${params.sample_id}"
-    conda '/projects/vakbari_prj/anaconda3/envs/patmat'
+    conda 'patmat'
     publishDir "${params.output}/LongReadPhased_${params.sample_id}", mode: 'copy'
     input:
         tuple path(pass_vcf), path(vcf), path(prev_log_cl)
@@ -245,18 +245,7 @@ process phase_long_reads{
             path("${params.sample_id}_*.vcf.gz.tbi"),
             path("phase_long_reads_command*")
     script:
-        if ( params.whatshap ) {
-            """
-            whatshap phase --ignore-read-groups \
-                -o "${params.sample_id}"_WhatsHap.vcf \
-                --reference="$ref" "$pass_vcf" "$bam"
-            bgzip "${params.sample_id}"_WhatsHap.vcf
-            tabix -p vcf "${params.sample_id}"_WhatsHap.vcf.gz
-            cp .command.log phase_long_reads_command.log
-            cp .command.sh phase_long_reads_command.sh
-            """
-        }
-        else {
+        if ( params.longphase ) {
             if (params.hifi) {
                 """
                 longphase phase \
@@ -280,13 +269,24 @@ process phase_long_reads{
                 """
             }
         }
+        else {
+            """
+            whatshap phase --ignore-read-groups \
+                -o "${params.sample_id}"_WhatsHap.vcf \
+                --reference="$ref" "$pass_vcf" "$bam"
+            bgzip "${params.sample_id}"_WhatsHap.vcf
+            tabix -p vcf "${params.sample_id}"_WhatsHap.vcf.gz
+            cp .command.log phase_long_reads_command.log
+            cp .command.sh phase_long_reads_command.sh
+            """
+        }
 }
 
 
 // Adapter Trimming Of Strand-Seq Paired-End Reads
 process strandseq_cutadapt_pair {
     tag "${params.sample_id}"
-    conda '/projects/vakbari_prj/anaconda3/envs/patmat'
+    conda 'patmat'
     publishDir "${params.output}/cutadapt_${params.sample_id}", mode: 'copy'
     cpus "${params.processes}"
     input:
@@ -321,7 +321,7 @@ process strandseq_cutadapt_pair {
 // Adapter Trimming Of Strand-Seq Single-End Reads
 process strandseq_cutadapt_single {
     tag "${params.sample_id}"
-    conda '/projects/vakbari_prj/anaconda3/envs/patmat'
+    conda 'patmat'
     publishDir "${params.output}/cutadapt_${params.sample_id}", mode: 'copy'
     cpus "${params.processes}"
     input:
@@ -350,7 +350,7 @@ process strandseq_cutadapt_single {
 // Alignment Of Strand-Seq Paired-End Reads
 process strandseq_bowtie_pair {
     tag "${params.sample_id}"
-    conda '/projects/vakbari_prj/anaconda3/envs/patmat'
+    conda 'patmat'
     publishDir "${params.output}/bowtie2_${params.sample_id}", mode: 'copy'
     cpus "${params.processes}"
     input:
@@ -391,7 +391,7 @@ process strandseq_bowtie_pair {
 // Alignment Of Strand-Seq Single-End Reads
 process strandseq_bowtie_single {
     tag "${params.sample_id}"
-    conda '/projects/vakbari_prj/anaconda3/envs/patmat'
+    conda 'patmat'
     publishDir "${params.output}/bowtie2_${params.sample_id}", mode: 'copy'
     cpus "${params.processes}"
     input:
@@ -428,7 +428,7 @@ process strandseq_bowtie_single {
 // QC Strand-Seq Data
 process ashley_qc{
     tag "${params.sample_id}"
-    conda '/projects/vakbari_prj/anaconda3/envs/ashleys_patmat-wf'
+    conda 'ashleys_patmat-wf'
     publishDir "${params.output}/bowtie2_${params.sample_id}", mode: 'copy'
     input:
         val(bowtie_out)
@@ -469,15 +469,15 @@ process ashley_qc{
 // Phasing Of Strand-Seq Reads
 process strandseq_phase {
     tag "${params.sample_id}"
-    conda '/projects/vakbari_prj/anaconda3/envs/patmat'
+    conda 'patmat'
     publishDir "${params.output}/strandseq_phase_${params.sample_id}", mode: 'copy'
     input:
         tuple path(ashleys_pass_bam_folder),
             path(ashleys_fail_bam_folder),
             path(ashleys_qual_feature),
             path(prev_log_as)
-        tuple path(clair3_pass_vcf), 
-            path(clair3_vcf),
+        tuple path(pass_vcf), 
+            path(vcf),
             path(prev_log_cl)
     output:
         tuple path("${params.sample_id}.strandseqphased.inv_aware.vcf"),
@@ -494,7 +494,7 @@ process strandseq_phase {
                 --hard_mask ${params.hard_mask} \
                 --soft_mask ${params.soft_mask} \
                 --inversion_list ${params.inversion_list} \
-                ${clair3_pass_vcf}
+                ${pass_vcf}
             cp .command.log strandseq_phase_command.log
             cp .command.sh strandseq_phase_command.sh
             """
@@ -510,7 +510,7 @@ process strandseq_phase {
                 --hard_mask ${params.hard_mask} \
                 --soft_mask ${params.soft_mask} \
                 --inversion_list ${params.inversion_list} \
-                ${clair3_vcf}
+                ${pass_vcf}
             cp .command.log strandseq_phase_command.log
             cp .command.sh strandseq_phase_command.sh
             """
@@ -521,7 +521,7 @@ process strandseq_phase {
 // Phasing Of Nanopore Reads and PofO Assignment
 process patmat {
     tag "${params.sample_id}"
-    conda '/projects/vakbari_prj/anaconda3/envs/patmat'
+    conda 'patmat'
     publishDir "${params.output}/patmat_${params.sample_id}", mode: 'move'
     input:
         path(bam_file)
@@ -541,7 +541,7 @@ process patmat {
     script:
         if (params.hifi){
             """
-            patmat.py \
+            patmat \
                 -v ${longphase_vcf} \
                 -b ${bam_file} -stv ${strandseq_phased_vcf} \
                 -o "${params.sample_id}" \
@@ -554,7 +554,7 @@ process patmat {
         }
         else{
             """
-            patmat.py \
+            patmat \
                 -v ${longphase_vcf} \
                 -b ${bam_file} -stv ${strandseq_phased_vcf} \
                 -o "${params.sample_id}" \
