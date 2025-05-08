@@ -292,7 +292,7 @@ process strandseq_cutadapt_pair {
     input:
         tuple val(id),
             path(fastq_files)
-        tuple path(longphase_vcf), 
+        tuple path(LongReadPhased_vcf), 
             path(longphase_index),
             path(prev_log_lp)
     output:
@@ -326,7 +326,7 @@ process strandseq_cutadapt_single {
     cpus "${params.processes}"
     input:
         path(fastq_file)
-        tuple path(longphase_vcf), 
+        tuple path(LongReadPhased_vcf), 
             path(longphase_index),
             path(prev_log_lp)
     output:
@@ -443,7 +443,7 @@ process ashley_qc{
         mkdir ashleys_fail
         for i in `find "${params.output}"/bowtie2_"${params.sample_id}" -name "*.bam" -size -20k`
         do 
-            mv "\$i"* ashleys_fail
+            cp "\$i"* ashleys_fail
         done
         ashleys.py -j "${params.processes}" \
             features \
@@ -529,7 +529,7 @@ process patmat {
     input:
         path(bam_file)
         path(bam_index)
-        tuple path(longphase_vcf), 
+        tuple path(LongReadPhased_vcf), 
             path(longphase_index),
             path(prev_log_lp)
         tuple path(sniffles_vcf),
@@ -545,7 +545,7 @@ process patmat {
         if (params.hifi){
             """
             patmat \
-                -v ${longphase_vcf} \
+                -v ${LongReadPhased_vcf} \
                 -b ${bam_file} -stv ${strandseq_phased_vcf} \
                 -o "${params.sample_id}" \
                 -p ${params.processes} -sv_vcf ${sniffles_vcf} \
@@ -558,7 +558,7 @@ process patmat {
         else{
             """
             patmat \
-                -v ${longphase_vcf} \
+                -v ${LongReadPhased_vcf} \
                 -b ${bam_file} -stv ${strandseq_phased_vcf} \
                 -o "${params.sample_id}" \
                 -p ${params.processes} -sv_vcf ${sniffles_vcf} \
