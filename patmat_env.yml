@@ -1,0 +1,39 @@
+name: patmat
+channels:
+  - bioconda
+  - conda-forge
+  - epi2melabs
+dependencies:
+  - python=3.10.*
+  - pip
+  - r-base=4.3.3
+  - bioconda::bcftools
+  - conda-forge::gsl
+  - pysam>=0.21.0
+  - pytabix
+  - tabix
+  - tqdm
+  - singularity>=3.5.2
+  - picard>=3.2.0
+  - samtools>=1.15
+  - nanoporetech::longphase>=1.7.3
+  - bowtie2>=2.5.1
+  - cutadapt>=4.9
+  - ont-modkit>=0.3.2
+  - bioconductor-dss>=2.48.0
+  - sniffles>=2.4
+  - r-pak>=0.7.2
+  - r-argparse
+  - bioconductor-bsgenome.hsapiens.ucsc.hg38=1.4.5
+  - bioconductor-bsgenome.hsapiens.ncbi.t2t.chm13v2.0=1.5.0
+  - bioconductor-bsgenome.hsapiens.ucsc.hs1=1.4.4
+  - r-r.utils>=2.12.3
+  - r-sys>=3.4.2
+  - r-tibble>=3.2.1
+  - r-ggplot2>=3.5.1
+  - r-devtools>=2.4.5
+  - r-httr>=1.4.7
+  - nextflow>=24.04.4
+  - pip:
+    - poetry
+    - whatshap>=2.3
