@@ -1,13 +1,13 @@
 # PatMat:  
 ![](docs/FlowChart.png)  
 
-This workflow enables simultaneous chromosome-scale haplotyping and parent-of-origin detection in a single sample without any parental data using a combination of nanopore sequencing and Strand-seq.
-We will use nanopore-detected variants and their long-range phasing from Strand-seq to detect chromosome-scale haplotypes. We then use DNA methylation information at known imprinted regions to detect parent-of-origin.  
+This workflow enables simultaneous chromosome-scale haplotyping and parent-of-origin detection in a single sample without any parental data using a combination of long-read sequencing and Strand-seq.
+We will use LongRead-detected variants and their long-range phasing from Strand-seq to detect chromosome-scale haplotypes. We then use DNA methylation information from long-read data at known imprinted regions to detect parent-of-origin.  
 
 **Citation:** [Parent-of-origin detection and chromosome-scale haplotyping using long-read DNA methylation sequencing and Strand-seq (https://www.cell.com/cell-genomics/fulltext/S2666-979X(22)00191-4)  
 
 # Installation
-The workflow is basically two parts, the nanopore analysis part and the Strand-seq analysis part. All the tools needed to run the workflow can be installed by downloading/cloning this repository as explained below.  
+The workflow is basically two parts: the long-read analysis part and the Strand-seq analysis part. All the tools needed to run the workflow can be installed by downloading/cloning this repository as explained below.  
 
 To use the tools in this repository and run the workflow, you can download the latest release or clone the repository and install the required dependencies in the [patmat_env.yml](https://github.com/vahidAK/PatMat/blob/main/env.yml) as follow:  
 
@@ -38,7 +38,7 @@ devtools::install_github("vincent-hanlon/InvertypeR")
 ```
 # Tutorial
 ## Running all the steps from an alignment file through the nextflow workflow
-The above commands will create three conda environments (including patmat, ashleys_patmat-wf, and clair3_patmat-wf), which allows running all the steps for PofO-aware phasing from a nanopore bam file with methylation tags. We have provided a nextflow workflow, [patmat_workflow.nf](https://github.com/vahidAK/PatMat/blob/main/patmat_workflow.nf), that can run all the steps from a long-read alignment file with methylation tags, including variant calling, phasing, strand-seq data analysis, and PofO-aware phasing. During workflow run, Nexflow will generate a ```work``` directory and store temp files there. Final results are moved to their respective folders. After a successful run, you may remove the ```work``` folder.    
+The above commands will create three conda environments (including patmat, ashleys_patmat-wf, and clair3_patmat-wf), which allow running all the steps for PofO-aware phasing from a long-read alignment file with methylation tags. We have provided a nextflow workflow, [patmat_workflow.nf](https://github.com/vahidAK/PatMat/blob/main/patmat_workflow.nf), that can run all the steps from a long-read alignment file with methylation tags, including variant calling, phasing, strand-seq data analysis, and PofO-aware phasing. During workflow run, Nexflow will generate a ```work``` directory and store temp files there. Final results are moved to their respective folders. After a successful run, you may remove the ```work``` folder.    
 NOTE: The workflow only supports hg38 or T2T-CHM13v2Hs1 mapped data.  
 NOTE: Reference file must be indexed by samtools and must also include indexes for bowtie2 (You can use bowtie2-build for indexing. For bowtie2 indexing, you must use the reference name as base name).
 
